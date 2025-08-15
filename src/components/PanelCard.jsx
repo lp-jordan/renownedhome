@@ -1,10 +1,27 @@
-export default function PanelCard({ className = "", children }) {
+export default function PanelCard({
+  className = "",
+  imageSrc,
+  label,
+  onClick,
+}) {
   return (
     <div
-      className={`w-full h-full border-4 ${className}`}
+      className={`relative w-full h-full border-4 overflow-hidden ${className}`}
       style={{ borderColor: "var(--border)" }}
+      onClick={onClick}
     >
-      {children}
+      {imageSrc && (
+        <img
+          src={imageSrc}
+          alt={label}
+          className="object-cover w-full h-full"
+        />
+      )}
+      {label && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          {label}
+        </div>
+      )}
     </div>
   );
 }
