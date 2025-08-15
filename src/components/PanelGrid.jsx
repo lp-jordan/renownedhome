@@ -27,13 +27,13 @@ export default function PanelGrid() {
       </div>
       <div className="grid h-full grid-cols-3 gap-4">
         <PanelCard
-          className="bg-blue-500 h-full col-span-1"
+          className="bg-blue-500 h-full col-span-2"
           imageSrc="https://via.placeholder.com/200x133?text=Team"
           label="TEAM"
           to="/team"
         />
         <PanelCard
-          className="bg-blue-400 h-full col-span-2"
+          className="bg-blue-400 h-full col-span-1"
           imageSrc="https://via.placeholder.com/400x267?text=Contact"
           label="CONTACT"
           to="/contact"
