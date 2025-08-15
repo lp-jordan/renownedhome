@@ -8,8 +8,7 @@ export default function PanelCard({
 }) {
   return (
     <div
-      className={`relative w-full border-4 overflow-hidden aspect-[3/2] ${className}`}
-      style={{ borderColor: "var(--border)" }}
+      className={`relative w-full h-full overflow-hidden ${className}`}
       onClick={onClick}
     >
       {imageSrc && (
