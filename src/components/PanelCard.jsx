@@ -19,7 +19,9 @@ export default function PanelCard({
       )}
       {label && (
         <div className="absolute inset-0 flex items-center justify-center">
-          {label}
+          <span className="text-black font-bold uppercase text-center">
+            {label}
+          </span>
         </div>
       )}
     </div>
