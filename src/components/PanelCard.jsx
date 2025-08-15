@@ -2,6 +2,8 @@ export default function PanelCard({
   className = "",
   imageSrc,
   label,
+  // Handler for when the panel is clicked.
+  // TODO: Wire this up to navigation once routing is added.
   onClick,
 }) {
   return (
