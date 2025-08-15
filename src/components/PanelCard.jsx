@@ -16,7 +16,7 @@ export default function PanelCard({
         <img
           src={imageSrc}
           alt={label}
-          className="object-cover w-full h-full"
+          className="absolute inset-0 w-full h-full object-cover"
         />
       )}
       <div className="absolute inset-0 bg-black opacity-0 transition-opacity duration-300 group-hover:opacity-20 pointer-events-none" />
