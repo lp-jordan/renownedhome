@@ -1,25 +1,26 @@
 export default function PanelCard({
+  className = "",
   imageSrc,
   label,
   onClick,
-  className = "",
 }) {
   return (
     <div
-      onClick={onClick}
-      className={`relative group cursor-pointer w-full h-full overflow-hidden border-4 ${className}`}
+      className={`relative w-full h-full border-4 overflow-hidden ${className}`}
       style={{ borderColor: "var(--border)" }}
+      onClick={onClick}
     >
       {imageSrc && (
         <img
           src={imageSrc}
           alt={label}
-          className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+          className="object-cover w-full h-full"
         />
       )}
-      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition" />
       {label && (
-        <span className="absolute bottom-2 left-2 z-10 text-white">{label}</span>
+        <div className="absolute inset-0 flex items-center justify-center">
+          {label}
+        </div>
       )}
     </div>
   );
