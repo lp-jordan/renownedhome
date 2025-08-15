@@ -2,10 +2,10 @@ import PanelCard from "./PanelCard";
 
 export default function PanelGrid() {
   return (
-    <div className="flex flex-col gap-4 w-full h-full">
-      <div className="grid grid-cols-1 gap-4">
+    <div className="grid grid-rows-3 gap-4 w-full h-full">
+      <div className="grid h-full grid-cols-1 gap-4">
         <PanelCard
-          className="bg-blue-900"
+          className="bg-blue-900 h-full"
           imageSrc="https://via.placeholder.com/600x300?text=Panel+1"
           label="Panel 1"
           onClick={() => {
@@ -14,9 +14,9 @@ export default function PanelGrid() {
           }}
         />
       </div>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-1">
+      <div className="grid h-full grid-cols-2 gap-4 sm:grid-cols-1">
         <PanelCard
-          className="bg-blue-700"
+          className="bg-blue-700 h-full"
           imageSrc="https://via.placeholder.com/300x200?text=Panel+2"
           label="Panel 2"
           onClick={() => {
@@ -25,7 +25,7 @@ export default function PanelGrid() {
           }}
         />
         <PanelCard
-          className="bg-blue-600"
+          className="bg-blue-600 h-full"
           imageSrc="https://via.placeholder.com/300x200?text=Panel+3"
           label="Panel 3"
           onClick={() => {
@@ -34,9 +34,9 @@ export default function PanelGrid() {
           }}
         />
       </div>
-      <div className="grid grid-cols-3 gap-4 sm:grid-cols-1">
+      <div className="grid h-full grid-cols-3 gap-4 sm:grid-cols-1">
         <PanelCard
-          className="bg-blue-500 col-span-1"
+          className="bg-blue-500 h-full col-span-1 sm:col-span-1"
           imageSrc="https://via.placeholder.com/200x133?text=Panel+4"
           label="Panel 4"
           onClick={() => {
@@ -45,7 +45,7 @@ export default function PanelGrid() {
           }}
         />
         <PanelCard
-          className="bg-blue-400 col-span-2"
+          className="bg-blue-400 h-full col-span-2 sm:col-span-1"
           imageSrc="https://via.placeholder.com/400x267?text=Panel+5"
           label="Panel 5"
           onClick={() => {

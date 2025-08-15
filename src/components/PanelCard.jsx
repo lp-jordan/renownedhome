@@ -8,7 +8,7 @@ export default function PanelCard({
 }) {
   return (
     <div
-      className={`relative w-full overflow-hidden aspect-[3/2] ${className}`}
+      className={`relative w-full h-full overflow-hidden ${className}`}
       onClick={onClick}
     >
       {imageSrc && (
