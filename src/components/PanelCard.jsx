@@ -9,7 +9,8 @@ export default function PanelCard({
 }) {
   const content = (
     <div
-      className={`relative w-full h-full overflow-hidden cursor-pointer group ${className}`}
+      className={`relative w-full h-full overflow-hidden cursor-pointer group border bg-[var(--background)] ${className}`}
+      style={{ borderColor: "var(--border)" }}
     >
       {imageSrc && (
         <img
