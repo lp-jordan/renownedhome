@@ -1,7 +1,7 @@
 import PanelCard from "./PanelCard";
 export default function PanelGrid() {
   return (
-    <div className="grid grid-cols-2 grid-rows-3 gap-2 w-full h-full">
+    <div className="grid grid-cols-2 grid-rows-3 gap-2 w-full h-full sm:grid-cols-1 sm:grid-rows-6">
       <PanelCard
         className="bg-faded-rust col-span-2"
         imageSrc="https://via.placeholder.com/300x150?text=Panel+1"
