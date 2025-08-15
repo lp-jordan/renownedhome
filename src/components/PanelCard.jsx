@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 
 export default function PanelCard({
   className = "",
@@ -20,9 +21,12 @@ export default function PanelCard({
       <div className="absolute inset-0 bg-black opacity-0 transition-opacity duration-300 group-hover:opacity-20 pointer-events-none" />
       {label && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-black font-bold uppercase text-center">
+          <motion.span
+            layoutId={label}
+            className="text-black font-bold uppercase text-center"
+          >
             {label}
-          </span>
+          </motion.span>
         </div>
       )}
     </div>
