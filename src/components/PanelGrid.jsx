@@ -14,7 +14,7 @@ export default function PanelGrid() {
           }}
         />
       </div>
-      <div className="grid h-full grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid h-full grid-cols-2 gap-4">
         <PanelCard
           className="bg-blue-700 h-full"
           imageSrc="https://via.placeholder.com/300x200?text=Panel+2"
@@ -34,9 +34,9 @@ export default function PanelGrid() {
           }}
         />
       </div>
-      <div className="grid h-full grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid h-full grid-cols-3 gap-4">
         <PanelCard
-          className="bg-blue-500 h-full col-span-1 sm:col-span-1"
+          className="bg-blue-500 h-full col-span-1"
           imageSrc="https://via.placeholder.com/200x133?text=Panel+4"
           label="Panel 4"
           onClick={() => {
@@ -45,7 +45,7 @@ export default function PanelGrid() {
           }}
         />
         <PanelCard
-          className="bg-blue-400 h-full col-span-1 sm:col-span-2"
+          className="bg-blue-400 h-full col-span-2"
           imageSrc="https://via.placeholder.com/400x267?text=Panel+5"
           label="Panel 5"
           onClick={() => {
