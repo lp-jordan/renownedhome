@@ -8,7 +8,7 @@ export default function PanelCard({
 }) {
   return (
     <div
-      className={`relative w-full h-full overflow-hidden ${className}`}
+      className={`relative w-full h-full overflow-hidden cursor-pointer transition-transform duration-300 hover:scale-105 ${className}`}
       onClick={onClick}
     >
       {imageSrc && (
