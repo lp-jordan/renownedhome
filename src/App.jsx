@@ -12,6 +12,8 @@ const Team = lazy(() => import("./pages/Team"));
 const Contact = lazy(() => import("./pages/Contact"));
 
 export default function App() {
+  const location = useLocation();
+
   return (
     <div
       className="relative w-screen h-screen overflow-hidden border-4 p-4"
