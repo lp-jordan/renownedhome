@@ -8,7 +8,7 @@ export default function PanelCard({
 }) {
   const content = (
     <div
-      className={`relative w-full h-full overflow-hidden cursor-pointer transition-transform duration-300 hover:scale-105 ${className}`}
+      className={`relative w-full h-full overflow-hidden cursor-pointer group ${className}`}
     >
       {imageSrc && (
         <img
@@ -17,9 +17,12 @@ export default function PanelCard({
           className="object-cover w-full h-full"
         />
       )}
+      <div className="absolute inset-0 bg-black opacity-0 transition-opacity duration-300 group-hover:opacity-20 pointer-events-none" />
       {label && (
         <div className="absolute inset-0 flex items-center justify-center">
-          {label}
+          <span className="text-black font-bold uppercase text-center">
+            {label}
+          </span>
         </div>
       )}
     </div>
