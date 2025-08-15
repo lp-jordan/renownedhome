@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { LayoutGroup } from "framer-motion";
 import BackButton from "./components/BackButton";
 import DarkModeToggle from "./components/DarkModeToggle";
