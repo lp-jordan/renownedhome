@@ -31,15 +31,15 @@ export default function PanelGrid() {
           to="/world"
         />
       </div>
-      <div className="grid h-full grid-cols-3 gap-4">
+      <div className="grid h-full grid-cols-2 gap-4">
         <PanelCard
-          className="bg-white h-full col-span-1"
+          className="bg-white h-full"
           imageSrc={teamImg}
           label="TEAM"
           to="/team"
         />
         <PanelCard
-          className="bg-white h-full col-span-2"
+          className="bg-white h-full"
           imageSrc={contactImg}
           label="CONTACT"
           to="/contact"
