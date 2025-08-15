@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function BackButton() {
   const [hovered, setHovered] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <button
@@ -12,6 +14,7 @@ export default function BackButton() {
       style={{ borderColor: "var(--border)" }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={() => navigate(-1)}
     >
       Base
     </button>

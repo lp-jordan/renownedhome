@@ -1,15 +1,14 @@
+import { Link } from "react-router-dom";
+
 export default function PanelCard({
   className = "",
   imageSrc,
   label,
-  // Handler for when the panel is clicked.
-  // TODO: Wire this up to navigation once routing is added.
-  onClick,
+  to,
 }) {
-  return (
+  const content = (
     <div
       className={`relative w-full h-full overflow-hidden cursor-pointer transition-transform duration-300 hover:scale-105 ${className}`}
-      onClick={onClick}
     >
       {imageSrc && (
         <img
@@ -24,5 +23,13 @@ export default function PanelCard({
         </div>
       )}
     </div>
+  );
+
+  return to ? (
+    <Link to={to} className="block h-full">
+      {content}
+    </Link>
+  ) : (
+    content
   );
 }
