@@ -6,52 +6,37 @@ export default function PanelGrid() {
       <div className="grid h-full grid-cols-1 gap-4">
         <PanelCard
           className="bg-blue-900 h-full"
-          imageSrc="https://via.placeholder.com/600x300?text=Panel+1"
-          label="Panel 1"
-          onClick={() => {
-            console.log("Panel 1 clicked");
-            // TODO: Route to Panel 1 subpage
-          }}
+          imageSrc="https://via.placeholder.com/600x300?text=Read"
+          label="READ"
+          to="/read"
         />
       </div>
       <div className="grid h-full grid-cols-2 gap-4">
         <PanelCard
           className="bg-blue-700 h-full"
-          imageSrc="https://via.placeholder.com/300x200?text=Panel+2"
-          label="Panel 2"
-          onClick={() => {
-            console.log("Panel 2 clicked");
-            // TODO: Route to Panel 2 subpage
-          }}
+          imageSrc="https://via.placeholder.com/300x200?text=Buy"
+          label="BUY"
+          to="/buy"
         />
         <PanelCard
           className="bg-blue-600 h-full"
-          imageSrc="https://via.placeholder.com/300x200?text=Panel+3"
-          label="Panel 3"
-          onClick={() => {
-            console.log("Panel 3 clicked");
-            // TODO: Route to Panel 3 subpage
-          }}
+          imageSrc="https://via.placeholder.com/300x200?text=World"
+          label="WORLD"
+          to="/world"
         />
       </div>
       <div className="grid h-full grid-cols-3 gap-4">
         <PanelCard
           className="bg-blue-500 h-full col-span-1"
-          imageSrc="https://via.placeholder.com/200x133?text=Panel+4"
-          label="Panel 4"
-          onClick={() => {
-            console.log("Panel 4 clicked");
-            // TODO: Route to Panel 4 subpage
-          }}
+          imageSrc="https://via.placeholder.com/200x133?text=Team"
+          label="TEAM"
+          to="/team"
         />
         <PanelCard
           className="bg-blue-400 h-full col-span-2"
-          imageSrc="https://via.placeholder.com/400x267?text=Panel+5"
-          label="Panel 5"
-          onClick={() => {
-            console.log("Panel 5 clicked");
-            // TODO: Route to Panel 5 subpage
-          }}
+          imageSrc="https://via.placeholder.com/400x267?text=Contact"
+          label="CONTACT"
+          to="/contact"
         />
       </div>
     </div>
