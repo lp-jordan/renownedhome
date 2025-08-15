@@ -1,12 +1,18 @@
 import PanelCard from "./PanelCard";
 
+import readImg from "../assets/panels/read.jpg";
+import buyImg from "../assets/panels/buy.jpg";
+import worldImg from "../assets/panels/world.jpg";
+import teamImg from "../assets/panels/team.jpg";
+import contactImg from "../assets/panels/contact.jpg";
+
 export default function PanelGrid() {
   return (
     <div className="grid grid-rows-3 gap-4 w-full h-full">
       <div className="grid h-full grid-cols-1 gap-4">
         <PanelCard
           className="bg-white h-full"
-          imageSrc="https://via.placeholder.com/600x300?text=Read"
+          imageSrc={readImg}
           label="READ"
           to="/read"
         />
@@ -14,13 +20,13 @@ export default function PanelGrid() {
       <div className="grid h-full grid-cols-2 gap-4">
         <PanelCard
           className="bg-white h-full"
-          imageSrc="https://via.placeholder.com/300x200?text=Buy"
+          imageSrc={buyImg}
           label="BUY"
           to="/buy"
         />
         <PanelCard
           className="bg-white h-full"
-          imageSrc="https://via.placeholder.com/300x200?text=World"
+          imageSrc={worldImg}
           label="WORLD"
           to="/world"
         />
@@ -28,13 +34,13 @@ export default function PanelGrid() {
       <div className="grid h-full grid-cols-3 gap-4">
         <PanelCard
           className="bg-white h-full col-span-1"
-          imageSrc="https://via.placeholder.com/200x133?text=Team"
+          imageSrc={teamImg}
           label="TEAM"
           to="/team"
         />
         <PanelCard
           className="bg-white h-full col-span-2"
-          imageSrc="https://via.placeholder.com/400x267?text=Contact"
+          imageSrc={contactImg}
           label="CONTACT"
           to="/contact"
         />
