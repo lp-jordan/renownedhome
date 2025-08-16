@@ -17,7 +17,7 @@ export default function Read() {
       {/* Hero Section */}
       <motion.section
         layoutId="READ"
-        className="relative w-full h-[75vh] md:h-screen"
+        className="relative w-full h-[75vh] md:h-screen flex-shrink-0"
       >
         <ImageWithFallback
           src="/read/hero.jpg"
@@ -33,14 +33,6 @@ export default function Read() {
               Explore the latest issue of Renowned Home.
             </p>
           </div>
-          <a
-            href="https://flipbook.example.com/full-issue"
-            className="mt-8 px-6 py-3 text-base font-semibold bg-blue-600 hover:bg-blue-700 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read Now
-          </a>
         </div>
       </motion.section>
 
