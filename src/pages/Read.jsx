@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import PanelContent from "../components/PanelContent";
+import IssueCarousel from "../components/IssueCarousel";
 import IssueInfoPanel from "../components/IssueInfoPanel";
 
 const issues = [
@@ -45,14 +46,14 @@ export default function Read() {
 
   return (
     <PanelContent>
-      <div className="flex flex-col items-center w-full">
+      <div className="flex flex-col items-center justify-center w-full h-full space-y-8">
         <motion.h1
           layoutId="READ"
-          className="mb-4 text-4xl font-bold uppercase"
+          className="text-4xl font-bold uppercase"
         >
           READ
         </motion.h1>
-
+        <IssueCarousel />
         <div className="flex w-full gap-4 overflow-x-auto pb-4 justify-center">
           {issues.map((issue) => (
             <button
@@ -81,3 +82,4 @@ export default function Read() {
     </PanelContent>
   );
 }
+
