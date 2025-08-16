@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import PanelContent from "../components/PanelContent";
 import IssueCarousel from "../components/IssueCarousel";
 import IssueInfoPanel from "../components/IssueInfoPanel";
-import heroImage from "../assets/read/hero.jpg";
 import ImageWithFallback from "../components/ImageWithFallback";
 
 export default function Read() {
@@ -21,7 +20,7 @@ export default function Read() {
         className="relative w-full h-[75vh] md:h-screen"
       >
         <ImageWithFallback
-          src={heroImage}
+          src="/read/hero.jpg"
           alt=""
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover"
