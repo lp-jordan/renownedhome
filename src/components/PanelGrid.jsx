@@ -1,9 +1,9 @@
 import PanelCard from "./PanelCard";
-const readImg = "/panels/read.png";
-const buyImg = "/panels/buy.png";
-const worldImg = "/panels/world.png";
-const teamImg = "/panels/team.png";
-const contactImg = "/panels/contact.png";
+const readImg = "/panels/read.jpg";
+const buyImg = "/panels/buy.jpg";
+const worldImg = "/panels/world.jpg";
+const teamImg = "/panels/team.jpg";
+const contactImg = "/panels/contact.jpg";
 
 export default function PanelGrid() {
   return (
