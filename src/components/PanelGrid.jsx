@@ -1,10 +1,9 @@
 import PanelCard from "./PanelCard";
-
-import readImg from "../assets/panels/read.jpg";
-import buyImg from "../assets/panels/buy.jpg";
-import worldImg from "../assets/panels/world.jpg";
-import teamImg from "../assets/panels/team.jpg";
-import contactImg from "../assets/panels/contact.jpg";
+const readImg = "/panels/read.png";
+const buyImg = "/panels/buy.png";
+const worldImg = "/panels/world.png";
+const teamImg = "/panels/team.png";
+const contactImg = "/panels/contact.png";
 
 export default function PanelGrid() {
   return (
@@ -12,7 +11,7 @@ export default function PanelGrid() {
       <div className="grid h-full grid-cols-1 gap-4">
         <PanelCard
           className="bg-white h-full"
-          imageSrc={readImg}
+          imageSrc={readImg || undefined}
           label="READ"
           to="/read"
         />
@@ -20,13 +19,13 @@ export default function PanelGrid() {
       <div className="grid h-full grid-cols-2 gap-4">
         <PanelCard
           className="bg-white h-full"
-          imageSrc={buyImg}
+          imageSrc={buyImg || undefined}
           label="BUY"
           to="/buy"
         />
         <PanelCard
           className="bg-white h-full"
-          imageSrc={worldImg}
+          imageSrc={worldImg || undefined}
           label="WORLD"
           to="/world"
         />
@@ -34,13 +33,13 @@ export default function PanelGrid() {
       <div className="grid h-full grid-cols-2 gap-4">
         <PanelCard
           className="bg-white h-full"
-          imageSrc={teamImg}
+          imageSrc={teamImg || undefined}
           label="TEAM"
           to="/team"
         />
         <PanelCard
           className="bg-white h-full"
-          imageSrc={contactImg}
+          imageSrc={contactImg || undefined}
           label="CONTACT"
           to="/contact"
         />
