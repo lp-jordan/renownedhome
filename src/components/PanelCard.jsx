@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import ImageWithFallback from "./ImageWithFallback";
 
 export default function PanelCard({
   className = "",
@@ -13,7 +14,7 @@ export default function PanelCard({
       style={{ borderColor: "var(--border)" }}
     >
       {imageSrc && (
-        <img
+        <ImageWithFallback
           src={imageSrc}
           alt={label}
           className="absolute inset-0 w-full h-full object-cover"

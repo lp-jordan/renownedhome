@@ -1,4 +1,5 @@
 import issues from "../data/issues";
+import ImageWithFallback from "./ImageWithFallback";
 
 export default function IssueCarousel({ selectedId, onSelect }) {
   return (
@@ -13,7 +14,7 @@ export default function IssueCarousel({ selectedId, onSelect }) {
             }`}
             style={{ borderColor: "var(--border)" }}
           >
-            <img
+            <ImageWithFallback
               src={issue.previewImage}
               alt={issue.title}
               className="w-full h-40 object-cover"

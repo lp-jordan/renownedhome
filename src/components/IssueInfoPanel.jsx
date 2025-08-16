@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import issues from "../data/issues";
+import ImageWithFallback from "./ImageWithFallback";
 
 export default function IssueInfoPanel({ issueId }) {
   const issue = issues.find((i) => i.id === issueId);
@@ -18,7 +19,7 @@ export default function IssueInfoPanel({ issueId }) {
       style={{ borderColor: "var(--border)" }}
     >
       {issue.coverImage && (
-        <img
+        <ImageWithFallback
           src={issue.coverImage}
           alt={issue.title}
           className="w-full max-w-sm rounded"
