@@ -16,7 +16,7 @@ export default function App() {
 
   return (
     <div
-      className="relative w-screen h-screen overflow-hidden border-4 p-4"
+      className="relative w-screen h-screen overflow-x-hidden overflow-y-auto border-4 p-4"
       style={{ borderColor: "var(--border)" }}
     >
       <LayoutGroup>
