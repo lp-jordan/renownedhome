@@ -4,6 +4,7 @@ import PanelContent from "../components/PanelContent";
 import IssueCarousel from "../components/IssueCarousel";
 import IssueInfoPanel from "../components/IssueInfoPanel";
 import heroImage from "../assets/read/hero.jpg";
+import ImageWithFallback from "../components/ImageWithFallback";
 
 export default function Read() {
   const [selectedIssueId, setSelectedIssueId] = useState(null);
@@ -19,7 +20,7 @@ export default function Read() {
         layoutId="READ"
         className="relative w-full h-[75vh] md:h-screen"
       >
-        <img
+        <ImageWithFallback
           src={heroImage}
           alt=""
           aria-hidden="true"
