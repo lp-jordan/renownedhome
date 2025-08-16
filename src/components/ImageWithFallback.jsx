@@ -1,18 +1,27 @@
-import { useState } from "react";
-
-const FALLBACK_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4c+YMAATMAmU5mmUsAAAAAElFTkSuQmCC";
+import { useEffect, useState } from "react";
 
 export default function ImageWithFallback({ src, alt, className = "", ...props }) {
-  const [imgSrc, setImgSrc] = useState(src);
+  const [hasError, setHasError] = useState(!src);
 
-  const handleError = () => {
-    setImgSrc(FALLBACK_SRC);
-  };
+  useEffect(() => {
+    setHasError(!src);
+  }, [src]);
+
+  if (hasError) {
+    return (
+      <div
+        role="img"
+        aria-label={alt}
+        className={`bg-gray-400 ${className}`}
+        {...props}
+      />
+    );
+  }
 
   return (
     <img
-      src={imgSrc}
-      onError={handleError}
+      src={src}
+      onError={() => setHasError(true)}
       alt={alt}
       className={className}
       {...props}
