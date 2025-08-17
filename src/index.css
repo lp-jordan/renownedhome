@@ -19,8 +19,21 @@
   --border: #1e293b;
 }
 
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  label {
+    @apply font-hero;
+  }
+}
+
 body {
   background-color: var(--background);
   color: var(--foreground);
   overflow: hidden;
+  @apply font-sans;
 }
