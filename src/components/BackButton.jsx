@@ -28,9 +28,9 @@ export default function BackButton() {
       exit={{ opacity: 0, scale: 0.9 }}
     >
       <ImageWithFallback
-        src="/panels/home.jpg"
-        alt="Home"
-        className="w-full h-full object-cover"
+        src="/logo.png"
+        alt="Logo"
+        className="w-full h-full object-contain"
       />
     </motion.button>
   );
