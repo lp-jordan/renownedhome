@@ -14,6 +14,10 @@ export default {
         "aged-brass": "#C9A66B",
         "desaturated-blood": "#8A3B3B",
       },
+      fontFamily: {
+        hero: ["'Josefin Sans'", "sans-serif"],
+        sans: ["'Nunito Sans'", "sans-serif"],
+      },
     },
   },
   plugins: [forms],
