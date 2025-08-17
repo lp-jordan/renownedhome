@@ -4,23 +4,31 @@ import { motion } from "framer-motion";
 export default function Buy() {
   return (
     <PanelContent className="items-start justify-start">
-      <motion.section
-        layoutId="BUY"
-        className="flex flex-col items-center justify-center w-full h-screen p-4 text-center gap-4"
-      >
-        <h1 className="px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]">
+      <section className="flex flex-col items-center justify-center w-full h-screen p-4 text-center gap-4">
+        <motion.h1
+          layoutId="BUY"
+          className="px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
+        >
           BUY
-        </h1>
-        <p className="text-lg md:text-2xl max-w-xl">
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="text-lg md:text-2xl max-w-xl"
+        >
           Support Renowned Home by backing our upcoming Kickstarter campaign.
-        </p>
-        <a
+        </motion.p>
+        <motion.a
           href="#"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
           className="mt-4 px-8 py-3 font-bold uppercase bg-black text-white rounded"
         >
           KICKSTARTER
-        </a>
-      </motion.section>
+        </motion.a>
+      </section>
     </PanelContent>
   );
 }
