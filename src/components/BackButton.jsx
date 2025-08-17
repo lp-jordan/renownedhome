@@ -8,8 +8,8 @@ export default function BackButton() {
   const isHome = location.pathname === "/";
 
   const positionClasses = isHome
-    ? "left-1/2 top-[66%] -translate-x-1/2 -translate-y-1/2"
-    : "left-4 top-4";
+    ? "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+    : "left-1/2 top-1/2 -translate-x-[calc(100%+1rem)] -translate-y-1/2";
   const baseClasses =
     "absolute w-12 h-12 rounded-full border overflow-hidden transition-colors duration-200";
   const className = `${baseClasses} ${positionClasses}`;
