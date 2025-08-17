@@ -9,7 +9,7 @@ const Read = lazy(() => import("./pages/Read"));
 const Buy = lazy(() => import("./pages/Buy"));
 const World = lazy(() => import("./pages/World"));
 const Meet = lazy(() => import("./pages/Meet"));
-const Reach = lazy(() => import("./pages/Reach"));
+const Reach = lazy(() => import("./pages/reach"));
 
 export default function App() {
   const location = useLocation();

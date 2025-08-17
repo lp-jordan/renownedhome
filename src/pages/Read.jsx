@@ -16,7 +16,7 @@ export default function Read() {
     <PanelContent className="items-start justify-start">
       {/* Hero Section */}
       <motion.section
-        className="relative w-full h-[75vh] md:h-screen flex-shrink-0"
+        className="relative flex-shrink-0 hero-half"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
