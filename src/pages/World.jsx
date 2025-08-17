@@ -5,10 +5,10 @@ export default function World() {
   return (
     <PanelContent>
       <motion.h1
-        layoutId="WORLD"
+        layoutId="EXPLORE"
         className="text-4xl font-bold uppercase"
       >
-        WORLD
+        EXPLORE
       </motion.h1>
     </PanelContent>
   );
