@@ -12,7 +12,7 @@ export default function World() {
       >
         <motion.h1
           layoutId="EXPLORE"
-          className="px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
+          className="relative z-50 px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
         >
           EXPLORE
         </motion.h1>

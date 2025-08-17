@@ -32,7 +32,7 @@ export default function Read() {
           <div className="flex flex-col md:flex-row items-center justify-center w-full gap-4 md:gap-8">
             <motion.h1
               layoutId="READ"
-              className="px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
+              className="relative z-50 px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
             >
               READ
             </motion.h1>
