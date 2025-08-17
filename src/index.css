@@ -40,10 +40,10 @@ body {
 
 @layer components {
   .hero-full {
-    @apply w-full h-screen;
+    @apply w-full h-screen bg-gradient-to-b from-gray-400 to-white;
   }
 
   .hero-half {
-    @apply w-full h-[50vh];
+    @apply w-full h-[50vh] bg-gradient-to-b from-gray-400 to-white;
   }
 }

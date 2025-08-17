@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import PanelContent from "../components/PanelContent";
 import IssueCarousel from "../components/IssueCarousel";
 import IssueInfoPanel from "../components/IssueInfoPanel";
-import ImageWithFallback from "../components/ImageWithFallback";
 
 export default function Read() {
   const [selectedIssueId, setSelectedIssueId] = useState(null);
@@ -21,14 +20,7 @@ export default function Read() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <ImageWithFallback
-          src="/read/hero.jpg"
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
-        <div className="relative flex flex-col items-center justify-center w-full h-full p-4 text-white text-center">
+        <div className="relative flex flex-col items-center justify-center w-full h-full p-4 text-center">
           <div className="flex flex-col md:flex-row items-center justify-center w-full gap-4 md:gap-8">
             <motion.h1
               layoutId="READ"

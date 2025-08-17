@@ -1,5 +1,4 @@
 import PanelContent from "../components/PanelContent";
-import ImageWithFallback from "../components/ImageWithFallback";
 import { motion } from "framer-motion";
 
 export default function Reach() {
@@ -18,14 +17,7 @@ export default function Reach() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <ImageWithFallback
-          src="/reach/hero.jpg"
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
-        <div className="relative flex flex-col items-center justify-center w-full h-full p-4 text-white text-center gap-4">
+        <div className="relative flex flex-col items-center justify-center w-full h-full p-4 text-center gap-4">
           <motion.h1
             layoutId="REACH"
             className="relative z-50 px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
