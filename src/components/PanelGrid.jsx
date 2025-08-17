@@ -3,7 +3,7 @@ const readImg = "/panels/read.jpg";
 const buyImg = "/panels/buy.jpg";
 const worldImg = "/panels/world.jpg";
 const meetImg = "/panels/meet.jpg";
-const reachImg = "/panels/contact.jpg";
+const reachImg = "/panels/reach.jpg";
 
 export default function PanelGrid() {
   return (
