@@ -51,7 +51,7 @@ export default function PanelGrid() {
           style={{ borderColor: "var(--border)" }}
         >
           <ImageWithFallback
-            src="/logo.svg"
+            src="/logo.png"
             alt="Logo"
             className="w-3/4 h-3/4 object-contain"
           />
