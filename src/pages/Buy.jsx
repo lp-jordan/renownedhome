@@ -12,15 +12,12 @@ export default function Buy() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="flex items-center gap-4">
-          <BackButton />
-          <motion.h1
-            layoutId="BUY"
-            className="relative z-50 px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
-          >
-            BUY
-          </motion.h1>
-        </div>
+        <motion.h1
+          layoutId="BUY"
+          className="relative z-50 px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
+        >
+          BUY
+        </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
