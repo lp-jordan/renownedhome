@@ -9,9 +9,10 @@ export default function BackButton() {
   if (isHome) {
     return null;
   }
-
-  const className =
+  const positionClasses = "mr-2";
+  const baseClasses =
     "w-12 h-12 rounded-full border overflow-hidden transition-colors duration-200";
+  const className = `${baseClasses} ${positionClasses}`;
 
   return (
     <motion.button
