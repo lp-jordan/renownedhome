@@ -14,7 +14,6 @@ export default function Read() {
 
   return (
     <PanelContent className="items-start justify-start">
-      <BackButton />
       {/* Hero Section */}
       <motion.section
         className="relative flex-shrink-0 hero-half"

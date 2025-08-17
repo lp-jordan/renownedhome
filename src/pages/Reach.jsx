@@ -26,7 +26,6 @@ export default function Reach() {
 
   return (
     <PanelContent className="items-start justify-start">
-      <BackButton />
       {/* Hero Section */}
       <motion.section
         className="relative flex-shrink-0 hero-half"
