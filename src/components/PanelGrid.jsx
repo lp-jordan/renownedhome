@@ -2,7 +2,7 @@ import PanelCard from "./PanelCard";
 const readImg = "/panels/read.jpg";
 const buyImg = "/panels/buy.jpg";
 const worldImg = "/panels/world.jpg";
-const teamImg = "/panels/team.jpg";
+const meetImg = "/panels/meet.jpg";
 const contactImg = "/panels/contact.jpg";
 
 export default function PanelGrid() {
@@ -31,12 +31,12 @@ export default function PanelGrid() {
         />
       </div>
       <div className="grid h-full grid-cols-2 gap-4">
-        <PanelCard
-          className="bg-white h-full"
-          imageSrc={teamImg || undefined}
-          label="TEAM"
-          to="/team"
-        />
+          <PanelCard
+            className="bg-white h-full"
+            imageSrc={meetImg || undefined}
+            label="MEET"
+            to="/meet"
+          />
         <PanelCard
           className="bg-white h-full"
           imageSrc={contactImg || undefined}
