@@ -8,7 +8,7 @@ const PanelGrid = lazy(() => import("./components/PanelGrid"));
 const Read = lazy(() => import("./pages/Read"));
 const Buy = lazy(() => import("./pages/Buy"));
 const World = lazy(() => import("./pages/World"));
-const Team = lazy(() => import("./pages/Team"));
+const Meet = lazy(() => import("./pages/Meet"));
 const Contact = lazy(() => import("./pages/Contact"));
 
 export default function App() {
@@ -26,7 +26,7 @@ export default function App() {
             <Route path="/read" element={<Read />} />
             <Route path="/buy" element={<Buy />} />
             <Route path="/world" element={<World />} />
-            <Route path="/team" element={<Team />} />
+              <Route path="/meet" element={<Meet />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

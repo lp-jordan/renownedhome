@@ -1,14 +1,14 @@
 import PanelContent from "../components/PanelContent";
 import { motion } from "framer-motion";
 
-export default function Team() {
+export default function Meet() {
   return (
     <PanelContent>
       <motion.h1
-        layoutId="TEAM"
+        layoutId="MEET"
         className="text-4xl font-bold uppercase"
       >
-        TEAM
+        MEET
       </motion.h1>
     </PanelContent>
   );
