@@ -1,4 +1,6 @@
+import { motion } from "framer-motion";
 import PanelCard from "./PanelCard";
+import ImageWithFallback from "./ImageWithFallback";
 const readImg = "/panels/read.jpg";
 const buyImg = "/panels/buy.jpg";
 const worldImg = "/panels/world.jpg";
@@ -43,14 +45,20 @@ export default function PanelGrid() {
           label="REACH"
           to="/reach"
         />
-        <div
-          className="relative w-full h-full border bg-white flex items-center justify-center"
+        <motion.div
+          layoutId="back-button"
+          className="relative w-full h-full border bg-white flex items-center justify-center overflow-hidden"
           style={{ borderColor: "var(--border)" }}
         >
-          <span className="font-bold text-black uppercase text-center text-[clamp(2rem,5vw,6rem)]">
+          <ImageWithFallback
+            src="/panels/home.jpg"
+            alt="Home"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          <span className="relative font-bold text-black uppercase text-center text-[clamp(2rem,5vw,6rem)]">
             WELCOME
           </span>
-        </div>
+        </motion.div>
       </div>
     </div>
   );
