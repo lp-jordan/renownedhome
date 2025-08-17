@@ -10,7 +10,7 @@ export default function Reach() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex-1 flex flex-col items-center justify-center p-4">
-        <motion.h1 layoutId="REACH" className="text-4xl font-bold uppercase mb-4">
+        <motion.h1 layoutId="REACH" className="relative z-50 text-4xl font-bold uppercase mb-4">
           REACH
         </motion.h1>
         <form className="flex w-full max-w-md">
