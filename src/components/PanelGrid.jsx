@@ -30,19 +30,27 @@ export default function PanelGrid() {
           to="/read"
         />
       </div>
-      <div className="grid h-full grid-cols-2 gap-4">
-          <PanelCard
-            className="bg-white h-full"
-            imageSrc={meetImg || undefined}
-            label="MEET"
-            to="/meet"
-          />
+      <div className="grid h-full grid-cols-3 gap-4">
+        <PanelCard
+          className="bg-white h-full"
+          imageSrc={meetImg || undefined}
+          label="MEET"
+          to="/meet"
+        />
         <PanelCard
           className="bg-white h-full"
           imageSrc={reachImg || undefined}
           label="REACH"
           to="/reach"
         />
+        <div
+          className="relative w-full h-full border bg-white flex items-center justify-center"
+          style={{ borderColor: "var(--border)" }}
+        >
+          <span className="font-bold text-black uppercase text-center text-[clamp(2rem,5vw,6rem)]">
+            WELCOME
+          </span>
+        </div>
       </div>
     </div>
   );
