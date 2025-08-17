@@ -10,8 +10,7 @@ export default function BackButton() {
     return null;
   }
 
-  const positionClasses =
-    "left-1/2 top-1/2 -translate-x-[calc(100%+1rem)] -translate-y-1/2";
+  const positionClasses = "top-4 left-4";
   const baseClasses =
     "absolute w-12 h-12 rounded-full border overflow-hidden transition-colors duration-200";
   const className = `${baseClasses} ${positionClasses}`;
