@@ -4,6 +4,45 @@ import { motion } from "framer-motion";
 
 export default function TeamCarousel({ selectedId, onSelect }) {
   const hideLabels = selectedId !== null;
+  const selectedIndex = team.findIndex((m) => m.id === selectedId);
+
+  // When a member is selected, enlarge it and push the others to the sides
+  if (selectedId !== null && selectedIndex !== -1) {
+    return (
+      <div className="relative w-full h-60">
+        {team.map((member, index) => {
+          const isSelected = index === selectedIndex;
+          const positionClass = isSelected
+            ? "left-1/2 -translate-x-1/2 z-10"
+            : index < selectedIndex
+            ? "left-1/4 -translate-x-1/2"
+            : "left-3/4 -translate-x-1/2";
+          const sizeClass = isSelected ? "w-48 h-48" : "w-24 h-24";
+          return (
+            <div
+              key={member.id}
+              className={`absolute top-1/2 -translate-y-1/2 ${positionClass} flex flex-col items-center transition-all duration-300`}
+            >
+              <div
+                onClick={() => onSelect?.(member.id)}
+                className={`${sizeClass} rounded-full border overflow-hidden cursor-pointer ${
+                  isSelected ? "ring-2 ring-[var(--accent)]" : ""
+                }`}
+                style={{ borderColor: "var(--border)" }}
+              >
+                <ImageWithFallback
+                  src={member.image}
+                  alt={member.role}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="w-full overflow-x-auto touch-pan-x">
       <div className="flex space-x-6 p-4 justify-center">
