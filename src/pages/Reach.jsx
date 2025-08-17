@@ -1,15 +1,32 @@
 import PanelContent from "../components/PanelContent";
+import BackButton from "../components/BackButton";
 import { motion } from "framer-motion";
 
 export default function Reach() {
   const socials = [
-    { id: 1, href: "#", img: "https://via.placeholder.com/150", alt: "Social 1" },
-    { id: 2, href: "#", img: "https://via.placeholder.com/150", alt: "Social 2" },
-    { id: 3, href: "#", img: "https://via.placeholder.com/150", alt: "Social 3" },
+    {
+      id: 1,
+      href: "#",
+      img: "https://via.placeholder.com/150",
+      alt: "Social 1",
+    },
+    {
+      id: 2,
+      href: "#",
+      img: "https://via.placeholder.com/150",
+      alt: "Social 2",
+    },
+    {
+      id: 3,
+      href: "#",
+      img: "https://via.placeholder.com/150",
+      alt: "Social 3",
+    },
   ];
 
   return (
     <PanelContent className="items-start justify-start">
+      <BackButton />
       {/* Hero Section */}
       <motion.section
         className="relative flex-shrink-0 hero-half"

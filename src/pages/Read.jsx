@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import PanelContent from "../components/PanelContent";
+import BackButton from "../components/BackButton";
 import IssueCarousel from "../components/IssueCarousel";
 import IssueInfoPanel from "../components/IssueInfoPanel";
 
@@ -13,6 +14,7 @@ export default function Read() {
 
   return (
     <PanelContent className="items-start justify-start">
+      <BackButton />
       {/* Hero Section */}
       <motion.section
         className="relative flex-shrink-0 hero-half"

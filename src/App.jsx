@@ -1,7 +1,6 @@
 import { Suspense, lazy } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { LayoutGroup } from "framer-motion";
-import BackButton from "./components/BackButton";
 
 const PanelGrid = lazy(() => import("./components/PanelGrid"));
 const Read = lazy(() => import("./pages/Read"));
@@ -11,8 +10,6 @@ const Meet = lazy(() => import("./pages/Meet"));
 const Reach = lazy(() => import("./pages/Reach"));
 
 export default function App() {
-  const location = useLocation();
-
   return (
     <div
       className="relative w-screen h-screen overflow-x-hidden overflow-y-auto border-4 p-4"
@@ -30,7 +27,6 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
-        <BackButton />
       </LayoutGroup>
     </div>
   );

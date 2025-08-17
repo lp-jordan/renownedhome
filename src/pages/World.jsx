@@ -1,9 +1,11 @@
 import PanelContent from "../components/PanelContent";
+import BackButton from "../components/BackButton";
 import { motion } from "framer-motion";
 
 export default function World() {
   return (
     <PanelContent className="items-start justify-start">
+      <BackButton />
       <motion.section
         className="flex items-center justify-center hero-full"
         initial={{ opacity: 0, y: -20 }}
