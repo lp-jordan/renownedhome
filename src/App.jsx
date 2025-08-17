@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { LayoutGroup } from "framer-motion";
 
 const PanelGrid = lazy(() => import("./components/PanelGrid"));
@@ -10,8 +10,6 @@ const Meet = lazy(() => import("./pages/Meet"));
 const Reach = lazy(() => import("./pages/Reach"));
 
 export default function App() {
-  const location = useLocation();
-
   return (
     <div
       className="relative w-screen h-screen overflow-x-hidden overflow-y-auto border-4 p-4"

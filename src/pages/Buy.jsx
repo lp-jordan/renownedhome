@@ -1,10 +1,12 @@
 import PanelContent from "../components/PanelContent";
+import BackButton from "../components/BackButton";
 import { motion } from "framer-motion";
 import BackButton from "../components/BackButton";
 
 export default function Buy() {
   return (
     <PanelContent className="items-start justify-start">
+      <BackButton />
       <motion.section
         className="flex flex-col items-center justify-center p-4 text-center gap-4 hero-full"
         initial={{ opacity: 0, y: -20 }}
