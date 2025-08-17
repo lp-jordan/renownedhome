@@ -51,13 +51,10 @@ export default function PanelGrid() {
           style={{ borderColor: "var(--border)" }}
         >
           <ImageWithFallback
-            src="/panels/home.jpg"
-            alt="Home"
-            className="absolute inset-0 w-full h-full object-cover"
+            src="/logo.png"
+            alt="Logo"
+            className="w-3/4 h-3/4 object-contain"
           />
-          <span className="relative font-bold text-black uppercase text-center text-[clamp(2rem,5vw,6rem)]">
-            WELCOME
-          </span>
         </motion.div>
       </div>
     </div>
