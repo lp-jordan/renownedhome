@@ -12,7 +12,7 @@ export default function PanelGrid() {
         <PanelCard
           className="bg-white h-full"
           imageSrc={worldImg || undefined}
-          label="WORLD"
+          label="EXPLORE"
           to="/world"
         />
       </div>
@@ -40,7 +40,7 @@ export default function PanelGrid() {
         <PanelCard
           className="bg-white h-full"
           imageSrc={contactImg || undefined}
-          label="CONTACT"
+          label="REACH"
           to="/contact"
         />
       </div>

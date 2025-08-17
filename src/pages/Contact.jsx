@@ -5,10 +5,10 @@ export default function Contact() {
   return (
     <PanelContent>
       <motion.h1
-        layoutId="CONTACT"
+        layoutId="REACH"
         className="text-4xl font-bold uppercase"
       >
-        CONTACT
+        REACH
       </motion.h1>
     </PanelContent>
   );
