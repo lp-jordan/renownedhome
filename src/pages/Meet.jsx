@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import PanelContent from "../components/PanelContent";
-import BackButton from "../components/BackButton";
 import TeamCarousel from "../components/TeamCarousel";
 import TeamInfoPanel from "../components/TeamInfoPanel";
 import BackButton from "../components/BackButton";

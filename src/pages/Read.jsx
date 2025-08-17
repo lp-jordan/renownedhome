@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import PanelContent from "../components/PanelContent";
-import BackButton from "../components/BackButton";
 import IssueCarousel from "../components/IssueCarousel";
 import IssueInfoPanel from "../components/IssueInfoPanel";
 import BackButton from "../components/BackButton";

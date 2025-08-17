@@ -1,7 +1,6 @@
 import PanelContent from "../components/PanelContent";
 import BackButton from "../components/BackButton";
 import { motion } from "framer-motion";
-import BackButton from "../components/BackButton";
 
 export default function Reach() {
   const socials = [
