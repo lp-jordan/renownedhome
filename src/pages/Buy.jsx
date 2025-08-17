@@ -4,7 +4,12 @@ import { motion } from "framer-motion";
 export default function Buy() {
   return (
     <PanelContent className="items-start justify-start">
-      <section className="flex flex-col items-center justify-center w-full h-screen p-4 text-center gap-4">
+      <motion.section
+        className="flex flex-col items-center justify-center w-full h-screen p-4 text-center gap-4"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <motion.h1
           layoutId="BUY"
           className="px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
@@ -28,7 +33,7 @@ export default function Buy() {
         >
           KICKSTARTER
         </motion.a>
-      </section>
+      </motion.section>
     </PanelContent>
   );
 }

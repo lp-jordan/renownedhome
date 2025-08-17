@@ -16,8 +16,10 @@ export default function Meet() {
     <PanelContent className="items-start justify-start">
       {/* Hero Section */}
       <motion.section
-        layoutId="MEET"
         className="relative w-full h-[75vh] md:h-screen flex-shrink-0"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
       >
         <ImageWithFallback
           src="/meet/hero.jpg"
@@ -28,23 +30,38 @@ export default function Meet() {
         <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
         <div className="relative flex flex-col items-center justify-center w-full h-full p-4 text-white text-center">
           <div className="flex flex-col md:flex-row items-center justify-center w-full gap-4 md:gap-8">
-            <h1 className="px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]">MEET</h1>
-            <p className="text-lg md:text-2xl max-w-xl text-center">
+            <motion.h1
+              layoutId="MEET"
+              className="px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
+            >
+              MEET
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="text-lg md:text-2xl max-w-xl text-center"
+            >
               Learn about the team behind Renowned Home.
-            </p>
+            </motion.p>
           </div>
         </div>
       </motion.section>
 
       {/* Carousel + Info Section */}
-      <div className="flex flex-col items-center justify-center w-full px-4 py-12 space-y-8">
+      <motion.div
+        className="flex flex-col items-center justify-center w-full px-4 py-12 space-y-8"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.4 }}
+      >
         <TeamCarousel selectedId={selectedMemberId} onSelect={handleSelect} />
         <AnimatePresence mode="wait">
           {selectedMemberId && (
             <TeamInfoPanel memberId={selectedMemberId} key={selectedMemberId} />
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
     </PanelContent>
   );
 }
