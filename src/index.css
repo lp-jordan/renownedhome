@@ -37,3 +37,13 @@ body {
   overflow: hidden;
   @apply font-sans;
 }
+
+@layer components {
+  .hero-full {
+    @apply w-full h-screen;
+  }
+
+  .hero-half {
+    @apply w-full h-[50vh];
+  }
+}

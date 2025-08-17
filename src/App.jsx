@@ -9,7 +9,7 @@ const Read = lazy(() => import("./pages/Read"));
 const Buy = lazy(() => import("./pages/Buy"));
 const World = lazy(() => import("./pages/World"));
 const Meet = lazy(() => import("./pages/Meet"));
-const Contact = lazy(() => import("./pages/Contact"));
+const Reach = lazy(() => import("./pages/reach"));
 
 export default function App() {
   const location = useLocation();
@@ -26,8 +26,8 @@ export default function App() {
             <Route path="/read" element={<Read />} />
             <Route path="/buy" element={<Buy />} />
             <Route path="/world" element={<World />} />
-              <Route path="/meet" element={<Meet />} />
-            <Route path="/contact" element={<Contact />} />
+            <Route path="/meet" element={<Meet />} />
+            <Route path="/reach" element={<Reach />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
