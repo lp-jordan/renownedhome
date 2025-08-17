@@ -1,7 +1,6 @@
 import { Suspense, lazy } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { LayoutGroup } from "framer-motion";
-import BackButton from "./components/BackButton";
 
 const PanelGrid = lazy(() => import("./components/PanelGrid"));
 const Read = lazy(() => import("./pages/Read"));
@@ -30,7 +29,6 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
-        <BackButton />
       </LayoutGroup>
     </div>
   );
