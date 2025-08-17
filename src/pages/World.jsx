@@ -3,13 +3,20 @@ import { motion } from "framer-motion";
 
 export default function World() {
   return (
-    <PanelContent>
-      <motion.h1
-        layoutId="EXPLORE"
-        className="text-4xl font-bold uppercase"
+    <PanelContent className="items-start justify-start">
+      <motion.section
+        className="flex items-center justify-center hero-full"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
       >
-        EXPLORE
-      </motion.h1>
+        <motion.h1
+          layoutId="EXPLORE"
+          className="px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
+        >
+          EXPLORE
+        </motion.h1>
+      </motion.section>
     </PanelContent>
   );
 }
