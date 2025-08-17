@@ -6,7 +6,7 @@ export default function World() {
     <PanelContent>
       <motion.h1
         layoutId="EXPLORE"
-        className="text-4xl font-bold uppercase"
+        className="relative z-50 text-4xl font-bold uppercase"
       >
         EXPLORE
       </motion.h1>

@@ -6,7 +6,7 @@ export default function Contact() {
     <PanelContent>
       <motion.h1
         layoutId="REACH"
-        className="text-4xl font-bold uppercase"
+        className="relative z-50 text-4xl font-bold uppercase"
       >
         REACH
       </motion.h1>

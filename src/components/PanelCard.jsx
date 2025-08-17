@@ -25,7 +25,7 @@ export default function PanelCard({
         <div className="absolute inset-0 flex items-center justify-center">
           <motion.span
             layoutId={label}
-            className="text-white font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
+            className="relative z-50 text-white font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
           >
             {label}
           </motion.span>
