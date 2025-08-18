@@ -46,3 +46,6 @@ export default function TeamInfoPanel({ memberId }) {
         <h3 className="text-lg text-gray-500">{member.role}</h3>
       </div>
       {member.bio && <p className="max-w-xl text-center">{member.bio}</p>}
+    </motion.div>
+  );
+}
