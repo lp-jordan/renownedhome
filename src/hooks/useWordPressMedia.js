@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchMedia } from '../api/wordpress';
+import { fetchMedia, uploadMedia } from '../api/wordpress';
 
 export default function useWordPressMedia() {
   const [media, setMedia] = useState([]);
@@ -23,5 +23,6 @@ export default function useWordPressMedia() {
     load();
   }, []);
 
-  return { media, loading, error, refresh: load };
+  return { media, loading, error, refresh: load, uploadMedia };
 }
+
