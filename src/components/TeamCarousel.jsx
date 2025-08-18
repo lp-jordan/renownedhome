@@ -1,9 +1,26 @@
-import team from "../data/team";
+import useWordPressMedia from "../hooks/useWordPressMedia";
 import ImageWithFallback from "./ImageWithFallback";
 import { motion } from "framer-motion";
 
 export default function TeamCarousel({ selectedId, onSelect }) {
+  const { media, loading, error } = useWordPressMedia();
   const hideLabels = selectedId !== null;
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>Error loading media.</div>;
+  }
+
+  const team = media.map((m) => ({
+    id: m.id,
+    role: m.title?.rendered || "Member",
+    image: m.media_details?.sizes?.medium?.source_url || m.source_url,
+    bio: m.caption?.rendered || "",
+  }));
+
   const selectedIndex = team.findIndex((m) => m.id === selectedId);
 
   // When a member is selected, enlarge it and push the others to the sides
