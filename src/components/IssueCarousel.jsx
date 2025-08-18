@@ -1,7 +1,24 @@
-import issues from "../data/issues";
+import useWordPressMedia from "../hooks/useWordPressMedia";
 import ImageWithFallback from "./ImageWithFallback";
 
 export default function IssueCarousel({ selectedId, onSelect }) {
+  const { media, loading, error } = useWordPressMedia();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>Error loading media.</div>;
+  }
+
+  const issues = media.map((m) => ({
+    id: m.id,
+    title: m.title?.rendered || "Untitled",
+    previewImage: m.media_details?.sizes?.medium?.source_url || m.source_url,
+    coverImage: m.source_url,
+  }));
+
   return (
     <div className="w-full overflow-x-auto touch-pan-x">
       <div className="flex space-x-4 p-4">
@@ -27,6 +44,3 @@ export default function IssueCarousel({ selectedId, onSelect }) {
           </div>
         ))}
       </div>
-    </div>
-  );
-}
