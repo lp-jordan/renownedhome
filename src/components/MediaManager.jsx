@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { uploadMedia } from '../api/wordpress';
+import { fetchMedia, uploadMedia } from '../api/wordpress';
 
 export default function MediaManager() {
   const [file, setFile] = useState(null);

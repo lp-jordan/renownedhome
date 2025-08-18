@@ -39,3 +39,4 @@ export async function uploadMedia(file) {
   }
   return res.json();
 }
+
