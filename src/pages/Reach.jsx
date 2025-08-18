@@ -25,7 +25,7 @@ export default function Reach() {
   ];
 
   return (
-    <PanelContent className="items-start justify-start">
+    <PanelContent>
       {/* Hero Section */}
       <motion.section
         className="relative flex-shrink-0 hero-half"
@@ -33,18 +33,21 @@ export default function Reach() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="relative flex flex-col items-center justify-center w-full h-full p-4 text-center gap-4">
-          <motion.h1
-            layoutId="REACH"
-            className="relative z-50 px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
-          >
-            REACH
-          </motion.h1>
+        <div className="relative flex flex-col items-center justify-center w-full h-full gap-4 p-4 text-center">
+          <div className="flex items-center gap-4">
+            <BackButton />
+            <motion.h1
+              layoutId="REACH"
+              className="relative z-50 px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
+            >
+              REACH
+            </motion.h1>
+          </div>
           <motion.p
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-lg md:text-2xl max-w-xl"
+            className="max-w-xl text-lg md:text-2xl"
           >
             Stay connected with Renowned Home.
           </motion.p>
@@ -58,12 +61,12 @@ export default function Reach() {
             <input
               type="email"
               placeholder="Enter your email"
-              className="flex-grow p-2 border rounded-l bg-[var(--background)] text-[var(--foreground)]"
+              className="flex-grow rounded-l border p-2 bg-[var(--background)] text-[var(--foreground)]"
               style={{ borderColor: "var(--border)" }}
             />
             <button
               type="submit"
-              className="p-2 border rounded-r bg-[var(--accent)] text-white"
+              className="rounded-r border p-2 bg-[var(--accent)] text-white"
               style={{ borderColor: "var(--border)" }}
             >
               Submit
