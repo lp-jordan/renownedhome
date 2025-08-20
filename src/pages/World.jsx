@@ -6,7 +6,7 @@ export default function World() {
   return (
     <PanelContent className="justify-start">
       <motion.section
-        className="flex items-center justify-start hero-full"
+        className="flex items-center justify-center hero-full"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
