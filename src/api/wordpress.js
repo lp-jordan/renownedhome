@@ -22,6 +22,18 @@ export async function fetchMedia() {
   return res.json();
 }
 
+export async function fetchIssues() {
+  const res = await fetch(`${baseUrl}/wp-json/wp/v2/issues?_embed`, {
+    headers: {
+      ...authHeader(),
+    },
+  });
+  if (!res.ok) {
+    throw new Error('Failed to fetch issues');
+  }
+  return res.json();
+}
+
 export async function uploadMedia(file) {
   const formData = new FormData();
   formData.append('file', file);

@@ -1,8 +1,8 @@
-import useWordPressMedia from "../hooks/useWordPressMedia";
+import useWordPressIssues from "../hooks/useWordPressIssues";
 import ImageWithFallback from "./ImageWithFallback";
 
 export default function IssueCarousel({ selectedId, onSelect }) {
-  const { media, loading, error } = useWordPressMedia();
+  const { issues: issuePosts, loading, error } = useWordPressIssues();
 
   if (loading) {
     return <div>Loading...</div>;
@@ -12,11 +12,13 @@ export default function IssueCarousel({ selectedId, onSelect }) {
     return <div>Error loading media.</div>;
   }
 
-  const issues = media.map((m) => ({
-    id: m.id,
-    title: m.title?.rendered || "Untitled",
-    previewImage: m.media_details?.sizes?.medium?.source_url || m.source_url,
-    coverImage: m.source_url,
+  const issues = issuePosts.map((issue) => ({
+    id: issue.id,
+    title: issue.title.rendered,
+    coverImage: issue.acf.cover_image,
+    releaseDate: issue.acf.release_date,
+    shortDescription: issue.acf.short_description,
+    longDescription: issue.acf.long_description,
   }));
 
   return (
@@ -32,7 +34,7 @@ export default function IssueCarousel({ selectedId, onSelect }) {
             style={{ borderColor: "var(--border)" }}
           >
             <ImageWithFallback
-              src={issue.previewImage}
+              src={issue.coverImage}
               alt={issue.title}
               className="w-full h-40 object-cover"
             />
