@@ -33,7 +33,7 @@ export default function Connect() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="relative flex flex-col items-center justify-start w-full h-full gap-4 p-4 text-center">
+        <div className="relative flex flex-col items-center justify-center w-full h-full gap-4 p-4 text-center">
           <div className="flex items-center gap-4">
             <BackButton />
             <motion.h1

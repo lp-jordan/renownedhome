@@ -21,8 +21,8 @@ export default function Read() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="relative flex flex-col items-center justify-start w-full h-full p-4 text-center">
-          <div className="flex flex-col items-center justify-start w-full gap-4 md:gap-8">
+        <div className="relative flex flex-col items-center justify-center w-full h-full p-4 text-center">
+          <div className="flex flex-col items-center justify-center w-full gap-4 md:gap-8">
             <div className="flex items-center gap-4">
               <BackButton />
               <motion.h1
