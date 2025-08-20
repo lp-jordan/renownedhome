@@ -6,7 +6,7 @@ import Read from "./pages/Read";
 import Buy from "./pages/Buy";
 import World from "./pages/World";
 import Meet from "./pages/Meet";
-import Reach from "./pages/Reach";
+import Connect from "./pages/Connect";
 
 export default function App() {
   return (
@@ -21,7 +21,7 @@ export default function App() {
           <Route path="/buy" element={<Buy />} />
           <Route path="/world" element={<World />} />
           <Route path="/meet" element={<Meet />} />
-          <Route path="/reach" element={<Reach />} />
+          <Route path="/connect" element={<Connect />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </LayoutGroup>
