@@ -5,7 +5,7 @@ const readImg = "/panels/read.jpg";
 const buyImg = "/panels/buy.jpg";
 const worldImg = "/panels/world.jpg";
 const meetImg = "/panels/meet.jpg";
-const reachImg = "/panels/reach.jpg";
+const connectImg = "/panels/connect.jpg";
 
 export default function PanelGrid() {
   return (
@@ -52,9 +52,9 @@ export default function PanelGrid() {
         />
         <PanelCard
           className="bg-white h-full"
-          imageSrc={reachImg || undefined}
-          label="REACH"
-          to="/reach"
+          imageSrc={connectImg || undefined}
+          label="CONNECT"
+          to="/connect"
         />
       </div>
     </div>
