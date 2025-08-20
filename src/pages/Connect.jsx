@@ -24,8 +24,8 @@ export default function Connect() {
     },
   ];
 
-  return (
-    <PanelContent>
+    return (
+      <PanelContent className="justify-start">
       {/* Hero Section */}
       <motion.section
         className="relative flex-shrink-0 hero-half"

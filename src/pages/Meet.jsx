@@ -13,7 +13,7 @@ export default function Meet() {
   };
 
   return (
-    <PanelContent>
+    <PanelContent className="justify-start">
       {/* Hero Section */}
       <motion.section
         className="relative flex-shrink-0 hero-half"
