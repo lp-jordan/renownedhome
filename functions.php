@@ -17,7 +17,20 @@ add_action( 'init', function() {
 add_action( 'rest_api_init', function() {
     register_rest_field( 'issues', 'acf', [
         'get_callback' => function( $object ) {
-            return get_fields( $object['id'] );
+            $post_id = $object['id'];
+            error_log( "ACF: fetching fields for post {$post_id}" );
+            try {
+                $fields = get_fields( $post_id );
+                if ( false === $fields ) {
+                    error_log( "ACF: failed to fetch fields for post {$post_id}" );
+                    return null;
+                }
+                error_log( "ACF: fetched fields for post {$post_id}" );
+                return $fields;
+            } catch ( \Throwable $e ) {
+                error_log( "ACF: error fetching fields for post {$post_id}: " . $e->getMessage() );
+                return null;
+            }
         },
         'schema' => null,
     ] );
