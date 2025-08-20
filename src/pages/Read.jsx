@@ -4,12 +4,15 @@ import PanelContent from "../components/PanelContent";
 import IssueCarousel from "../components/IssueCarousel";
 import IssueInfoPanel from "../components/IssueInfoPanel";
 import BackButton from "../components/BackButton";
+import useWordPressIssues from "../hooks/useWordPressIssues";
 
 export default function Read() {
-  const [selectedIssueId, setSelectedIssueId] = useState(null);
+  const { issues } = useWordPressIssues();
+  const [selectedIssue, setSelectedIssue] = useState(null);
 
   const handleSelect = (id) => {
-    setSelectedIssueId((prev) => (prev === id ? null : id));
+    const issue = issues.find((i) => i.id === id);
+    setSelectedIssue((prev) => (prev?.id === id ? null : issue));
   };
 
   return (
@@ -51,10 +54,10 @@ export default function Read() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.4 }}
       >
-        <IssueCarousel selectedId={selectedIssueId} onSelect={handleSelect} />
+        <IssueCarousel selectedId={selectedIssue?.id} onSelect={handleSelect} />
         <AnimatePresence mode="wait">
-          {selectedIssueId && (
-            <IssueInfoPanel issueId={selectedIssueId} key={selectedIssueId} />
+          {selectedIssue && (
+            <IssueInfoPanel issue={selectedIssue} key={selectedIssue.id} />
           )}
         </AnimatePresence>
       </motion.div>
