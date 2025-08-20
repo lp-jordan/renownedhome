@@ -12,14 +12,23 @@ export default function IssueCarousel({ selectedId, onSelect }) {
     return <div>Error loading media.</div>;
   }
 
-  const issues = issuePosts.map((issue) => ({
-    id: issue.id,
-    title: issue.title.rendered,
-    coverImage: issue.acf.cover_image,
-    releaseDate: issue.acf.release_date,
-    shortDescription: issue.acf.short_description,
-    longDescription: issue.acf.long_description,
-  }));
+  const issues = issuePosts.map((issue) => {
+    const rawCover = issue.acf?.cover_image?.url || issue.acf?.cover_image;
+    const coverImage =
+      typeof rawCover === "number" ||
+      (typeof rawCover === "string" && /^\d+$/.test(rawCover))
+        ? issue._embedded?.["wp:featuredmedia"]?.[0]?.source_url
+        : rawCover || issue._embedded?.["wp:featuredmedia"]?.[0]?.source_url;
+
+    return {
+      id: issue.id,
+      title: issue.title.rendered,
+      coverImage,
+      releaseDate: issue.acf.release_date,
+      shortDescription: issue.acf.short_description,
+      longDescription: issue.acf.long_description,
+    };
+  });
 
   return (
     <div className="w-full overflow-x-auto touch-pan-x">
