@@ -27,7 +27,7 @@ export default function IssueInfoPanel({ issue }) {
         <ImageWithFallback
           src={coverImage}
           alt={title}
-          className="w-full max-w-sm rounded"
+          className="w-full rounded"
         />
       )}
       <div className="text-center">
