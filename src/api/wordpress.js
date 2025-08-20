@@ -21,6 +21,13 @@ export async function fetchMedia() {
         ...authHeader(),
       },
     });
+    const authHeaderValue = res.headers.get('WWW-Authenticate');
+    if (res.status === 401 || res.status === 403) {
+      logError(
+        'WordPress authentication failed: missing or invalid credentials',
+        { status: res.status, authHeader: authHeaderValue }
+      );
+    }
     if (!res.ok) {
       logError('Failed to fetch media', `${res.status} ${res.statusText}`);
       throw new Error('Failed to fetch media');
@@ -43,6 +50,13 @@ export async function fetchIssues() {
         ...authHeader(),
       },
     });
+    const authHeaderValue = res.headers.get('WWW-Authenticate');
+    if (res.status === 401 || res.status === 403) {
+      logError(
+        'WordPress authentication failed: missing or invalid credentials',
+        { status: res.status, authHeader: authHeaderValue }
+      );
+    }
     if (!res.ok) {
       logError('Failed to fetch issues', `${res.status} ${res.statusText}`);
       throw new Error('Failed to fetch issues');
@@ -55,7 +69,6 @@ export async function fetchIssues() {
     throw err;
   }
 }
-
 export async function uploadMedia(file) {
   const formData = new FormData();
   formData.append('file', file);
@@ -70,7 +83,13 @@ export async function uploadMedia(file) {
       },
       body: formData,
     });
-
+    const authHeaderValue = res.headers.get('WWW-Authenticate');
+    if (res.status === 401 || res.status === 403) {
+      logError(
+        'WordPress authentication failed: missing or invalid credentials',
+        { status: res.status, authHeader: authHeaderValue }
+      );
+    }
     if (!res.ok) {
       logError('Failed to upload media', `${res.status} ${res.statusText}`);
       throw new Error('Failed to upload media');
@@ -83,4 +102,3 @@ export async function uploadMedia(file) {
     throw err;
   }
 }
-
