@@ -4,9 +4,9 @@ import { motion } from "framer-motion";
 
 export default function Buy() {
   return (
-    <PanelContent>
+    <PanelContent className="justify-start">
       <motion.section
-        className="flex flex-col items-center justify-center gap-4 p-4 text-center hero-full"
+        className="flex flex-col items-center justify-start gap-4 p-4 text-center hero-full"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
