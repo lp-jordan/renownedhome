@@ -1,13 +1,18 @@
 import { motion } from "framer-motion";
-import issues from "../data/issues";
 import ImageWithFallback from "./ImageWithFallback";
 
-export default function IssueInfoPanel({ issueId }) {
-  const issue = issues.find((i) => i.id === issueId);
-
+export default function IssueInfoPanel({ issue }) {
   if (!issue) {
     return null;
   }
+
+  const title = issue.title?.rendered || issue.title;
+  const {
+    cover_image: coverImage,
+    subtitle,
+    long_description: description,
+    credits,
+  } = issue.acf || {};
 
   return (
     <motion.div
@@ -18,24 +23,24 @@ export default function IssueInfoPanel({ issueId }) {
       className="flex flex-col items-center gap-4 p-4 mt-4 border rounded bg-[var(--background)]"
       style={{ borderColor: "var(--border)" }}
     >
-      {issue.coverImage && (
+      {coverImage && (
         <ImageWithFallback
-          src={issue.coverImage}
-          alt={issue.title}
+          src={coverImage}
+          alt={title}
           className="w-full max-w-sm rounded"
         />
       )}
       <div className="text-center">
-        <h2 className="text-2xl font-bold">{issue.title}</h2>
-        {issue.subtitle && (
-          <h3 className="text-lg text-gray-500">{issue.subtitle}</h3>
+        <h2 className="text-2xl font-bold">{title}</h2>
+        {subtitle && (
+          <h3 className="text-lg text-gray-500">{subtitle}</h3>
         )}
       </div>
-      {issue.description && (
-        <p className="max-w-xl text-center">{issue.description}</p>
+      {description && (
+        <p className="max-w-xl text-center">{description}</p>
       )}
-      {issue.credits && (
-        <p className="text-sm text-gray-500 text-center">{issue.credits}</p>
+      {credits && (
+        <p className="text-sm text-gray-500 text-center">{credits}</p>
       )}
     </motion.div>
   );
