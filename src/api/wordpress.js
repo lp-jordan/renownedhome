@@ -12,6 +12,15 @@ function authHeader() {
   return {};
 }
 
+async function ensureJsonResponse(res, action) {
+  const contentType = res.headers.get('content-type');
+  if (!contentType?.includes('application/json')) {
+    const raw = await res.text();
+    logError(`${action} returned non-JSON response`, raw);
+    throw new Error(`${action} did not return JSON`);
+  }
+}
+
 export async function fetchMedia() {
   const endpoint = `${baseUrl}/wp-json/wp/v2/media`;
   logRequest('Fetching media', endpoint);
@@ -32,6 +41,7 @@ export async function fetchMedia() {
       logError('Failed to fetch media', `${res.status} ${res.statusText}`);
       throw new Error('Failed to fetch media');
     }
+    await ensureJsonResponse(res, 'Fetching media');
     const data = await res.json();
     logSuccess('Fetched media', { count: data.length });
     return data;
@@ -61,6 +71,7 @@ export async function fetchIssues() {
       logError('Failed to fetch issues', `${res.status} ${res.statusText}`);
       throw new Error('Failed to fetch issues');
     }
+    await ensureJsonResponse(res, 'Fetching issues');
     const data = await res.json();
     logSuccess('Fetched issues with ACF fields', { count: data.length });
     return data;
@@ -94,6 +105,7 @@ export async function uploadMedia(file) {
       logError('Failed to upload media', `${res.status} ${res.statusText}`);
       throw new Error('Failed to upload media');
     }
+    await ensureJsonResponse(res, 'Uploading media');
     const data = await res.json();
     logSuccess('Uploaded media', data);
     return data;
