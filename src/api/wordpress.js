@@ -107,8 +107,8 @@ export async function fetchHomePanels() {
       ? data.acf.home_panels
       : [];
     const items = panels.map((item) => ({
-      label: item['panel-label'],
-      image: item['panel-image']?.url,
+      label: item['panel_label'],
+      image: item['panel_image']?.url,
     }));
     logSuccess('Fetched home panels', { count: items.length });
     return items;
