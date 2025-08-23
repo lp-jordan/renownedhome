@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
-import useWordPressIssues from "../hooks/useWordPressIssues";
 import { fetchMediaById } from "../api/wordpress";
 import ImageWithFallback from "./ImageWithFallback";
 
-export default function IssueCarousel({ selectedId, onSelect }) {
-  const { issues: issuePosts, loading, error } = useWordPressIssues();
+export default function IssueCarousel({
+  issues: issuePosts,
+  loading,
+  error,
+  selectedId,
+  onSelect,
+}) {
   const [coverImages, setCoverImages] = useState({});
   const [coverLoading, setCoverLoading] = useState(true);
   const [coverError, setCoverError] = useState(null);

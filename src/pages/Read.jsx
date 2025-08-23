@@ -70,7 +70,13 @@ export default function Read() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3, delay: 0.2 }}
         >
-        <IssueCarousel selectedId={selectedIssue?.id} onSelect={handleSelect} />
+        <IssueCarousel
+          issues={issues}
+          loading={loading}
+          error={error}
+          selectedId={selectedIssue?.id}
+          onSelect={handleSelect}
+        />
         <AnimatePresence mode="wait">
           {selectedIssue && (
             <IssueInfoPanel issue={selectedIssue} key={selectedIssue.id} />
