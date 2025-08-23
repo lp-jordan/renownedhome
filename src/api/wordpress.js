@@ -112,7 +112,7 @@ export async function fetchIssues() {
 }
 
 export async function fetchHomePanels() {
-  const endpoint = `${baseUrl}/wp-json/acf/v3/options/home_panels`;
+  const endpoint = `${baseUrl}/wp-json/wp/v2/home-panels`;
   logRequest('Fetching home panels', endpoint);
   try {
     const res = await fetch(endpoint, {
@@ -133,11 +133,14 @@ export async function fetchHomePanels() {
     }
     await ensureJsonResponse(res, 'Fetching home panels');
     const data = await res.json();
-    const rawPanels = data?.acf?.home_panels ?? data?.home_panels;
-    const panels = Array.isArray(rawPanels) ? rawPanels : [];
+    const panels = Array.isArray(data) ? data : [];
     const items = panels.map((item) => ({
-      label: item['panel_label'],
-      image: item['panel_image']?.url,
+      label: item?.acf?.panel_label ?? item?.panel_label,
+      image:
+        item?.acf?.panel_image?.url ??
+        item?.acf?.panel_image ??
+        item?.panel_image?.url ??
+        item?.panel_image,
     }));
     logSuccess('Fetched home panels', { count: items.length });
     return items;
