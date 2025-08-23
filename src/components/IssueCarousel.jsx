@@ -13,7 +13,28 @@ export default function IssueCarousel({
   const [, setCoverLoading] = useState(true);
   const [coverErrors, setCoverErrors] = useState({});
 
-  if (error) {
+  if (loading || coverLoading) {
+    return (
+      <div className="w-full overflow-x-auto touch-pan-x">
+        <div className="flex space-x-4 p-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex-shrink-0 rounded border bg-[var(--background)] overflow-hidden min-w-[150px] sm:min-w-[200px]"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <div className="w-full h-40 bg-[var(--muted)] animate-pulse" />
+              <div className="p-2 text-center">
+                <div className="h-4 bg-[var(--muted)] rounded w-3/4 mx-auto animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error || coverError) {
     return <div>Error loading media.</div>;
   }
 

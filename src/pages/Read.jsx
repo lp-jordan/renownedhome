@@ -15,14 +15,6 @@ export default function Read() {
     setSelectedIssue((prev) => (prev?.id === id ? null : issue));
   };
 
-  if (loading) {
-    return (
-      <PanelContent className="items-center justify-center">
-        <div>Loading issues...</div>
-      </PanelContent>
-    );
-  }
-
   if (error) {
     return (
       <PanelContent className="items-center justify-center">
@@ -78,7 +70,7 @@ export default function Read() {
           onSelect={handleSelect}
         />
         <AnimatePresence mode="wait">
-          {selectedIssue && (
+          {!loading && selectedIssue && (
             <IssueInfoPanel issue={selectedIssue} key={selectedIssue.id} />
           )}
         </AnimatePresence>
