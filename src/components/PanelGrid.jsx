@@ -1,13 +1,17 @@
 import { motion } from "framer-motion";
 import PanelCard from "./PanelCard";
 import ImageWithFallback from "./ImageWithFallback";
-const readImg = "/panels/read.jpg";
-const buyImg = "/panels/buy.jpg";
-const worldImg = "/panels/world.jpg";
-const meetImg = "/panels/meet.jpg";
-const connectImg = "/panels/connect.jpg";
+import useHomePanels from "../hooks/useHomePanels";
 
 export default function PanelGrid() {
+  const { panels } = useHomePanels();
+  const images = {
+    EXPLORE: panels["EXPLORE"]?.image ?? "/panels/world.jpg",
+    BUY: panels["BUY"]?.image ?? "/panels/buy.jpg",
+    READ: panels["READ"]?.image ?? "/panels/read.jpg",
+    MEET: panels["MEET"]?.image ?? "/panels/meet.jpg",
+    CONNECT: panels["CONNECT"]?.image ?? "/panels/connect.jpg",
+  };
   return (
     <div className="relative grid grid-rows-3 gap-4 w-full h-full">
       <motion.div
@@ -24,7 +28,7 @@ export default function PanelGrid() {
       <div className="grid h-full grid-cols-1 gap-4">
         <PanelCard
           className="bg-white h-full"
-          imageSrc={worldImg || undefined}
+          imageSrc={images.EXPLORE || undefined}
           label="EXPLORE"
           to="/world"
         />
@@ -32,13 +36,13 @@ export default function PanelGrid() {
       <div className="grid h-full grid-cols-2 gap-4">
         <PanelCard
           className="bg-white h-full"
-          imageSrc={buyImg || undefined}
+          imageSrc={images.BUY || undefined}
           label="BUY"
           to="/buy"
         />
         <PanelCard
           className="bg-white h-full"
-          imageSrc={readImg || undefined}
+          imageSrc={images.READ || undefined}
           label="READ"
           to="/read"
         />
@@ -46,13 +50,13 @@ export default function PanelGrid() {
       <div className="grid h-full grid-cols-2 gap-4">
         <PanelCard
           className="bg-white h-full"
-          imageSrc={meetImg || undefined}
+          imageSrc={images.MEET || undefined}
           label="MEET"
           to="/meet"
         />
         <PanelCard
           className="bg-white h-full"
-          imageSrc={connectImg || undefined}
+          imageSrc={images.CONNECT || undefined}
           label="CONNECT"
           to="/connect"
         />
