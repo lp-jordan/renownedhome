@@ -103,9 +103,8 @@ export async function fetchHomePanels() {
     }
     await ensureJsonResponse(res, 'Fetching home panels');
     const data = await res.json();
-    const panels = Array.isArray(data?.acf?.home_panels)
-      ? data.acf.home_panels
-      : [];
+    const rawPanels = data?.acf?.home_panels ?? data?.home_panels;
+    const panels = Array.isArray(rawPanels) ? rawPanels : [];
     const items = panels.map((item) => ({
       label: item['panel_label'],
       image: item['panel_image']?.url,
