@@ -15,12 +15,12 @@ export default function Meet() {
   return (
     <PanelContent className="justify-start">
       {/* Hero Section */}
-      <motion.section
-        className="relative flex-shrink-0 hero-half"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+        <motion.section
+          className="relative flex-shrink-0 hero-half"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3 }}
+        >
         <div className="relative flex flex-col items-center justify-center w-full h-full p-4 text-center">
           <div className="flex flex-col items-center justify-center w-full gap-4 md:gap-8">
             <div className="flex items-center gap-4">
@@ -32,12 +32,12 @@ export default function Meet() {
                 MEET
               </motion.h1>
             </div>
-            <motion.p
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="max-w-xl text-lg md:text-2xl"
-            >
+              <motion.p
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+                className="max-w-xl text-lg md:text-2xl"
+              >
               Learn about the team behind Renowned Home.
             </motion.p>
           </div>
@@ -45,12 +45,12 @@ export default function Meet() {
       </motion.section>
 
       {/* Carousel + Info Section */}
-      <motion.div
-        className="flex flex-col items-center justify-center w-full px-4 py-12 space-y-8"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.4 }}
-      >
+        <motion.div
+          className="flex flex-col items-center justify-center w-full px-4 py-12 space-y-8"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+        >
         <TeamCarousel selectedId={selectedMemberId} onSelect={handleSelect} />
         <AnimatePresence mode="wait">
           {selectedMemberId && (
