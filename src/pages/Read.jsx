@@ -7,13 +7,29 @@ import BackButton from "../components/BackButton";
 import useWordPressIssues from "../hooks/useWordPressIssues";
 
 export default function Read() {
-  const { issues } = useWordPressIssues();
+  const { issues, loading, error } = useWordPressIssues();
   const [selectedIssue, setSelectedIssue] = useState(null);
 
   const handleSelect = (id) => {
     const issue = issues.find((i) => i.id === id);
     setSelectedIssue((prev) => (prev?.id === id ? null : issue));
   };
+
+  if (loading) {
+    return (
+      <PanelContent className="items-center justify-center">
+        <div>Loading issues...</div>
+      </PanelContent>
+    );
+  }
+
+  if (error) {
+    return (
+      <PanelContent className="items-center justify-center">
+        <div>Error loading issues: {error.message}</div>
+      </PanelContent>
+    );
+  }
 
   return (
     <PanelContent className="justify-start">
