@@ -27,12 +27,12 @@ export default function Connect() {
     return (
       <PanelContent className="justify-start">
       {/* Hero Section */}
-      <motion.section
-        className="relative flex-shrink-0 hero-half"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+        <motion.section
+          className="relative flex-shrink-0 hero-half"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3 }}
+        >
         <div className="relative flex flex-col items-center justify-center w-full h-full gap-4 p-4 text-center">
           <div className="flex items-center gap-4">
             <BackButton />
@@ -43,21 +43,21 @@ export default function Connect() {
               CONNECT
             </motion.h1>
           </div>
-          <motion.p
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="max-w-xl text-lg md:text-2xl"
-          >
+            <motion.p
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+              className="max-w-xl text-lg md:text-2xl"
+            >
             Stay connected with Renowned Home.
           </motion.p>
-          <motion.form
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="flex w-full max-w-md"
-            onSubmit={(e) => e.preventDefault()}
-          >
+            <motion.form
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+              className="flex w-full max-w-md"
+              onSubmit={(e) => e.preventDefault()}
+            >
             <input
               type="email"
               placeholder="Enter your email"
@@ -76,12 +76,12 @@ export default function Connect() {
       </motion.section>
 
       {/* Social Section */}
-      <motion.div
-        className="flex items-center justify-center w-full px-4 py-12"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.4 }}
-      >
+        <motion.div
+          className="flex items-center justify-center w-full px-4 py-12"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+        >
         <div className="flex space-x-6">
           {socials.map((social) => (
             <a
