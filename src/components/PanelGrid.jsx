@@ -1,6 +1,4 @@
-import { motion } from "framer-motion";
 import PanelCard from "./PanelCard";
-import ImageWithFallback from "./ImageWithFallback";
 import useHomePanels from "../hooks/useHomePanels";
 
 export default function PanelGrid() {
@@ -14,17 +12,6 @@ export default function PanelGrid() {
   };
   return (
     <div className="relative grid grid-rows-3 gap-4 w-full h-full">
-      <motion.div
-        layoutId="back-button"
-        className="absolute top-4 right-4 w-12 h-12 rounded-full border bg-white flex items-center justify-center overflow-hidden"
-        style={{ borderColor: "var(--border)" }}
-      >
-        <ImageWithFallback
-          src="/logo.png"
-          alt="Logo"
-          className="w-full h-full object-contain"
-        />
-      </motion.div>
       <div className="grid h-full grid-cols-1 gap-4">
         <PanelCard
           className="bg-white h-full"
