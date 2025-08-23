@@ -1,60 +1,86 @@
+import { useEffect, useState } from "react";
 import useWordPressIssues from "../hooks/useWordPressIssues";
-import useWordPressMedia from "../hooks/useWordPressMedia";
+import { fetchMediaById } from "../api/wordpress";
 import ImageWithFallback from "./ImageWithFallback";
 
 export default function IssueCarousel({ selectedId, onSelect }) {
   const { issues: issuePosts, loading, error } = useWordPressIssues();
-  const {
-    media,
-    loading: mediaLoading,
-    error: mediaError,
-  } = useWordPressMedia();
+  const [coverImages, setCoverImages] = useState({});
+  const [coverLoading, setCoverLoading] = useState(true);
+  const [coverError, setCoverError] = useState(null);
 
-  if (loading || mediaLoading) {
+  if (loading || coverLoading) {
     return <div>Loading...</div>;
   }
 
-  if (error || mediaError) {
+  if (error || coverError) {
     return <div>Error loading media.</div>;
   }
 
   const isNumeric = (value) =>
     typeof value === "number" || (typeof value === "string" && /^\d+$/.test(value));
-
-  const issues = issuePosts.map((issue) => {
-    const rawCoverField = issue.acf?.cover_image;
-    let coverImageCandidate;
-    if (Array.isArray(rawCoverField)) {
-      const first = rawCoverField[0];
-      if (isNumeric(first)) {
-        const mediaItem = media.find((item) => item.id === Number(first));
-        coverImageCandidate = mediaItem?.source_url;
-      } else {
-        coverImageCandidate = first?.url || first;
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      if (!issuePosts.length) {
+        setCoverImages({});
+        setCoverLoading(false);
+        return;
       }
-    } else {
-      const rawCover = rawCoverField?.url || rawCoverField;
-      if (isNumeric(rawCover)) {
-        const mediaItem = media.find((item) => item.id === Number(rawCover));
-        coverImageCandidate =
-          mediaItem?.source_url || issue._embedded?.["wp:featuredmedia"]?.[0]?.source_url;
-      } else {
-        coverImageCandidate =
-          rawCover || issue._embedded?.["wp:featuredmedia"]?.[0]?.source_url;
+      setCoverLoading(true);
+      setCoverError(null);
+      try {
+        const entries = await Promise.all(
+          issuePosts.map(async (issue) => {
+            const rawCoverField = issue.acf?.cover_image;
+            let value;
+            if (Array.isArray(rawCoverField)) {
+              const first = rawCoverField[0];
+              value = first?.url || first;
+            } else {
+              value = rawCoverField?.url || rawCoverField;
+            }
+            if (isNumeric(value)) {
+              try {
+                const mediaItem = await fetchMediaById(value);
+                return [issue.id, mediaItem?.source_url || ""];
+              } catch {
+                return [issue.id, ""];
+              }
+            }
+            return [
+              issue.id,
+              value || issue._embedded?.["wp:featuredmedia"]?.[0]?.source_url || "",
+            ];
+          })
+        );
+        if (active) {
+          setCoverImages(Object.fromEntries(entries));
+        }
+      } catch (err) {
+        if (active) {
+          setCoverError(err);
+        }
+      } finally {
+        if (active) {
+          setCoverLoading(false);
+        }
       }
-    }
-    const coverImage =
-      typeof coverImageCandidate === "string" ? coverImageCandidate : "";
-
-    return {
-      id: issue.id,
-      title: issue.title.rendered,
-      coverImage,
-      releaseDate: issue.acf.release_date,
-      shortDescription: issue.acf.short_description,
-      longDescription: issue.acf.long_description,
     };
-  });
+    load();
+    return () => {
+      active = false;
+    };
+  }, [issuePosts]);
+
+  const issues = issuePosts.map((issue) => ({
+    id: issue.id,
+    title: issue.title.rendered,
+    coverImage: coverImages[issue.id] || "",
+    releaseDate: issue.acf.release_date,
+    shortDescription: issue.acf.short_description,
+    longDescription: issue.acf.long_description,
+  }));
 
   return (
     <div className="w-full overflow-x-auto touch-pan-x">

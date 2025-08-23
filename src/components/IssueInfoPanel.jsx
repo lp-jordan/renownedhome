@@ -1,6 +1,7 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import ImageWithFallback from "./ImageWithFallback";
-import useWordPressMedia from "../hooks/useWordPressMedia";
+import { fetchMediaById } from "../api/wordpress";
 
 export default function IssueInfoPanel({ issue }) {
   if (!issue) {
@@ -20,20 +21,31 @@ export default function IssueInfoPanel({ issue }) {
   const isNumeric = (value) =>
     typeof value === "number" || (typeof value === "string" && /^\d+$/.test(value));
 
-  let coverImage = Array.isArray(cover_image)
-    ? cover_image[0]?.url || cover_image[0]
-    : cover_image?.url || cover_image;
+  const [coverImage, setCoverImage] = useState("");
 
-  if (Array.isArray(cover_image)) {
-    const first = cover_image[0];
-    if (isNumeric(first)) {
-      const mediaItem = media.find((item) => item.id === Number(first));
-      coverImage = mediaItem?.source_url || "";
-    }
-  } else if (isNumeric(coverImage)) {
-    const mediaItem = media.find((item) => item.id === Number(coverImage));
-    coverImage = mediaItem?.source_url || "";
-  }
+  useEffect(() => {
+    let active = true;
+    const resolveCover = async () => {
+      let raw = Array.isArray(cover_image) ? cover_image[0] : cover_image;
+      raw = raw?.url || raw;
+      if (isNumeric(raw)) {
+        try {
+          const mediaItem = await fetchMediaById(raw);
+          if (active) {
+            setCoverImage(mediaItem?.source_url || "");
+          }
+        } catch {
+          if (active) setCoverImage("");
+        }
+      } else {
+        setCoverImage(raw || "");
+      }
+    };
+    resolveCover();
+    return () => {
+      active = false;
+    };
+  }, [cover_image]);
 
   const hasCoverImage = Boolean(coverImage);
 
