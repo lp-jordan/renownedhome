@@ -8,11 +8,15 @@ export default function IssueInfoPanel({ issue }) {
 
   const title = issue.title?.rendered || issue.title;
   const {
-    cover_image: coverImage,
+    cover_image: coverImageRaw,
     subtitle,
     long_description: description,
     credits,
   } = issue.acf || {};
+
+  const coverImage = Array.isArray(coverImageRaw)
+    ? coverImageRaw.find((item) => typeof item === "string" && item)
+    : coverImageRaw;
 
   return (
     <motion.div

@@ -51,6 +51,36 @@ export async function fetchMedia() {
   }
 }
 
+export async function fetchMediaItem(id) {
+  const endpoint = `${baseUrl}/wp-json/wp/v2/media/${id}`;
+  logRequest('Fetching media item', endpoint);
+  try {
+    const res = await fetch(endpoint, {
+      headers: {
+        ...authHeader(),
+      },
+    });
+    const authHeaderValue = res.headers.get('WWW-Authenticate');
+    if (res.status === 401 || res.status === 403) {
+      logError(
+        'WordPress authentication failed: missing or invalid credentials',
+        { status: res.status, authHeader: authHeaderValue }
+      );
+    }
+    if (!res.ok) {
+      logError('Failed to fetch media item', `${res.status} ${res.statusText}`);
+      throw new Error('Failed to fetch media item');
+    }
+    await ensureJsonResponse(res, 'Fetching media item');
+    const data = await res.json();
+    logSuccess('Fetched media item', { id });
+    return data;
+  } catch (err) {
+    logError('Error fetching media item', err);
+    throw err;
+  }
+}
+
 export async function fetchIssues() {
   const endpoint = `${baseUrl}/wp-json/wp/v2/issues?_embed`;
   logRequest('Fetching issues with ACF fields', endpoint);
