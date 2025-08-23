@@ -10,8 +10,8 @@ export default function IssueCarousel({
   onSelect,
 }) {
   const [coverImages, setCoverImages] = useState({});
-  const [coverLoading, setCoverLoading] = useState(true);
-  const [coverError, setCoverError] = useState(null);
+  const [, setCoverLoading] = useState(true);
+  const [coverErrors, setCoverErrors] = useState({});
 
   if (loading || coverLoading) {
     return (
@@ -42,50 +42,64 @@ export default function IssueCarousel({
     typeof value === "number" || (typeof value === "string" && /^\d+$/.test(value));
   useEffect(() => {
     let active = true;
+    const fetchWithTimeout = (promise, ms = 10000) =>
+      Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
+      ]);
+
     const load = async () => {
       if (!issuePosts.length) {
         setCoverImages({});
+        setCoverErrors({});
         setCoverLoading(false);
         return;
       }
+
       setCoverLoading(true);
-      setCoverError(null);
-      try {
-        const entries = await Promise.all(
-          issuePosts.map(async (issue) => {
-            const rawCoverField = issue.acf?.cover_image;
-            let value;
-            if (Array.isArray(rawCoverField)) {
-              const first = rawCoverField[0];
-              value = first?.url || first;
-            } else {
-              value = rawCoverField?.url || rawCoverField;
-            }
-            if (isNumeric(value)) {
-              try {
-                const mediaItem = await fetchMediaById(value);
-                return [issue.id, mediaItem?.source_url || ""];
-              } catch {
-                return [issue.id, ""];
+      setCoverErrors({});
+
+      await Promise.allSettled(
+        issuePosts.map(async (issue) => {
+          const rawCoverField = issue.acf?.cover_image;
+          let value;
+          if (Array.isArray(rawCoverField)) {
+            const first = rawCoverField[0];
+            value = first?.url || first;
+          } else {
+            value = rawCoverField?.url || rawCoverField;
+          }
+          if (isNumeric(value)) {
+            try {
+              const mediaItem = await fetchWithTimeout(fetchMediaById(value));
+              if (active) {
+                setCoverImages((prev) => ({
+                  ...prev,
+                  [issue.id]: mediaItem?.source_url || "",
+                }));
+              }
+            } catch {
+              if (active) {
+                setCoverImages((prev) => ({ ...prev, [issue.id]: "" }));
+                setCoverErrors((prev) => ({ ...prev, [issue.id]: true }));
               }
             }
-            return [
-              issue.id,
-              value || issue._embedded?.["wp:featuredmedia"]?.[0]?.source_url || "",
-            ];
-          })
-        );
-        if (active) {
-          setCoverImages(Object.fromEntries(entries));
-        }
-      } catch (err) {
-        if (active) {
-          setCoverError(err);
-        }
-      } finally {
-        if (active) {
-          setCoverLoading(false);
-        }
+            return;
+          }
+          if (active) {
+            setCoverImages((prev) => ({
+              ...prev,
+              [issue.id]:
+                value ||
+                issue._embedded?.["wp:featuredmedia"]?.[0]?.source_url ||
+                "",
+            }));
+          }
+        })
+      );
+
+      if (active) {
+        setCoverLoading(false);
       }
     };
     load();
@@ -97,36 +111,70 @@ export default function IssueCarousel({
   const issues = issuePosts.map((issue) => ({
     id: issue.id,
     title: issue.title.rendered,
-    coverImage: coverImages[issue.id] || "",
+    coverImage: coverImages[issue.id],
     releaseDate: issue.acf.release_date,
     shortDescription: issue.acf.short_description,
     longDescription: issue.acf.long_description,
   }));
 
+  const placeholders = Array.from({ length: 3 }, (_, i) => ({
+    id: `placeholder-${i}`,
+    placeholder: true,
+  }));
+
+  const displayIssues =
+    loading && issuePosts.length === 0 ? placeholders : issues;
+
   return (
     <div className="w-full overflow-x-auto touch-pan-x">
       <div className="flex space-x-4 p-4">
-        {issues.map((issue) => (
-          <div
-            key={issue.id}
-            onClick={() => onSelect?.(issue.id)}
-            className={`flex-shrink-0 cursor-pointer rounded border bg-[var(--background)] overflow-hidden min-w-[150px] sm:min-w-[200px] transition-transform hover:scale-105 ${
-              selectedId === issue.id ? "ring-2 ring-[var(--accent)]" : ""
-            }`}
-            style={{ borderColor: "var(--border)" }}
-          >
-            <ImageWithFallback
-              src={issue.coverImage}
-              alt={issue.title}
-              className="w-full h-40 object-cover"
-            />
-            <div className="p-2 text-center">
-              <p className="text-sm font-medium text-[var(--foreground)]">
-                {issue.title}
-              </p>
+        {displayIssues.map((issue) => {
+          const imageSrc = issue.placeholder ? undefined : coverImages[issue.id];
+          const imageError = coverErrors[issue.id];
+          const isLoaded = imageSrc !== undefined;
+          const handleClick = issue.placeholder
+            ? undefined
+            : () => onSelect?.(issue.id);
+          return (
+            <div
+              key={issue.id}
+              onClick={handleClick}
+              className={`flex-shrink-0 rounded border bg-[var(--background)] overflow-hidden min-w-[150px] sm:min-w-[200px] transition-transform ${
+                issue.placeholder
+                  ? ""
+                  : `cursor-pointer hover:scale-105 ${
+                      selectedId === issue.id ? "ring-2 ring-[var(--accent)]" : ""
+                    }`
+              }`}
+              style={{ borderColor: "var(--border)" }}
+            >
+              {isLoaded ? (
+                <ImageWithFallback
+                  src={imageSrc}
+                  alt={issue.title}
+                  className="w-full h-40 object-cover"
+                />
+              ) : (
+                <div className="w-full h-40 bg-gray-200 animate-pulse" />
+              )}
+              <div className="p-2 text-center">
+                <p className="text-sm font-medium text-[var(--foreground)]">
+                  {issue.title ||
+                    (issue.placeholder ? (
+                      <span className="inline-block h-4 w-20 rounded bg-gray-200 animate-pulse" />
+                    ) : (
+                      ""
+                    ))}
+                </p>
+              </div>
+              {imageError && (
+                <div className="p-1 text-center text-xs text-red-500">
+                  Image unavailable
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
