@@ -1,28 +1,48 @@
 import useWordPressIssues from "../hooks/useWordPressIssues";
+import useWordPressMedia from "../hooks/useWordPressMedia";
 import ImageWithFallback from "./ImageWithFallback";
 
 export default function IssueCarousel({ selectedId, onSelect }) {
   const { issues: issuePosts, loading, error } = useWordPressIssues();
+  const {
+    media,
+    loading: mediaLoading,
+    error: mediaError,
+  } = useWordPressMedia();
 
-  if (loading) {
+  if (loading || mediaLoading) {
     return <div>Loading...</div>;
   }
 
-  if (error) {
+  if (error || mediaError) {
     return <div>Error loading media.</div>;
   }
 
+  const isNumeric = (value) =>
+    typeof value === "number" || (typeof value === "string" && /^\d+$/.test(value));
+
   const issues = issuePosts.map((issue) => {
     const rawCoverField = issue.acf?.cover_image;
-    const rawCover = Array.isArray(rawCoverField)
-      ? rawCoverField[0]?.url || rawCoverField[0]
-      : rawCoverField?.url || rawCoverField;
-    const coverImageCandidate =
-      !Array.isArray(rawCoverField) &&
-      (typeof rawCover === "number" ||
-        (typeof rawCover === "string" && /^\d+$/.test(rawCover)))
-        ? issue._embedded?.["wp:featuredmedia"]?.[0]?.source_url
-        : rawCover || issue._embedded?.["wp:featuredmedia"]?.[0]?.source_url;
+    let coverImageCandidate;
+    if (Array.isArray(rawCoverField)) {
+      const first = rawCoverField[0];
+      if (isNumeric(first)) {
+        const mediaItem = media.find((item) => item.id === Number(first));
+        coverImageCandidate = mediaItem?.source_url;
+      } else {
+        coverImageCandidate = first?.url || first;
+      }
+    } else {
+      const rawCover = rawCoverField?.url || rawCoverField;
+      if (isNumeric(rawCover)) {
+        const mediaItem = media.find((item) => item.id === Number(rawCover));
+        coverImageCandidate =
+          mediaItem?.source_url || issue._embedded?.["wp:featuredmedia"]?.[0]?.source_url;
+      } else {
+        coverImageCandidate =
+          rawCover || issue._embedded?.["wp:featuredmedia"]?.[0]?.source_url;
+      }
+    }
     const coverImage =
       typeof coverImageCandidate === "string" ? coverImageCandidate : "";
 
