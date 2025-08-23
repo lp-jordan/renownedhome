@@ -20,6 +20,7 @@ export default function useWordPressIssues() {
       });
       setIssues(sorted);
     } catch (err) {
+      // Capture the error in state and let callers decide how to render it
       setError(err);
     } finally {
       setLoading(false);
