@@ -4,11 +4,26 @@ import useHomePanels from "../hooks/useHomePanels";
 export default function PanelGrid() {
   const { panels } = useHomePanels();
   const images = {
-    EXPLORE: panels["EXPLORE"]?.image ?? "/panels/world.jpg",
-    BUY: panels["BUY"]?.image ?? "/panels/buy.jpg",
-    READ: panels["READ"]?.image ?? "/panels/read.jpg",
-    MEET: panels["MEET"]?.image ?? "/panels/meet.jpg",
-    CONNECT: panels["CONNECT"]?.image ?? "/panels/connect.jpg",
+    EXPLORE:
+      typeof panels["EXPLORE"]?.image === "string"
+        ? panels["EXPLORE"].image
+        : "/panels/world.jpg",
+    BUY:
+      typeof panels["BUY"]?.image === "string"
+        ? panels["BUY"].image
+        : "/panels/buy.jpg",
+    READ:
+      typeof panels["READ"]?.image === "string"
+        ? panels["READ"].image
+        : "/panels/read.jpg",
+    MEET:
+      typeof panels["MEET"]?.image === "string"
+        ? panels["MEET"].image
+        : "/panels/meet.jpg",
+    CONNECT:
+      typeof panels["CONNECT"]?.image === "string"
+        ? panels["CONNECT"].image
+        : "/panels/connect.jpg",
   };
   return (
     <div className="relative grid grid-rows-3 gap-4 w-full h-full">
