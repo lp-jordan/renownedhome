@@ -11,7 +11,14 @@ export default function useWordPressIssues() {
     setError(null);
     try {
       const data = await fetchIssues();
-      setIssues(data);
+      const sorted = [...data].sort((a, b) => {
+        const aNum = Number(a.acf?.number);
+        const bNum = Number(b.acf?.number);
+        const aVal = Number.isFinite(aNum) ? aNum : Infinity;
+        const bVal = Number.isFinite(bNum) ? bNum : Infinity;
+        return aVal - bVal;
+      });
+      setIssues(sorted);
     } catch (err) {
       setError(err);
     } finally {
