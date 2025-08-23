@@ -15,7 +15,9 @@ export default function useHomePanels() {
         const map = {};
         data.forEach((item) => {
           if (item?.label) {
-            map[item.label] = { image: item.image };
+            map[item.label] = {
+              image: typeof item.image === 'string' ? item.image : undefined,
+            };
           }
         });
         setPanels(map);

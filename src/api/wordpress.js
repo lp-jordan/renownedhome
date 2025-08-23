@@ -134,14 +134,29 @@ export async function fetchHomePanels() {
     await ensureJsonResponse(res, 'Fetching home panels');
     const data = await res.json();
     const panels = Array.isArray(data) ? data : [];
-    const items = panels.map((item) => ({
-      label: item?.acf?.panel_label ?? item?.panel_label,
-      image:
-        item?.acf?.panel_image?.url ??
-        item?.acf?.panel_image ??
-        item?.panel_image?.url ??
-        item?.panel_image,
-    }));
+    const items = await Promise.all(
+      panels.map(async (item) => {
+        const label = item?.acf?.panel_label ?? item?.panel_label;
+        const rawImage = item?.acf?.panel_image ?? item?.panel_image;
+        let image = null;
+
+        if (typeof rawImage === 'number') {
+          try {
+            const media = await fetchMediaById(rawImage);
+            image = media?.source_url ?? null;
+          } catch (err) {
+            logError('Error fetching media for home panel', { id: rawImage, err });
+          }
+        } else if (typeof rawImage === 'object' && rawImage !== null) {
+          image = rawImage?.url ?? rawImage?.source_url ?? null;
+        } else if (typeof rawImage === 'string') {
+          image = rawImage;
+        }
+
+        return { label, image };
+      })
+    );
+
     logSuccess('Fetched home panels', { count: items.length });
     return items;
   } catch (err) {
