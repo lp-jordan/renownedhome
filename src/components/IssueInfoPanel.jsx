@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import useWordPressMedia from "../hooks/useWordPressMedia";
 import ImageWithFallback from "./ImageWithFallback";
 import { fetchMediaById } from "../api/wordpress";
 
