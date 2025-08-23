@@ -8,6 +8,8 @@ export default function IssueInfoPanel({ issue }) {
     return null;
   }
 
+  const { media } = useWordPressMedia();
+
   const title = issue.title?.rendered || issue.title;
   const {
     cover_image,

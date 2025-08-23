@@ -110,6 +110,42 @@ export async function fetchIssues() {
     throw err;
   }
 }
+
+export async function fetchHomePanels() {
+  const endpoint = `${baseUrl}/wp-json/acf/v3/options/home_panels`;
+  logRequest('Fetching home panels', endpoint);
+  try {
+    const res = await fetch(endpoint, {
+      headers: {
+        ...authHeader(),
+      },
+    });
+    const authHeaderValue = res.headers.get('WWW-Authenticate');
+    if (res.status === 401 || res.status === 403) {
+      logError(
+        'WordPress authentication failed: missing or invalid credentials',
+        { status: res.status, authHeader: authHeaderValue }
+      );
+    }
+    if (!res.ok) {
+      logError('Failed to fetch home panels', `${res.status} ${res.statusText}`);
+      throw new Error('Failed to fetch home panels');
+    }
+    await ensureJsonResponse(res, 'Fetching home panels');
+    const data = await res.json();
+    const rawPanels = data?.acf?.home_panels ?? data?.home_panels;
+    const panels = Array.isArray(rawPanels) ? rawPanels : [];
+    const items = panels.map((item) => ({
+      label: item['panel_label'],
+      image: item['panel_image']?.url,
+    }));
+    logSuccess('Fetched home panels', { count: items.length });
+    return items;
+  } catch (err) {
+    logError('Error fetching home panels', err);
+    throw err;
+  }
+}
 export async function uploadMedia(file) {
   const formData = new FormData();
   formData.append('file', file);
