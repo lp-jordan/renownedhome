@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 
 export default function ImageWithFallback({ src, alt, className = "", ...props }) {
-  const [hasError, setHasError] = useState(!src);
+  const [hasError, setHasError] = useState(typeof src !== "string" || !src);
 
   useEffect(() => {
-    setHasError(!src);
+    const invalidSrc = typeof src !== "string" || !src;
+    if (typeof src !== "string") {
+      console.warn("ImageWithFallback: expected src to be a string, received", src);
+    }
+    setHasError(invalidSrc);
   }, [src]);
 
   if (hasError) {
@@ -28,4 +32,3 @@ export default function ImageWithFallback({ src, alt, className = "", ...props }
     />
   );
 }
-
