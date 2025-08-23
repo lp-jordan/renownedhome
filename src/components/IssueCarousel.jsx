@@ -13,12 +13,18 @@ export default function IssueCarousel({ selectedId, onSelect }) {
   }
 
   const issues = issuePosts.map((issue) => {
-    const rawCover = issue.acf?.cover_image?.url || issue.acf?.cover_image;
-    const coverImage =
-      typeof rawCover === "number" ||
-      (typeof rawCover === "string" && /^\d+$/.test(rawCover))
+    const rawCoverField = issue.acf?.cover_image;
+    const rawCover = Array.isArray(rawCoverField)
+      ? rawCoverField[0]?.url || rawCoverField[0]
+      : rawCoverField?.url || rawCoverField;
+    const coverImageCandidate =
+      !Array.isArray(rawCoverField) &&
+      (typeof rawCover === "number" ||
+        (typeof rawCover === "string" && /^\d+$/.test(rawCover)))
         ? issue._embedded?.["wp:featuredmedia"]?.[0]?.source_url
         : rawCover || issue._embedded?.["wp:featuredmedia"]?.[0]?.source_url;
+    const coverImage =
+      typeof coverImageCandidate === "string" ? coverImageCandidate : "";
 
     return {
       id: issue.id,
