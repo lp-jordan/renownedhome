@@ -1,10 +1,13 @@
 import { motion } from "framer-motion";
 import ImageWithFallback from "./ImageWithFallback";
+import useWordPressMedia from "../hooks/useWordPressMedia";
 
 export default function IssueInfoPanel({ issue }) {
   if (!issue) {
     return null;
   }
+
+  const { media } = useWordPressMedia();
 
   const title = issue.title?.rendered || issue.title;
   const {
@@ -14,13 +17,25 @@ export default function IssueInfoPanel({ issue }) {
     credits,
   } = issue.acf || {};
 
-  const coverImage = Array.isArray(cover_image)
+  const isNumeric = (value) =>
+    typeof value === "number" || (typeof value === "string" && /^\d+$/.test(value));
+
+  let coverImage = Array.isArray(cover_image)
     ? cover_image[0]?.url || cover_image[0]
     : cover_image?.url || cover_image;
 
-  const hasCoverImage = Array.isArray(cover_image)
-    ? cover_image.length > 0
-    : Boolean(coverImage);
+  if (Array.isArray(cover_image)) {
+    const first = cover_image[0];
+    if (isNumeric(first)) {
+      const mediaItem = media.find((item) => item.id === Number(first));
+      coverImage = mediaItem?.source_url || "";
+    }
+  } else if (isNumeric(coverImage)) {
+    const mediaItem = media.find((item) => item.id === Number(coverImage));
+    coverImage = mediaItem?.source_url || "";
+  }
+
+  const hasCoverImage = Boolean(coverImage);
 
   return (
     <motion.div
