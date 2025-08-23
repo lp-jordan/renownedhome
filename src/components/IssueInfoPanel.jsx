@@ -8,11 +8,19 @@ export default function IssueInfoPanel({ issue }) {
 
   const title = issue.title?.rendered || issue.title;
   const {
-    cover_image: coverImage,
+    cover_image,
     subtitle,
     long_description: description,
     credits,
   } = issue.acf || {};
+
+  const coverImage = Array.isArray(cover_image)
+    ? cover_image[0]?.url || cover_image[0]
+    : cover_image?.url || cover_image;
+
+  const hasCoverImage = Array.isArray(cover_image)
+    ? cover_image.length > 0
+    : Boolean(coverImage);
 
   return (
     <motion.div
@@ -23,7 +31,7 @@ export default function IssueInfoPanel({ issue }) {
       className="flex flex-col items-center gap-4 p-4 mt-4 border rounded bg-[var(--background)]"
       style={{ borderColor: "var(--border)" }}
     >
-      {coverImage && (
+      {hasCoverImage && (
         <ImageWithFallback
           src={coverImage}
           alt={title}
