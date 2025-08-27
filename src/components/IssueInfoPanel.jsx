@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import useWordPressMedia from "../hooks/useWordPressMedia";
 import ImageWithFallback from "./ImageWithFallback";
 import { fetchMediaById } from "../api/wordpress";
 
@@ -9,15 +8,13 @@ export default function IssueInfoPanel({ issue }) {
     return null;
   }
 
-  const { media } = useWordPressMedia();
-
   const title = issue.title?.rendered || issue.title;
   const {
     cover_image,
     subtitle,
     long_description: description,
     credits,
-  } = issue.acf || {};
+  } = issue;
 
   const isNumeric = (value) =>
     typeof value === "number" || (typeof value === "string" && /^\d+$/.test(value));

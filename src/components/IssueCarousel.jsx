@@ -10,7 +10,7 @@ export default function IssueCarousel({
   onSelect,
 }) {
   const [coverImages, setCoverImages] = useState({});
-  const [, setCoverLoading] = useState(true);
+  const [coverLoading, setCoverLoading] = useState(true);
   const [coverErrors, setCoverErrors] = useState({});
 
   if (loading || coverLoading) {
@@ -34,7 +34,7 @@ export default function IssueCarousel({
     );
   }
 
-  if (error || coverError) {
+  if (error || Object.values(coverErrors).some(Boolean)) {
     return <div>Error loading media.</div>;
   }
 
@@ -61,7 +61,7 @@ export default function IssueCarousel({
 
       await Promise.allSettled(
         issuePosts.map(async (issue) => {
-          const rawCoverField = issue.acf?.cover_image;
+          const rawCoverField = issue.cover_image;
           let value;
           if (Array.isArray(rawCoverField)) {
             const first = rawCoverField[0];
@@ -89,10 +89,7 @@ export default function IssueCarousel({
           if (active) {
             setCoverImages((prev) => ({
               ...prev,
-              [issue.id]:
-                value ||
-                issue._embedded?.["wp:featuredmedia"]?.[0]?.source_url ||
-                "",
+              [issue.id]: value || "",
             }));
           }
         })
@@ -110,11 +107,11 @@ export default function IssueCarousel({
 
   const issues = issuePosts.map((issue) => ({
     id: issue.id,
-    title: issue.title.rendered,
+    title: issue.title,
     coverImage: coverImages[issue.id],
-    releaseDate: issue.acf.release_date,
-    shortDescription: issue.acf.short_description,
-    longDescription: issue.acf.long_description,
+    releaseDate: issue.release_date,
+    shortDescription: issue.short_description,
+    longDescription: issue.long_description,
   }));
 
   const placeholders = Array.from({ length: 3 }, (_, i) => ({
