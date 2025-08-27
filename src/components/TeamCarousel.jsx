@@ -1,9 +1,9 @@
-import useWordPressMedia from "../hooks/useWordPressMedia";
+import useSupabaseMedia from "../hooks/useSupabaseMedia";
 import ImageWithFallback from "./ImageWithFallback";
 import { motion } from "framer-motion";
 
 export default function TeamCarousel({ selectedId, onSelect }) {
-  const { media, loading, error } = useWordPressMedia();
+  const { media, loading, error } = useSupabaseMedia();
   const hideLabels = selectedId !== null;
 
   if (loading) {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import useWordPressMedia from "../hooks/useWordPressMedia";
+import useSupabaseMedia from "../hooks/useSupabaseMedia";
 import ImageWithFallback from "./ImageWithFallback";
 import { fetchMediaById } from "../api/wordpress";
 
@@ -9,7 +9,7 @@ export default function IssueInfoPanel({ issue }) {
     return null;
   }
 
-  const { media } = useWordPressMedia();
+  useSupabaseMedia();
 
   const title = issue.title?.rendered || issue.title;
   const {
