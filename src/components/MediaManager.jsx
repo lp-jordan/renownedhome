@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { fetchMedia, uploadMedia } from '../api/wordpress';
+import useSupabaseMedia from '../hooks/useSupabaseMedia';
 
 export default function MediaManager() {
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState('');
+  const { uploadMedia } = useSupabaseMedia();
 
   const handleUpload = async () => {
     if (!file) return;

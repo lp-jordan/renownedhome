@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
-import useWordPressMedia from "../hooks/useWordPressMedia";
+import useSupabaseMedia from "../hooks/useSupabaseMedia";
 import ImageWithFallback from "./ImageWithFallback";
 
 export default function TeamInfoPanel({ memberId }) {
-  const { media, loading, error } = useWordPressMedia();
+  const { media, loading, error } = useSupabaseMedia();
 
   if (loading) {
     return <div>Loading...</div>;
