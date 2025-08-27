@@ -1,53 +1,13 @@
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import useWordPressMedia from "../hooks/useWordPressMedia";
 import ImageWithFallback from "./ImageWithFallback";
-import { fetchMediaById } from "../api/wordpress";
 
 export default function IssueInfoPanel({ issue }) {
   if (!issue) {
     return null;
   }
-
-  const { media } = useWordPressMedia();
-
   const title = issue.title?.rendered || issue.title;
-  const {
-    cover_image,
-    subtitle,
-    long_description: description,
-    credits,
-  } = issue.acf || {};
-
-  const isNumeric = (value) =>
-    typeof value === "number" || (typeof value === "string" && /^\d+$/.test(value));
-
-  const [coverImage, setCoverImage] = useState("");
-
-  useEffect(() => {
-    let active = true;
-    const resolveCover = async () => {
-      let raw = Array.isArray(cover_image) ? cover_image[0] : cover_image;
-      raw = raw?.url || raw;
-      if (isNumeric(raw)) {
-        try {
-          const mediaItem = await fetchMediaById(raw);
-          if (active) {
-            setCoverImage(mediaItem?.source_url || "");
-          }
-        } catch {
-          if (active) setCoverImage("");
-        }
-      } else {
-        setCoverImage(raw || "");
-      }
-    };
-    resolveCover();
-    return () => {
-      active = false;
-    };
-  }, [cover_image]);
-
+  const { subtitle, long_description: description, credits } = issue;
+  const coverImage = issue.cover_image_url;
   const hasCoverImage = Boolean(coverImage);
 
   return (
