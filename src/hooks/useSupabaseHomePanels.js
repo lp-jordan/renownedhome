@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { fetchHomePanels } from '../api/wordpress';
+import { fetchHomePanels } from '../api/supabase';
 
-export default function useHomePanels() {
+export default function useSupabaseHomePanels() {
   const [panels, setPanels] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -11,12 +11,13 @@ export default function useHomePanels() {
       setLoading(true);
       setError(null);
       try {
-        const data = await fetchHomePanels();
+        const rows = await fetchHomePanels();
         const map = {};
-        data.forEach((item) => {
-          if (item?.label) {
-            map[item.label] = {
-              image: typeof item.image === 'string' ? item.image : undefined,
+        rows.forEach((row) => {
+          if (row?.label) {
+            map[row.label] = {
+              image:
+                typeof row.image_url === 'string' ? row.image_url : undefined,
             };
           }
         });
