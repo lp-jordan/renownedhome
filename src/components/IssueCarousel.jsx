@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import ImageWithFallback from "./ImageWithFallback";
 
 export default function IssueCarousel({
@@ -29,23 +30,36 @@ export default function IssueCarousel({
   }
 
   if (error) {
-    return <div>Error loading media.</div>;
+    return <div>Error loading issues.</div>;
   }
 
-  const issues = issuePosts.map((issue) => ({
-    id: issue.id,
-    title: issue.title?.rendered || issue.title,
-    coverImage: issue.cover_image,
-    releaseDate: issue.release_date,
-    shortDescription: issue.short_description,
-    longDescription: issue.long_description,
-  }));
+  // Normalize cover images regardless of format
+  const issues = useMemo(() => {
+    return issuePosts.map((issue) => {
+      let coverImage = issue.cover_image;
+
+      if (Array.isArray(coverImage)) {
+        const first = coverImage[0];
+        coverImage = first?.url || first;
+      } else if (typeof coverImage === "object" && coverImage?.url) {
+        coverImage = coverImage.url;
+      }
+
+      return {
+        id: issue.id,
+        title: issue.title?.rendered || issue.title,
+        coverImage,
+        releaseDate: issue.release_date,
+        shortDescription: issue.short_description,
+        longDescription: issue.long_description,
+      };
+    });
+  }, [issuePosts]);
 
   return (
     <div className="w-full overflow-x-auto touch-pan-x">
       <div className="flex space-x-4 p-4">
         {issues.map((issue) => {
-          const imageSrc = issue.coverImage;
           const handleClick = () => onSelect?.(issue.id);
           return (
             <div
@@ -56,9 +70,9 @@ export default function IssueCarousel({
               }`}
               style={{ borderColor: "var(--border)" }}
             >
-              {imageSrc ? (
+              {issue.coverImage ? (
                 <ImageWithFallback
-                  src={imageSrc}
+                  src={issue.coverImage}
                   alt={issue.title}
                   className="w-full h-40 object-cover"
                 />
@@ -72,7 +86,7 @@ export default function IssueCarousel({
                   )}
                 </p>
               </div>
-              {!imageSrc && (
+              {!issue.coverImage && (
                 <div className="p-1 text-center text-xs text-red-500">
                   Image unavailable
                 </div>

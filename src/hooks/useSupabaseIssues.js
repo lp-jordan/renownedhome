@@ -1,31 +1,40 @@
 import { useEffect, useState } from "react";
+import { fetchIssues } from "../api/supabase";
 
 export default function useSupabaseIssues() {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const url = import.meta.env.VITE_SUPABASE_URL;
-  const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
   const load = async () => {
     setLoading(true);
     setError(null);
     try {
-      if (!url || !key) {
-        throw new Error("Supabase credentials are not configured");
-      }
-      const res = await fetch(`${url}/rest/v1/issues?select=*`, {
-        headers: {
-          apikey: key,
-          Authorization: `Bearer ${key}`,
-        },
+      const data = await fetchIssues();
+
+      // Sort by issue number if possible
+      const sorted = [...data].sort((a, b) => {
+        const aVal = Number(a.number);
+        const bVal = Number(b.number);
+        const aNum = Number.isFinite(aVal) ? aVal : Infinity;
+        const bNum = Number.isFinite(bVal) ? bVal : Infinity;
+        return aNum - bNum;
       });
-      if (!res.ok) {
-        throw new Error("Failed to fetch issues");
-      }
-      const data = await res.json();
-      setIssues(Array.isArray(data) ? data : []);
+
+      // Normalize issue shape
+      const mapped = sorted.map((item) => ({
+        id: item.id,
+        title: item.title,
+        number: item.number,
+        cover_image: item.cover_image,
+        release_date: item.release_date,
+        short_description: item.short_description,
+        long_description: item.long_description,
+        subtitle: item.subtitle,
+        credits: item.credits,
+      }));
+
+      setIssues(mapped);
     } catch (err) {
       setError(err);
     } finally {

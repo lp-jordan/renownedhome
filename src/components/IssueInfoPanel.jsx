@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import ImageWithFallback from "./ImageWithFallback";
+import { useMemo } from "react";
 
 export default function IssueInfoPanel({ issue }) {
   if (!issue) {
@@ -7,13 +8,27 @@ export default function IssueInfoPanel({ issue }) {
   }
 
   const title = issue.title?.rendered || issue.title;
-  const {
-    cover_image: coverImage,
-    subtitle,
-    long_description: description,
-    credits,
-  } = issue;
-  const hasCoverImage = Boolean(coverImage);
+
+  const normalizedCoverImage = useMemo(() => {
+    let raw = issue.cover_image;
+
+    // If it's an array, take the first entry
+    if (Array.isArray(raw)) {
+      raw = raw[0];
+    }
+
+    // If it's an object with .url
+    if (typeof raw === "object" && raw?.url) {
+      return raw.url;
+    }
+
+    // If it's a plain string (URL or empty)
+    if (typeof raw === "string") {
+      return raw;
+    }
+
+    return "";
+  }, [issue.cover_image]);
 
   return (
     <motion.div
@@ -24,24 +39,24 @@ export default function IssueInfoPanel({ issue }) {
       className="flex flex-col items-center gap-4 p-4 mt-4 border rounded bg-[var(--background)]"
       style={{ borderColor: "var(--border)" }}
     >
-      {hasCoverImage && (
+      {normalizedCoverImage && (
         <ImageWithFallback
-          src={coverImage}
+          src={normalizedCoverImage}
           alt={title}
           className="w-full rounded"
         />
       )}
       <div className="text-center">
         <h2 className="text-2xl font-bold">{title}</h2>
-        {subtitle && (
-          <h3 className="text-lg text-gray-500">{subtitle}</h3>
+        {issue.subtitle && (
+          <h3 className="text-lg text-gray-500">{issue.subtitle}</h3>
         )}
       </div>
-      {description && (
-        <p className="max-w-xl text-center">{description}</p>
+      {issue.long_description && (
+        <p className="max-w-xl text-center">{issue.long_description}</p>
       )}
-      {credits && (
-        <p className="text-sm text-gray-500 text-center">{credits}</p>
+      {issue.credits && (
+        <p className="text-sm text-gray-500 text-center">{issue.credits}</p>
       )}
     </motion.div>
   );
