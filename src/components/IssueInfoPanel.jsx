@@ -13,7 +13,6 @@ export default function IssueInfoPanel({ issue }) {
     long_description: description,
     credits,
   } = issue;
-
   const hasCoverImage = Boolean(coverImage);
 
   return (
