@@ -1,27 +1,77 @@
+import { createClient } from '@supabase/supabase-js';
 import { logRequest, logSuccess, logError } from '../utils/logger';
 
-const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function fetchIssues() {
-  const endpoint = `${baseUrl}/rest/v1/issues?select=*`;
-  logRequest('Fetching issues from Supabase', endpoint);
+  logRequest('Fetching issues from Supabase');
   try {
-    const res = await fetch(endpoint, {
-      headers: {
-        apikey: apiKey,
-        Authorization: `Bearer ${apiKey}`,
-      },
-    });
-    if (!res.ok) {
-      logError('Failed to fetch issues from Supabase', `${res.status} ${res.statusText}`);
-      throw new Error('Failed to fetch issues');
+    const { data, error } = await supabase.from('issues').select('*');
+    if (error) {
+      logError('Error fetching issues from Supabase', error);
+      throw error;
     }
-    const data = await res.json();
-    logSuccess('Fetched issues from Supabase', { count: data.length });
-    return data;
+    logSuccess('Fetched issues from Supabase', { count: data?.length ?? 0 });
+    return data ?? [];
   } catch (err) {
-    logError('Error fetching issues from Supabase', err);
+    logError('Unexpected error fetching issues', err);
+    throw err;
+  }
+}
+
+export async function fetchHomePanels() {
+  logRequest('Fetching home panels from Supabase');
+  try {
+    const { data, error } = await supabase.from('home_panels').select('*');
+    if (error) {
+      logError('Error fetching home panels', error);
+      throw error;
+    }
+    logSuccess('Fetched home panels', { count: data?.length ?? 0 });
+    return data ?? [];
+  } catch (err) {
+    logError('Unexpected error fetching home panels', err);
+    throw err;
+  }
+}
+
+export async function fetchMediaList() {
+  logRequest('Fetching media list from Supabase');
+  try {
+    const { data, error } = await supabase.from('media').select('*');
+    if (error) {
+      logError('Error fetching media list', error);
+      throw error;
+    }
+    logSuccess('Fetched media list', { count: data?.length ?? 0 });
+    return data ?? [];
+  } catch (err) {
+    logError('Unexpected error fetching media list', err);
+    throw err;
+  }
+}
+
+export async function uploadMedia(file) {
+  const filePath = `${Date.now()}-${file.name}`;
+  logRequest('Uploading media to Supabase Storage', filePath);
+
+  try {
+    const { data, error } = await supabase.storage.from('media').upload(filePath, file);
+
+    if (error) {
+      logError('Error uploading media', error);
+      throw error;
+    }
+
+    const { data: urlData } = supabase.storage.from('media').getPublicUrl(data.path);
+
+    logSuccess('Uploaded media', { path: data.path, url: urlData.publicUrl });
+    return { path: data.path, publicUrl: urlData.publicUrl };
+  } catch (err) {
+    logError('Unexpected error uploading media', err);
     throw err;
   }
 }

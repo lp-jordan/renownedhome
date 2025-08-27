@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import ImageWithFallback from "./ImageWithFallback";
-import { fetchMediaById } from "../api/wordpress";
+import { useMemo } from "react";
 
 export default function IssueInfoPanel({ issue }) {
   if (!issue) {
@@ -9,43 +8,27 @@ export default function IssueInfoPanel({ issue }) {
   }
 
   const title = issue.title?.rendered || issue.title;
-  const {
-    cover_image,
-    subtitle,
-    long_description: description,
-    credits,
-  } = issue;
 
-  const isNumeric = (value) =>
-    typeof value === "number" || (typeof value === "string" && /^\d+$/.test(value));
+  const normalizedCoverImage = useMemo(() => {
+    let raw = issue.cover_image;
 
-  const [coverImage, setCoverImage] = useState("");
+    // If it's an array, take the first entry
+    if (Array.isArray(raw)) {
+      raw = raw[0];
+    }
 
-  useEffect(() => {
-    let active = true;
-    const resolveCover = async () => {
-      let raw = Array.isArray(cover_image) ? cover_image[0] : cover_image;
-      raw = raw?.url || raw;
-      if (isNumeric(raw)) {
-        try {
-          const mediaItem = await fetchMediaById(raw);
-          if (active) {
-            setCoverImage(mediaItem?.source_url || "");
-          }
-        } catch {
-          if (active) setCoverImage("");
-        }
-      } else {
-        setCoverImage(raw || "");
-      }
-    };
-    resolveCover();
-    return () => {
-      active = false;
-    };
-  }, [cover_image]);
+    // If it's an object with .url
+    if (typeof raw === "object" && raw?.url) {
+      return raw.url;
+    }
 
-  const hasCoverImage = Boolean(coverImage);
+    // If it's a plain string (URL or empty)
+    if (typeof raw === "string") {
+      return raw;
+    }
+
+    return "";
+  }, [issue.cover_image]);
 
   return (
     <motion.div
@@ -56,24 +39,24 @@ export default function IssueInfoPanel({ issue }) {
       className="flex flex-col items-center gap-4 p-4 mt-4 border rounded bg-[var(--background)]"
       style={{ borderColor: "var(--border)" }}
     >
-      {hasCoverImage && (
+      {normalizedCoverImage && (
         <ImageWithFallback
-          src={coverImage}
+          src={normalizedCoverImage}
           alt={title}
           className="w-full rounded"
         />
       )}
       <div className="text-center">
         <h2 className="text-2xl font-bold">{title}</h2>
-        {subtitle && (
-          <h3 className="text-lg text-gray-500">{subtitle}</h3>
+        {issue.subtitle && (
+          <h3 className="text-lg text-gray-500">{issue.subtitle}</h3>
         )}
       </div>
-      {description && (
-        <p className="max-w-xl text-center">{description}</p>
+      {issue.long_description && (
+        <p className="max-w-xl text-center">{issue.long_description}</p>
       )}
-      {credits && (
-        <p className="text-sm text-gray-500 text-center">{credits}</p>
+      {issue.credits && (
+        <p className="text-sm text-gray-500 text-center">{issue.credits}</p>
       )}
     </motion.div>
   );

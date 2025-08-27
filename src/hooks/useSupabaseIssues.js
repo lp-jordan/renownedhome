@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { fetchIssues } from '../api/supabase';
+import { useEffect, useState } from "react";
+import { fetchIssues } from "../api/supabase";
 
 export default function useSupabaseIssues() {
   const [issues, setIssues] = useState([]);
@@ -11,6 +11,8 @@ export default function useSupabaseIssues() {
     setError(null);
     try {
       const data = await fetchIssues();
+
+      // Sort by issue number if possible
       const sorted = [...data].sort((a, b) => {
         const aVal = Number(a.number);
         const bVal = Number(b.number);
@@ -18,6 +20,8 @@ export default function useSupabaseIssues() {
         const bNum = Number.isFinite(bVal) ? bVal : Infinity;
         return aNum - bNum;
       });
+
+      // Normalize issue shape
       const mapped = sorted.map((item) => ({
         id: item.id,
         title: item.title,
@@ -29,9 +33,9 @@ export default function useSupabaseIssues() {
         subtitle: item.subtitle,
         credits: item.credits,
       }));
+
       setIssues(mapped);
     } catch (err) {
-      // Capture the error in state and let callers decide how to render it
       setError(err);
     } finally {
       setLoading(false);
@@ -44,4 +48,3 @@ export default function useSupabaseIssues() {
 
   return { issues, loading, error, refresh: load };
 }
-
