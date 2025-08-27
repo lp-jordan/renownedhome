@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchIssues } from '../api/wordpress';
+import { fetchIssues } from '../api/supabase';
 
 export default function useWordPressIssues() {
   const [issues, setIssues] = useState([]);

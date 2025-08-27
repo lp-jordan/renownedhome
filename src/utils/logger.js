@@ -1,4 +1,4 @@
-const prefix = '[WP API]';
+const prefix = '[Supabase API]';
 
 export function logRequest(message, info) {
   console.info(`${prefix} ${message}`, info);

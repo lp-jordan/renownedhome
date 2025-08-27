@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchMedia, uploadMedia } from '../api/wordpress';
+import { fetchMedia, uploadMedia } from '../api/supabase';
 
 export default function useWordPressMedia() {
   const [media, setMedia] = useState([]);

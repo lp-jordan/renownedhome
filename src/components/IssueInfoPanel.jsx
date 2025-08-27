@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import useWordPressMedia from "../hooks/useWordPressMedia";
 import ImageWithFallback from "./ImageWithFallback";
-import { fetchMediaById } from "../api/wordpress";
+import { fetchMediaById } from "../api/supabase";
 
 export default function IssueInfoPanel({ issue }) {
   if (!issue) {

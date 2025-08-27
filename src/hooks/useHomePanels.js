@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchHomePanels } from '../api/wordpress';
+import { fetchHomePanels } from '../api/supabase';
 
 export default function useHomePanels() {
   const [panels, setPanels] = useState({});

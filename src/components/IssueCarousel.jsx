@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchMediaById } from "../api/wordpress";
+import { fetchMediaById } from "../api/supabase";
 import ImageWithFallback from "./ImageWithFallback";
 
 export default function IssueCarousel({
