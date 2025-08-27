@@ -5,9 +5,14 @@ export default function IssueInfoPanel({ issue }) {
   if (!issue) {
     return null;
   }
+
   const title = issue.title?.rendered || issue.title;
-  const { subtitle, long_description: description, credits } = issue;
-  const coverImage = issue.cover_image_url;
+  const {
+    cover_image: coverImage,
+    subtitle,
+    long_description: description,
+    credits,
+  } = issue;
   const hasCoverImage = Boolean(coverImage);
 
   return (
