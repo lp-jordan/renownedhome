@@ -4,10 +4,10 @@ import PanelContent from "../components/PanelContent";
 import IssueCarousel from "../components/IssueCarousel";
 import IssueInfoPanel from "../components/IssueInfoPanel";
 import BackButton from "../components/BackButton";
-import useWordPressIssues from "../hooks/useWordPressIssues";
+import useSupabaseIssues from "../hooks/useSupabaseIssues";
 
 export default function Read() {
-  const { issues, loading, error } = useWordPressIssues();
+  const { issues, loading, error } = useSupabaseIssues();
   const [selectedIssue, setSelectedIssue] = useState(null);
 
   const handleSelect = (id) => {

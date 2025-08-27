@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { fetchMediaById } from "../api/wordpress";
+import { useMemo } from "react";
 import ImageWithFallback from "./ImageWithFallback";
 
 export default function IssueCarousel({
@@ -9,11 +8,7 @@ export default function IssueCarousel({
   selectedId,
   onSelect,
 }) {
-  const [coverImages, setCoverImages] = useState({});
-  const [, setCoverLoading] = useState(true);
-  const [coverErrors, setCoverErrors] = useState({});
-
-  if (loading || coverLoading) {
+  if (loading) {
     return (
       <div className="w-full overflow-x-auto touch-pan-x">
         <div className="flex space-x-4 p-4">
@@ -34,123 +29,50 @@ export default function IssueCarousel({
     );
   }
 
-  if (error || coverError) {
-    return <div>Error loading media.</div>;
+  if (error) {
+    return <div>Error loading issues.</div>;
   }
 
-  const isNumeric = (value) =>
-    typeof value === "number" || (typeof value === "string" && /^\d+$/.test(value));
-  useEffect(() => {
-    let active = true;
-    const fetchWithTimeout = (promise, ms = 10000) =>
-      Promise.race([
-        promise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
-      ]);
+  // Normalize cover images regardless of format
+  const issues = useMemo(() => {
+    return issuePosts.map((issue) => {
+      let coverImage = issue.cover_image;
 
-    const load = async () => {
-      if (!issuePosts.length) {
-        setCoverImages({});
-        setCoverErrors({});
-        setCoverLoading(false);
-        return;
+      if (Array.isArray(coverImage)) {
+        const first = coverImage[0];
+        coverImage = first?.url || first;
+      } else if (typeof coverImage === "object" && coverImage?.url) {
+        coverImage = coverImage.url;
       }
 
-      setCoverLoading(true);
-      setCoverErrors({});
-
-      await Promise.allSettled(
-        issuePosts.map(async (issue) => {
-          const rawCoverField = issue.acf?.cover_image;
-          let value;
-          if (Array.isArray(rawCoverField)) {
-            const first = rawCoverField[0];
-            value = first?.url || first;
-          } else {
-            value = rawCoverField?.url || rawCoverField;
-          }
-          if (isNumeric(value)) {
-            try {
-              const mediaItem = await fetchWithTimeout(fetchMediaById(value));
-              if (active) {
-                setCoverImages((prev) => ({
-                  ...prev,
-                  [issue.id]: mediaItem?.source_url || "",
-                }));
-              }
-            } catch {
-              if (active) {
-                setCoverImages((prev) => ({ ...prev, [issue.id]: "" }));
-                setCoverErrors((prev) => ({ ...prev, [issue.id]: true }));
-              }
-            }
-            return;
-          }
-          if (active) {
-            setCoverImages((prev) => ({
-              ...prev,
-              [issue.id]:
-                value ||
-                issue._embedded?.["wp:featuredmedia"]?.[0]?.source_url ||
-                "",
-            }));
-          }
-        })
-      );
-
-      if (active) {
-        setCoverLoading(false);
-      }
-    };
-    load();
-    return () => {
-      active = false;
-    };
+      return {
+        id: issue.id,
+        title: issue.title?.rendered || issue.title,
+        coverImage,
+        releaseDate: issue.release_date,
+        shortDescription: issue.short_description,
+        longDescription: issue.long_description,
+      };
+    });
   }, [issuePosts]);
-
-  const issues = issuePosts.map((issue) => ({
-    id: issue.id,
-    title: issue.title.rendered,
-    coverImage: coverImages[issue.id],
-    releaseDate: issue.acf.release_date,
-    shortDescription: issue.acf.short_description,
-    longDescription: issue.acf.long_description,
-  }));
-
-  const placeholders = Array.from({ length: 3 }, (_, i) => ({
-    id: `placeholder-${i}`,
-    placeholder: true,
-  }));
-
-  const displayIssues =
-    loading && issuePosts.length === 0 ? placeholders : issues;
 
   return (
     <div className="w-full overflow-x-auto touch-pan-x">
       <div className="flex space-x-4 p-4">
-        {displayIssues.map((issue) => {
-          const imageSrc = issue.placeholder ? undefined : coverImages[issue.id];
-          const imageError = coverErrors[issue.id];
-          const isLoaded = imageSrc !== undefined;
-          const handleClick = issue.placeholder
-            ? undefined
-            : () => onSelect?.(issue.id);
+        {issues.map((issue) => {
+          const handleClick = () => onSelect?.(issue.id);
           return (
             <div
               key={issue.id}
               onClick={handleClick}
-              className={`flex-shrink-0 rounded border bg-[var(--background)] overflow-hidden min-w-[150px] sm:min-w-[200px] transition-transform ${
-                issue.placeholder
-                  ? ""
-                  : `cursor-pointer hover:scale-105 ${
-                      selectedId === issue.id ? "ring-2 ring-[var(--accent)]" : ""
-                    }`
+              className={`flex-shrink-0 rounded border bg-[var(--background)] overflow-hidden min-w-[150px] sm:min-w-[200px] transition-transform cursor-pointer hover:scale-105 ${
+                selectedId === issue.id ? "ring-2 ring-[var(--accent)]" : ""
               }`}
               style={{ borderColor: "var(--border)" }}
             >
-              {isLoaded ? (
+              {issue.coverImage ? (
                 <ImageWithFallback
-                  src={imageSrc}
+                  src={issue.coverImage}
                   alt={issue.title}
                   className="w-full h-40 object-cover"
                 />
@@ -159,15 +81,12 @@ export default function IssueCarousel({
               )}
               <div className="p-2 text-center">
                 <p className="text-sm font-medium text-[var(--foreground)]">
-                  {issue.title ||
-                    (issue.placeholder ? (
-                      <span className="inline-block h-4 w-20 rounded bg-gray-200 animate-pulse" />
-                    ) : (
-                      ""
-                    ))}
+                  {issue.title || (
+                    <span className="inline-block h-4 w-20 rounded bg-gray-200 animate-pulse" />
+                  )}
                 </p>
               </div>
-              {imageError && (
+              {!issue.coverImage && (
                 <div className="p-1 text-center text-xs text-red-500">
                   Image unavailable
                 </div>

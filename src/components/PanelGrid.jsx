@@ -1,8 +1,8 @@
 import PanelCard from "./PanelCard";
-import useHomePanels from "../hooks/useHomePanels";
+import useSupabaseHomePanels from "../hooks/useSupabaseHomePanels";
 
 export default function PanelGrid() {
-  const { panels } = useHomePanels();
+  const { panels } = useSupabaseHomePanels();
   const images = {
     EXPLORE:
       typeof panels["EXPLORE"]?.image === "string"
