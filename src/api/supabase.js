@@ -4,6 +4,11 @@ import { logRequest, logSuccess, logError } from '../utils/logger';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+if (import.meta.env.DEV) {
+  console.log('Supabase URL:', supabaseUrl);
+  console.log('Supabase anon key (first 6 chars):', supabaseAnonKey?.slice(0, 6));
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function fetchIssues() {
