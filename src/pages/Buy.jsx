@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import usePageSubtitle from "../hooks/usePageSubtitle";
 
 export default function Buy() {
-  const { headline } = usePageSubtitle("buy");
+  const { headline } = usePageSubtitle(1);
   return (
     <PanelContent className="justify-start">
         <motion.section

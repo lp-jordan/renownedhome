@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchPageSubtitle } from "../api/wordpress";
 
-export default function usePageSubtitle(page) {
+export default function usePageSubtitle(id) {
   const [headline, setHeadline] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -12,7 +12,7 @@ export default function usePageSubtitle(page) {
       setLoading(true);
       setError(null);
       try {
-        const data = await fetchPageSubtitle(page);
+        const data = await fetchPageSubtitle(id);
         if (isMounted) {
           setHeadline(data?.headline_content ?? "");
         }
@@ -30,7 +30,7 @@ export default function usePageSubtitle(page) {
     return () => {
       isMounted = false;
     };
-  }, [page]);
+  }, [id]);
 
   return { headline, loading, error };
 }

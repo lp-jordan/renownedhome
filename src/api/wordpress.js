@@ -165,8 +165,8 @@ export async function fetchHomePanels() {
   }
 }
 
-export async function fetchPageSubtitle(page) {
-  const endpoint = `${baseUrl}/wp-json/renowned/v1/page-subtitle/${page}`;
+export async function fetchPageSubtitle(id) {
+  const endpoint = `${baseUrl}/wp-json/renowned/v1/page-subtitle/${id}`;
   logRequest('Fetching page subtitle', endpoint);
   try {
     const res = await fetch(endpoint, {
@@ -187,7 +187,7 @@ export async function fetchPageSubtitle(page) {
     }
     await ensureJsonResponse(res, 'Fetching page subtitle');
     const data = await res.json();
-    logSuccess('Fetched page subtitle', { page: data.page });
+    logSuccess('Fetched page subtitle', { id: data.id ?? id });
     return data;
   } catch (err) {
     logError('Error fetching page subtitle', err);

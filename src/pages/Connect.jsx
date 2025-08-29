@@ -25,7 +25,7 @@ export default function Connect() {
     },
   ];
 
-    const { headline } = usePageSubtitle("connect");
+    const { headline } = usePageSubtitle(4);
     return (
       <PanelContent className="justify-start">
       {/* Hero Section */}
