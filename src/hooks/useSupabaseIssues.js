@@ -31,7 +31,9 @@ export default function useSupabaseIssues() {
         short_description: item.short_description,
         long_description: item.long_description,
         subtitle: item.subtitle,
-        credits: item.credits,
+        writer: item.writer,
+        artist: item.artist,
+        colorist: item.colorist,
       }));
 
       setIssues(mapped);
