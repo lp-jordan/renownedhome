@@ -5,6 +5,12 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const mediaBucket = import.meta.env.VITE_SUPABASE_MEDIA_BUCKET || "media";
 
+if (import.meta.env.DEV) {
+  console.log("Supabase URL:", supabaseUrl);
+  console.log("Supabase anon key (first 6 chars):", supabaseKey?.slice(0, 6));
+  console.log("Supabase media bucket:", mediaBucket);
+}
+
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function useSupabaseMedia() {
