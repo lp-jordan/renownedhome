@@ -55,8 +55,12 @@ export default function IssueInfoPanel({ issue }) {
       {issue.long_description && (
         <p className="max-w-xl text-center">{issue.long_description}</p>
       )}
-      {issue.credits && (
-        <p className="text-sm text-gray-500 text-center">{issue.credits}</p>
+      {(issue.writer || issue.artist || issue.colorist) && (
+        <div className="text-sm text-gray-500 text-center">
+          {issue.writer && <p>Writer: {issue.writer}</p>}
+          {issue.artist && <p>Artist: {issue.artist}</p>}
+          {issue.colorist && <p>Colorist: {issue.colorist}</p>}
+        </div>
       )}
     </motion.div>
   );

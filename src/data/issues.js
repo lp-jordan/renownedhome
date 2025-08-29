@@ -7,7 +7,9 @@ const issues = [
     coverImage: "https://via.placeholder.com/400x600?text=Issue+1+Cover",
     description:
       "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt.",
-      credits: "Written by The MEET",
+    writer: "The MEET",
+    artist: "The MEET",
+    colorist: "The MEET",
   },
   {
     id: 2,
@@ -17,7 +19,9 @@ const issues = [
     coverImage: "https://via.placeholder.com/400x600?text=Issue+2+Cover",
     description:
       "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo.",
-      credits: "Written by The MEET",
+    writer: "The MEET",
+    artist: "The MEET",
+    colorist: "The MEET",
   },
   {
     id: 3,
@@ -27,7 +31,9 @@ const issues = [
     coverImage: "https://via.placeholder.com/400x600?text=Issue+3+Cover",
     description:
       "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-      credits: "Written by The MEET",
+    writer: "The MEET",
+    artist: "The MEET",
+    colorist: "The MEET",
   },
 ];
 
