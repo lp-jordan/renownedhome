@@ -5,24 +5,24 @@ export default function PanelGrid() {
   const { panels } = useSupabaseHomePanels();
   const images = {
     EXPLORE:
-      typeof panels["EXPLORE"]?.image === "string"
-        ? panels["EXPLORE"].image
+      typeof panels[1]?.image === "string"
+        ? panels[1].image
         : "/panels/world.jpg",
     BUY:
-      typeof panels["BUY"]?.image === "string"
-        ? panels["BUY"].image
+      typeof panels[2]?.image === "string"
+        ? panels[2].image
         : "/panels/buy.jpg",
     READ:
-      typeof panels["READ"]?.image === "string"
-        ? panels["READ"].image
+      typeof panels[3]?.image === "string"
+        ? panels[3].image
         : "/panels/read.jpg",
     MEET:
-      typeof panels["MEET"]?.image === "string"
-        ? panels["MEET"].image
+      typeof panels[4]?.image === "string"
+        ? panels[4].image
         : "/panels/meet.jpg",
     CONNECT:
-      typeof panels["CONNECT"]?.image === "string"
-        ? panels["CONNECT"].image
+      typeof panels[5]?.image === "string"
+        ? panels[5].image
         : "/panels/connect.jpg",
   };
   return (
