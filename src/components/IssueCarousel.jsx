@@ -56,6 +56,10 @@ export default function IssueCarousel({
     });
   }, [issuePosts]);
 
+  if (!issues.length) {
+    return <div>No issues available.</div>;
+  }
+
   return (
     <div className="w-full overflow-x-auto touch-pan-x">
       <div className="flex space-x-4 p-4">
