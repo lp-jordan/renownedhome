@@ -1,6 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useState } from "react";
 import ImageWithFallback from "./ImageWithFallback";
 
 export default function BackButton() {
@@ -15,16 +14,13 @@ export default function BackButton() {
     "w-12 h-12 rounded-full border overflow-hidden transition-colors duration-200";
   const className = `${baseClasses} ${positionClasses}`;
 
-  const [leaving, setLeaving] = useState(false);
-
   const variants = {
     hidden: { opacity: 0, x: -10 },
     visible: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: -10 },
   };
 
   const handleClick = () => {
-    setLeaving(true);
+    navigate(-1);
   };
 
   return (
@@ -34,14 +30,9 @@ export default function BackButton() {
       style={{ borderColor: "var(--border)" }}
       onClick={handleClick}
       initial="hidden"
-      animate={leaving ? "exit" : "visible"}
+      animate="visible"
       variants={variants}
       transition={{ duration: 0.2 }}
-      onAnimationComplete={() => {
-        if (leaving) {
-          navigate(-1);
-        }
-      }}
     >
       <ImageWithFallback
         src="/logo.png"
