@@ -4,9 +4,11 @@ import PanelContent from "../components/PanelContent";
 import TeamCarousel from "../components/TeamCarousel";
 import TeamInfoPanel from "../components/TeamInfoPanel";
 import BackButton from "../components/BackButton";
+import usePageSubtitle from "../hooks/usePageSubtitle";
 
 export default function Meet() {
   const [selectedMemberId, setSelectedMemberId] = useState(null);
+  const { headline } = usePageSubtitle("meet");
 
   const handleSelect = (id) => {
     setSelectedMemberId((prev) => (prev === id ? null : id));
@@ -38,7 +40,7 @@ export default function Meet() {
                 transition={{ duration: 0.3, delay: 0.1 }}
                 className="max-w-xl text-lg md:text-2xl"
               >
-              Learn about the team behind Renowned Home.
+              {headline}
             </motion.p>
           </div>
         </div>

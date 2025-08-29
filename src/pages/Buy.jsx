@@ -1,8 +1,10 @@
 import PanelContent from "../components/PanelContent";
 import BackButton from "../components/BackButton";
 import { motion } from "framer-motion";
+import usePageSubtitle from "../hooks/usePageSubtitle";
 
 export default function Buy() {
+  const { headline } = usePageSubtitle("buy");
   return (
     <PanelContent className="justify-start">
         <motion.section
@@ -26,7 +28,7 @@ export default function Buy() {
             transition={{ duration: 0.3, delay: 0.1 }}
             className="max-w-xl text-lg md:text-2xl"
           >
-          Support Renowned Home by backing our upcoming Kickstarter campaign.
+          {headline}
         </motion.p>
           <motion.a
             href="#"

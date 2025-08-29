@@ -5,10 +5,12 @@ import IssueCarousel from "../components/IssueCarousel";
 import IssueInfoPanel from "../components/IssueInfoPanel";
 import BackButton from "../components/BackButton";
 import useSupabaseIssues from "../hooks/useSupabaseIssues";
+import usePageSubtitle from "../hooks/usePageSubtitle";
 
 export default function Read() {
   const { issues, loading, error } = useSupabaseIssues();
   const [selectedIssue, setSelectedIssue] = useState(null);
+  const { headline } = usePageSubtitle("read");
 
   const handleSelect = (id) => {
     const issue = issues.find((i) => i.id === id);
@@ -49,7 +51,7 @@ export default function Read() {
                 transition={{ duration: 0.3, delay: 0.1 }}
                 className="max-w-xl text-lg md:text-2xl"
               >
-              Explore the latest issue of Renowned Home.
+              {headline}
             </motion.p>
           </div>
         </div>
