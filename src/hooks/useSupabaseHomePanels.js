@@ -14,8 +14,8 @@ export default function useSupabaseHomePanels() {
         const rows = await fetchHomePanels();
         const map = {};
         rows.forEach((row) => {
-          if (row?.label) {
-            map[row.label] = {
+          if (typeof row?.id === 'number') {
+            map[row.id] = {
               image:
                 typeof row.image_url === 'string' ? row.image_url : undefined,
             };
