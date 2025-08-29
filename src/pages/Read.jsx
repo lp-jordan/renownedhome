@@ -10,7 +10,7 @@ import usePageSubtitle from "../hooks/usePageSubtitle";
 export default function Read() {
   const { issues, loading, error } = useSupabaseIssues();
   const [selectedIssue, setSelectedIssue] = useState(null);
-  const { headline } = usePageSubtitle("read");
+  const { headline } = usePageSubtitle(2);
 
   const handleSelect = (id) => {
     const issue = issues.find((i) => i.id === id);

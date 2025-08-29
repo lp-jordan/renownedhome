@@ -8,7 +8,7 @@ import usePageSubtitle from "../hooks/usePageSubtitle";
 
 export default function Meet() {
   const [selectedMemberId, setSelectedMemberId] = useState(null);
-  const { headline } = usePageSubtitle("meet");
+  const { headline } = usePageSubtitle(3);
 
   const handleSelect = (id) => {
     setSelectedMemberId((prev) => (prev === id ? null : id));
