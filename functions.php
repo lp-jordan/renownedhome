@@ -95,22 +95,23 @@ function rh_create_page_subtitles_table() {
 add_action( 'after_switch_theme', 'rh_create_page_subtitles_table' );
 
 add_action( 'rest_api_init', function() {
-    register_rest_route( 'renowned/v1', '/page-subtitle/(?P<page>[a-z0-9-]+)', [
+    register_rest_route( 'renowned/v1', '/page-subtitle/(?P<id>\d+)', [
         'methods'             => WP_REST_Server::READABLE,
         'permission_callback' => '__return_true',
         'callback'            => function( WP_REST_Request $request ) {
             global $wpdb;
-            $page  = sanitize_text_field( $request['page'] );
+            $id    = absint( $request['id'] );
             $table = $wpdb->prefix . 'page_subtitles';
-            $headline = $wpdb->get_var( $wpdb->prepare( "SELECT headline_content FROM $table WHERE page_title = %s", $page ) );
+            $row   = $wpdb->get_row( $wpdb->prepare( "SELECT page_title, headline_content FROM $table WHERE id = %d", $id ) );
 
-            if ( null === $headline ) {
+            if ( null === $row ) {
                 return new WP_Error( 'not_found', 'Page subtitle not found', [ 'status' => 404 ] );
             }
 
             return [
-                'page'             => $page,
-                'headline_content' => $headline,
+                'id'               => $id,
+                'page'             => $row->page_title,
+                'headline_content' => $row->headline_content,
             ];
         },
     ] );
