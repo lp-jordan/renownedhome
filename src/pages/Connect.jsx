@@ -1,6 +1,7 @@
 import PanelContent from "../components/PanelContent";
 import BackButton from "../components/BackButton";
 import { motion } from "framer-motion";
+import usePageSubtitle from "../hooks/usePageSubtitle";
 
 export default function Connect() {
   const socials = [
@@ -24,6 +25,7 @@ export default function Connect() {
     },
   ];
 
+    const { headline } = usePageSubtitle("connect");
     return (
       <PanelContent className="justify-start">
       {/* Hero Section */}
@@ -49,7 +51,7 @@ export default function Connect() {
               transition={{ duration: 0.3, delay: 0.1 }}
               className="max-w-xl text-lg md:text-2xl"
             >
-            Stay connected with Renowned Home.
+            {headline}
           </motion.p>
             <motion.form
               initial={{ opacity: 0, x: 20 }}

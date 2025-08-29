@@ -164,6 +164,36 @@ export async function fetchHomePanels() {
     throw err;
   }
 }
+
+export async function fetchPageSubtitle(page) {
+  const endpoint = `${baseUrl}/wp-json/renowned/v1/page-subtitle/${page}`;
+  logRequest('Fetching page subtitle', endpoint);
+  try {
+    const res = await fetch(endpoint, {
+      headers: {
+        ...authHeader(),
+      },
+    });
+    const authHeaderValue = res.headers.get('WWW-Authenticate');
+    if (res.status === 401 || res.status === 403) {
+      logError(
+        'WordPress authentication failed: missing or invalid credentials',
+        { status: res.status, authHeader: authHeaderValue }
+      );
+    }
+    if (!res.ok) {
+      logError('Failed to fetch page subtitle', `${res.status} ${res.statusText}`);
+      throw new Error('Failed to fetch page subtitle');
+    }
+    await ensureJsonResponse(res, 'Fetching page subtitle');
+    const data = await res.json();
+    logSuccess('Fetched page subtitle', { page: data.page });
+    return data;
+  } catch (err) {
+    logError('Error fetching page subtitle', err);
+    throw err;
+  }
+}
 export async function uploadMedia(file) {
   const formData = new FormData();
   formData.append('file', file);
