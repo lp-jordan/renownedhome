@@ -35,21 +35,19 @@ export default function Connect() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3 }}
         >
-        <div className="relative flex flex-col items-center justify-center w-full h-full gap-4 p-4 text-center">
-          <div className="flex items-center gap-4">
-            <BackButton />
+        <BackButton />
+        <div className="relative flex flex-col items-center justify-center w-full h-full p-4 text-center">
             <motion.h1
               layoutId="CONNECT"
-              className="relative z-50 px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
+              className="relative z-50 px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)] mb-2"
             >
               CONNECT
             </motion.h1>
-          </div>
             <motion.p
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3, delay: 0.1 }}
-              className="max-w-xl text-lg md:text-2xl"
+              className="max-w-xl text-lg md:text-2xl mb-4"
             >
             {headline}
           </motion.p>
