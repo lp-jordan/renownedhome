@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchPageSubtitle } from "../api/wordpress";
+import { fetchPageSubtitle } from "../api/supabase";
 
 export default function usePageSubtitle(id) {
   const [headline, setHeadline] = useState("");

@@ -43,6 +43,26 @@ export async function fetchHomePanels() {
   }
 }
 
+export async function fetchPageSubtitle(id) {
+  logRequest('Fetching page subtitle from Supabase', { id });
+  try {
+    const { data, error } = await supabase
+      .from('page_subtitles')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error) {
+      logError('Error fetching page subtitle', error);
+      throw error;
+    }
+    logSuccess('Fetched page subtitle', { id: data?.id ?? id });
+    return data ?? null;
+  } catch (err) {
+    logError('Unexpected error fetching page subtitle', err);
+    throw err;
+  }
+}
+
 export async function fetchMediaList() {
   logRequest('Fetching media list from Supabase');
   try {
