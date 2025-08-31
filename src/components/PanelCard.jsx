@@ -9,7 +9,8 @@ export default function PanelCard({
   to,
 }) {
   const content = (
-    <div
+    <motion.div
+      layoutId={`panel-${label}`}
       className={`relative w-full h-full cursor-pointer group border bg-[var(--background)] ${className}`}
       style={{ borderColor: "var(--border)" }}
     >
@@ -31,7 +32,7 @@ export default function PanelCard({
           </motion.span>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 
   return to ? (
