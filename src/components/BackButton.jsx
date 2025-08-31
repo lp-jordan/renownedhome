@@ -20,7 +20,7 @@ export default function BackButton() {
   };
 
   const handleClick = () => {
-    navigate(-1);
+    navigate("/", { state: { fromPage: true } });
   };
 
   return (

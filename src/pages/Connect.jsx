@@ -25,32 +25,41 @@ export default function Connect() {
     },
   ];
 
-    const { headline } = usePageSubtitle(4);
-    return (
+  const { headline } = usePageSubtitle(4);
+  return (
+    <motion.div
+      layoutId="panel-CONNECT"
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="w-full h-full"
+    >
       <PanelContent className="justify-start">
-      {/* Hero Section */}
+        {/* Hero Section */}
         <motion.section
           className="relative flex-shrink-0 hero-half"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3 }}
         >
-        <BackButton />
-        <div className="relative flex flex-col items-center justify-center w-full h-full p-4 text-center">
-            <motion.h1
-              layoutId="CONNECT"
-              className="relative z-50 px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)] mb-2"
-            >
-              CONNECT
-            </motion.h1>
+          <div className="relative flex flex-col items-center justify-center w-full h-full gap-4 p-4 text-center">
+            <div className="flex items-center gap-4">
+              <BackButton />
+              <motion.h1
+                layoutId="CONNECT"
+                className="relative z-50 px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
+              >
+                CONNECT
+              </motion.h1>
+            </div>
             <motion.p
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3, delay: 0.1 }}
               className="max-w-xl text-lg md:text-2xl mb-4"
             >
-            {headline}
-          </motion.p>
+              {headline}
+            </motion.p>
             <motion.form
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -58,49 +67,50 @@ export default function Connect() {
               className="flex w-full max-w-md"
               onSubmit={(e) => e.preventDefault()}
             >
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="flex-grow rounded-l border p-2 bg-[var(--background)] text-[var(--foreground)]"
-              style={{ borderColor: "var(--border)" }}
-            />
-            <button
-              type="submit"
-              className="rounded-r border p-2 bg-[var(--accent)] text-white"
-              style={{ borderColor: "var(--border)" }}
-            >
-              Submit
-            </button>
-          </motion.form>
-        </div>
-      </motion.section>
+              <input
+                type="email"
+                placeholder="Enter your email"
+                className="flex-grow rounded-l border p-2 bg-[var(--background)] text-[var(--foreground)]"
+                style={{ borderColor: "var(--border)" }}
+              />
+              <button
+                type="submit"
+                className="rounded-r border p-2 bg-[var(--accent)] text-white"
+                style={{ borderColor: "var(--border)" }}
+              >
+                Submit
+              </button>
+            </motion.form>
+          </div>
+        </motion.section>
 
-      {/* Social Section */}
+        {/* Social Section */}
         <motion.div
           className="flex items-center justify-center w-full px-4 py-12"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3, delay: 0.2 }}
         >
-        <div className="flex space-x-6">
-          {socials.map((social) => (
-            <a
-              key={social.id}
-              href={social.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-24 h-24 border rounded-full overflow-hidden flex items-center justify-center"
-              style={{ borderColor: "var(--border)" }}
-            >
-              <img
-                src={social.img}
-                alt={social.alt}
-                className="w-full h-full object-cover"
-              />
-            </a>
-          ))}
-        </div>
-      </motion.div>
-    </PanelContent>
+          <div className="flex space-x-6">
+            {socials.map((social) => (
+              <a
+                key={social.id}
+                href={social.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-24 h-24 border rounded-full overflow-hidden flex items-center justify-center"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <img
+                  src={social.img}
+                  alt={social.alt}
+                  className="w-full h-full object-cover"
+                />
+              </a>
+            ))}
+          </div>
+        </motion.div>
+      </PanelContent>
+    </motion.div>
   );
 }
