@@ -18,7 +18,7 @@ export default function IssueCarousel({
               className="flex-shrink-0 rounded border bg-[var(--background)] overflow-hidden min-w-[150px] sm:min-w-[200px]"
               style={{ borderColor: "var(--border)" }}
             >
-              <div className="w-full h-40 bg-[var(--muted)] animate-pulse" />
+              <div className="w-full aspect-[3/2] bg-[var(--muted)] animate-pulse" />
               <div className="p-2 text-center">
                 <div className="h-4 bg-[var(--muted)] rounded w-3/4 mx-auto animate-pulse" />
               </div>
@@ -74,15 +74,17 @@ export default function IssueCarousel({
               }`}
               style={{ borderColor: "var(--border)" }}
             >
-              {issue.coverImage ? (
-                <ImageWithFallback
-                  src={issue.coverImage}
-                  alt={issue.title}
-                  className="w-full h-40 object-cover"
-                />
-              ) : (
-                <div className="w-full h-40 bg-gray-200 animate-pulse" />
-              )}
+              <div className="w-full aspect-[3/2]">
+                {issue.coverImage ? (
+                  <ImageWithFallback
+                    src={issue.coverImage}
+                    alt={issue.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-200 animate-pulse" />
+                )}
+              </div>
               <div className="p-2 text-center">
                 <p className="text-sm font-medium text-[var(--foreground)]">
                   {issue.title || (
