@@ -14,7 +14,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export async function fetchIssues() {
   logRequest('Fetching issues from Supabase');
   try {
-    const { data, error } = await supabase.from('issues').select('*');
+    const { data, error } = await supabase
+      .from('issues')
+      .select(
+        'id, title, number, cover_image, release_date, short_description, long_description, subtitle, writer, artist, colorist'
+      )
+      .order('number', { ascending: true });
     if (error) {
       logError('Error fetching issues from Supabase', error);
       throw error;
@@ -30,7 +35,9 @@ export async function fetchIssues() {
 export async function fetchHomePanels() {
   logRequest('Fetching home panels from Supabase');
   try {
-    const { data, error } = await supabase.from('home_panels').select('*');
+    const { data, error } = await supabase
+      .from('home_panels')
+      .select('id, image_url');
     if (error) {
       logError('Error fetching home panels', error);
       throw error;
@@ -48,7 +55,7 @@ export async function fetchPageSubtitle(id) {
   try {
     const { data, error } = await supabase
       .from('page_subtitles')
-      .select('*')
+      .select('id, headline_content')
       .eq('id', id)
       .single();
     if (error) {
@@ -66,7 +73,9 @@ export async function fetchPageSubtitle(id) {
 export async function fetchMediaList() {
   logRequest('Fetching media list from Supabase');
   try {
-    const { data, error } = await supabase.from('media').select('*');
+    const { data, error } = await supabase
+      .from('media')
+      .select('id, title, url, caption');
     if (error) {
       logError('Error fetching media list', error);
       throw error;

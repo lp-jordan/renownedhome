@@ -11,18 +11,8 @@ export default function useSupabaseIssues() {
     setError(null);
     try {
       const data = await fetchIssues();
-
-      // Sort by issue number if possible
-      const sorted = [...data].sort((a, b) => {
-        const aVal = Number(a.number);
-        const bVal = Number(b.number);
-        const aNum = Number.isFinite(aVal) ? aVal : Infinity;
-        const bNum = Number.isFinite(bVal) ? bVal : Infinity;
-        return aNum - bNum;
-      });
-
       // Normalize issue shape
-      const mapped = sorted.map((item) => ({
+      const mapped = data.map((item) => ({
         id: item.id,
         title: item.title,
         number: item.number,
