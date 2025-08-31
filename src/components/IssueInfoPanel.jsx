@@ -1,6 +1,4 @@
 import { motion } from "framer-motion";
-import ImageWithFallback from "./ImageWithFallback";
-import { useMemo } from "react";
 
 export default function IssueInfoPanel({ issue }) {
   if (!issue) {
@@ -8,27 +6,6 @@ export default function IssueInfoPanel({ issue }) {
   }
 
   const title = issue.title?.rendered || issue.title;
-
-  const normalizedCoverImage = useMemo(() => {
-    let raw = issue.cover_image;
-
-    // If it's an array, take the first entry
-    if (Array.isArray(raw)) {
-      raw = raw[0];
-    }
-
-    // If it's an object with .url
-    if (typeof raw === "object" && raw?.url) {
-      return raw.url;
-    }
-
-    // If it's a plain string (URL or empty)
-    if (typeof raw === "string") {
-      return raw;
-    }
-
-    return "";
-  }, [issue.cover_image]);
 
   return (
     <motion.div
@@ -39,13 +16,6 @@ export default function IssueInfoPanel({ issue }) {
       className="flex flex-col items-center gap-4 p-4 mt-4 border rounded bg-[var(--background)]"
       style={{ borderColor: "var(--border)" }}
     >
-      {normalizedCoverImage && (
-        <ImageWithFallback
-          src={normalizedCoverImage}
-          alt={title}
-          className="w-full rounded"
-        />
-      )}
       <div className="text-center">
         <h2 className="text-2xl font-bold">{title}</h2>
         {issue.subtitle && (
