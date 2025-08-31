@@ -80,21 +80,22 @@ export default function Read() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3, delay: 0.2 }}
         >
-        <IssueCarousel
-          issues={issues}
-          loading={loading}
-          error={error}
-          selectedId={selectedIssue?.id}
-          onSelect={handleSelect}
-        />
-        <div ref={infoRef} className="w-full flex flex-col items-center">
-          <AnimatePresence mode="wait">
-            {!loading && selectedIssue && (
-              <IssueInfoPanel issue={selectedIssue} key={selectedIssue.id} />
-            )}
-          </AnimatePresence>
-        </div>
-      </motion.div>
-    </PanelContent>
+          <IssueCarousel
+            issues={issues}
+            loading={loading}
+            error={error}
+            selectedId={selectedIssue?.id}
+            onSelect={handleSelect}
+          />
+          <div ref={infoRef} className="flex flex-col items-center w-full">
+            <AnimatePresence mode="wait">
+              {!loading && selectedIssue && (
+                <IssueInfoPanel issue={selectedIssue} key={selectedIssue.id} />
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
+      </PanelContent>
+    </motion.div>
   );
 }
