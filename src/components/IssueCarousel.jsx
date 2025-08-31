@@ -15,10 +15,10 @@ export default function IssueCarousel({
           {Array.from({ length: 3 }).map((_, i) => (
             <div
               key={i}
-              className="flex-shrink-0 rounded border bg-[var(--background)] overflow-hidden min-w-[150px] sm:min-w-[200px]"
+              className="flex-shrink-0 rounded border bg-[var(--background)] overflow-hidden w-[150px] sm:w-[200px]"
               style={{ borderColor: "var(--border)" }}
             >
-              <div className="w-full h-40 bg-[var(--muted)] animate-pulse" />
+              <div className="w-full aspect-square bg-[var(--muted)] animate-pulse" />
               <div className="p-2 text-center">
                 <div className="h-4 bg-[var(--muted)] rounded w-3/4 mx-auto animate-pulse" />
               </div>
@@ -69,20 +69,22 @@ export default function IssueCarousel({
             <div
               key={issue.id}
               onClick={handleClick}
-              className={`flex-shrink-0 rounded border bg-[var(--background)] overflow-hidden min-w-[150px] sm:min-w-[200px] transition-transform cursor-pointer hover:scale-105 ${
+              className={`flex-shrink-0 rounded border bg-[var(--background)] overflow-hidden w-[150px] sm:w-[200px] transition-transform cursor-pointer hover:scale-105 ${
                 selectedId === issue.id ? "ring-2 ring-[var(--accent)]" : ""
               }`}
               style={{ borderColor: "var(--border)" }}
             >
-              {issue.coverImage ? (
-                <ImageWithFallback
-                  src={issue.coverImage}
-                  alt={issue.title}
-                  className="w-full h-40 object-cover"
-                />
-              ) : (
-                <div className="w-full h-40 bg-gray-200 animate-pulse" />
-              )}
+              <div className="w-full aspect-square">
+                {issue.coverImage ? (
+                  <ImageWithFallback
+                    src={issue.coverImage}
+                    alt={issue.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-200 animate-pulse" />
+                )}
+              </div>
               <div className="p-2 text-center">
                 <p className="text-sm font-medium text-[var(--foreground)]">
                   {issue.title || (
