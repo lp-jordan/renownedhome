@@ -18,15 +18,13 @@ export default function World() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <div className="flex items-center gap-4">
-            <BackButton />
-            <motion.h1
-              layoutId="EXPLORE"
-              className="relative z-50 px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
-            >
-              EXPLORE
-            </motion.h1>
-          </div>
+          <BackButton />
+          <motion.h1
+            layoutId="EXPLORE"
+            className="relative z-50 px-4 py-2 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
+          >
+            EXPLORE
+          </motion.h1>
         </motion.section>
       </PanelContent>
     </motion.div>
