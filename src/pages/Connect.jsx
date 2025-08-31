@@ -56,7 +56,7 @@ export default function Connect() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3, delay: 0.1 }}
-              className="max-w-xl text-lg md:text-2xl"
+              className="max-w-xl text-lg md:text-2xl mb-4"
             >
               {headline}
             </motion.p>

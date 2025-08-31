@@ -15,7 +15,7 @@ export default function Buy() {
     >
       <PanelContent className="justify-start">
         <motion.section
-          className="flex flex-col items-center justify-center gap-4 p-4 text-center hero-full"
+          className="relative flex flex-col items-center justify-center p-4 text-center hero-full"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3 }}
@@ -33,7 +33,7 @@ export default function Buy() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3, delay: 0.1 }}
-            className="max-w-xl text-lg md:text-2xl"
+            className="max-w-xl text-lg md:text-2xl mb-4"
           >
             {headline}
           </motion.p>
@@ -42,7 +42,7 @@ export default function Buy() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3, delay: 0.2 }}
-            className="mt-4 rounded bg-black px-8 py-3 font-bold uppercase text-white"
+            className="rounded bg-black px-8 py-3 font-bold uppercase text-white"
           >
             KICKSTARTER
           </motion.a>

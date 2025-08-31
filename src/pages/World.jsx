@@ -13,7 +13,7 @@ export default function World() {
     >
       <PanelContent className="justify-start">
         <motion.section
-          className="flex items-center justify-center hero-full"
+          className="relative flex items-center justify-center hero-full"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3 }}
