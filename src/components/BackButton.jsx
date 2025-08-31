@@ -9,7 +9,7 @@ export default function BackButton() {
   if (isHome) {
     return null;
   }
-  const positionClasses = "fixed top-4 left-4 z-50";
+  const positionClasses = "fixed top-2 left-2 z-50";
   const baseClasses =
     "w-12 h-12 rounded-full border overflow-hidden transition-colors duration-200";
   const className = `${baseClasses} ${positionClasses}`;
