@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import PanelContent from "../components/PanelContent";
 import IssueCarousel from "../components/IssueCarousel";
@@ -11,6 +11,15 @@ export default function Read() {
   const { issues, loading, error } = useSupabaseIssues();
   const [selectedIssue, setSelectedIssue] = useState(null);
   const { headline } = usePageSubtitle(2);
+  const infoRef = useRef(null);
+
+  useEffect(() => {
+    if (selectedIssue) {
+      infoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [selectedIssue]);
 
   const handleSelect = (id) => {
     const issue = issues.find((i) => i.id === id);
@@ -71,11 +80,13 @@ export default function Read() {
           selectedId={selectedIssue?.id}
           onSelect={handleSelect}
         />
-        <AnimatePresence mode="wait">
-          {!loading && selectedIssue && (
-            <IssueInfoPanel issue={selectedIssue} key={selectedIssue.id} />
-          )}
-        </AnimatePresence>
+        <div ref={infoRef} className="w-full flex flex-col items-center">
+          <AnimatePresence mode="wait">
+            {!loading && selectedIssue && (
+              <IssueInfoPanel issue={selectedIssue} key={selectedIssue.id} />
+            )}
+          </AnimatePresence>
+        </div>
       </motion.div>
     </PanelContent>
   );
