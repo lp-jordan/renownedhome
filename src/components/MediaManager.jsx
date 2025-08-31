@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import useSupabaseMedia from '../hooks/useSupabaseMedia';
+import { useMediaStore } from '../hooks/useMediaStore';
 
 export default function MediaManager() {
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState('');
-  const { uploadMedia } = useSupabaseMedia();
+  const { uploadMedia } = useMediaStore();
 
   const handleUpload = async () => {
     if (!file) return;

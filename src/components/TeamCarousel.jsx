@@ -1,9 +1,9 @@
-import useSupabaseMedia from "../hooks/useSupabaseMedia";
+import { useMediaStore } from "../hooks/useMediaStore";
 import ImageWithFallback from "./ImageWithFallback";
 import { motion } from "framer-motion";
 
 export default function TeamCarousel({ selectedId, onSelect }) {
-  const { media, loading, error } = useSupabaseMedia();
+  const { media, loading, error } = useMediaStore();
   const hideLabels = selectedId !== null;
 
   if (loading) {

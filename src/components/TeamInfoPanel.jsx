@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
-import useSupabaseMedia from "../hooks/useSupabaseMedia";
+import { useMediaStore } from "../hooks/useMediaStore";
 import ImageWithFallback from "./ImageWithFallback";
 
 export default function TeamInfoPanel({ memberId }) {
-  const { media, loading, error } = useSupabaseMedia();
+  const { media, loading, error } = useMediaStore();
 
   if (loading) {
     return <div>Loading...</div>;
