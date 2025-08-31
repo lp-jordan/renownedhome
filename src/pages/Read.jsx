@@ -35,16 +35,13 @@ export default function Read() {
           transition={{ duration: 0.3 }}
         >
         <div className="relative flex flex-col items-center justify-center w-full h-full p-4 text-center">
-          <div className="flex flex-col items-center justify-center w-full gap-4 md:gap-8">
-            <div className="flex items-center gap-4">
-              <BackButton />
-              <motion.h1
+            <BackButton />
+            <motion.h1
                 layoutId="READ"
-                className="relative z-50 px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
+                className="relative z-50 px-6 py-4 font-bold uppercase text-[clamp(3rem,8vw,10rem)] mb-2"
               >
                 READ
               </motion.h1>
-            </div>
               <motion.p
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -54,7 +51,6 @@ export default function Read() {
               {headline}
             </motion.p>
           </div>
-        </div>
       </motion.section>
 
       {/* Carousel + Info Section */}
