@@ -35,7 +35,7 @@ export default function PanelCard({
   );
 
   return to ? (
-    <Link to={to} className="block h-full">
+    <Link to={to} className="block w-full h-full">
       {content}
     </Link>
   ) : (

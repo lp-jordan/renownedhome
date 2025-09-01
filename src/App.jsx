@@ -11,7 +11,7 @@ export default function App() {
   const location = useLocation();
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden p-3 bg-[#fdfaf5]">
+    <div className="fixed inset-0 overflow-hidden p-3 bg-[#fdfaf5]">
       <LayoutGroup>
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
