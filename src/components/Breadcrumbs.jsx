@@ -1,9 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
 
-export default function Breadcrumbs() {
+export default function Breadcrumbs({ className = "" }) {
   const location = useLocation();
   const pathnames = location.pathname.split("/").filter(Boolean);
 
+  if (pathnames.length === 0) return null;
   const crumbs = [
     { name: "home", to: "/" },
     ...pathnames.map((segment, index) => {
@@ -15,7 +16,7 @@ export default function Breadcrumbs() {
   return (
     <nav
       aria-label="Breadcrumb"
-      className="fixed top-2 left-2 right-2 z-50 flex items-center overflow-x-auto whitespace-nowrap font-hero text-sm"
+      className={`flex items-center overflow-x-auto whitespace-nowrap font-hero text-sm ${className}`}
     >
       {crumbs.map((crumb, index) => (
         <span key={crumb.to} className="flex items-center">
