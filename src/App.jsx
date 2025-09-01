@@ -4,7 +4,6 @@ import { LayoutGroup, AnimatePresence } from "framer-motion";
 import PanelGrid from "./components/PanelGrid";
 import Read from "./pages/Read";
 import Buy from "./pages/Buy";
-import World from "./pages/World";
 import Meet from "./pages/Meet";
 import Connect from "./pages/Connect";
 
@@ -12,17 +11,13 @@ export default function App() {
   const location = useLocation();
 
   return (
-    <div
-      className="relative w-screen h-screen overflow-x-hidden overflow-y-auto border-4 p-4"
-      style={{ borderColor: "var(--border)" }}
-    >
+    <div className="fixed inset-0 overflow-hidden p-3 bg-[#fdfaf5]">
       <LayoutGroup>
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<PanelGrid />} />
             <Route path="/read" element={<Read />} />
             <Route path="/buy" element={<Buy />} />
-            <Route path="/world" element={<World />} />
             <Route path="/meet" element={<Meet />} />
             <Route path="/connect" element={<Connect />} />
             <Route path="*" element={<Navigate to="/" replace />} />

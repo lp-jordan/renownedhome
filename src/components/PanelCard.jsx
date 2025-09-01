@@ -11,32 +11,29 @@ export default function PanelCard({
   const content = (
     <motion.div
       layoutId={`panel-${label}`}
-      className={`relative w-full h-full cursor-pointer group border bg-[var(--background)] ${className}`}
-      style={{ borderColor: "var(--border)" }}
+      whileHover={{ scale: 1.02 }}
+      className={`relative w-full h-full cursor-pointer border border-black rounded-lg overflow-hidden group bg-transparent flex items-center justify-center ${className}`}
     >
       {imageSrc && (
         <ImageWithFallback
           src={imageSrc}
           alt={label}
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-[0.35] group-hover:grayscale"
         />
       )}
-      <div className="absolute inset-0 bg-black opacity-0 transition-opacity duration-300 group-hover:opacity-20 pointer-events-none" />
       {label && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[9999]">
-          <motion.span
-            layoutId={label}
-            className="text-white font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
-          >
-            {label}
-          </motion.span>
-        </div>
+        <motion.span
+          layoutId={label}
+          className="pointer-events-none text-black font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
+        >
+          {label}
+        </motion.span>
       )}
     </motion.div>
   );
 
   return to ? (
-    <Link to={to} className="block h-full">
+    <Link to={to} className="block w-full h-full">
       {content}
     </Link>
   ) : (
