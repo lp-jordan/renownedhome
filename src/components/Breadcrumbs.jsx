@@ -22,7 +22,7 @@ export default function Breadcrumbs({ className = "" }) {
         <span key={crumb.to} className="flex items-center">
           <Link
             to={crumb.to}
-            className="text-[var(--foreground)] hover:underline"
+            className="text-[var(--foreground)]"
           >
             {crumb.name}
           </Link>
