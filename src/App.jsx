@@ -1,5 +1,8 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { LayoutGroup, AnimatePresence } from "framer-motion";
+import { useEffect } from "react";
+
+import { updatePreviousPathname } from "./utils/navigation";
 
 import PanelGrid from "./components/PanelGrid";
 import Read from "./pages/Read";
@@ -10,6 +13,10 @@ import Breadcrumbs from "./components/Breadcrumbs";
 
 export default function App() {
   const location = useLocation();
+
+  useEffect(() => {
+    updatePreviousPathname(location.pathname);
+  }, [location.pathname]);
 
   return (
     <div className="fixed inset-0 overflow-hidden p-3 bg-[#fdfaf5]">
