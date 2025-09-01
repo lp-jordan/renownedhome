@@ -5,7 +5,6 @@ export default function Breadcrumbs({ className = "" }) {
   const pathnames = location.pathname.split("/").filter(Boolean);
 
   if (pathnames.length === 0) return null;
-
   const crumbs = [
     { name: "home", to: "/" },
     ...pathnames.map((segment, index) => {

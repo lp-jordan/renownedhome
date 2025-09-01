@@ -25,11 +25,11 @@ const panels = [
 
 export default function PanelGrid() {
   return (
-    <div className="flex w-full h-full gap-4">
+    <div className="grid w-full h-full grid-cols-2 grid-rows-2 gap-4">
       {panels.map((panel) => (
         <PanelCard
           key={panel.label}
-          className="flex-1 h-full"
+          className="w-full h-full"
           imageSrc={panel.image}
           label={panel.label}
           to={panel.to}
