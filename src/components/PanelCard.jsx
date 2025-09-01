@@ -7,11 +7,17 @@ export default function PanelCard({
   imageSrc,
   label,
   to,
+  initial,
+  animate,
+  transition,
 }) {
   const content = (
     <motion.div
       layoutId={`panel-${label}`}
       whileHover={{ scale: 1.02 }}
+      initial={initial}
+      animate={animate}
+      transition={transition}
       className={`relative w-full h-full cursor-pointer border border-black rounded-lg overflow-hidden group bg-transparent flex items-center justify-center ${className}`}
     >
       {imageSrc && (
