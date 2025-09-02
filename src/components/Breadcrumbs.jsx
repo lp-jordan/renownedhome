@@ -3,8 +3,6 @@ import { Link, useLocation } from "react-router-dom";
 export default function Breadcrumbs({ className = "" }) {
   const location = useLocation();
   const pathnames = location.pathname.split("/").filter(Boolean);
-
-  if (pathnames.length === 0) return null;
   const crumbs = [
     { name: "home", to: "/" },
     ...pathnames.map((segment, index) => {
