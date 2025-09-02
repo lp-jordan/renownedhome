@@ -1,4 +1,5 @@
 import PanelCard from "./PanelCard";
+import Breadcrumbs from "./Breadcrumbs";
 import { getPreviousPathname } from "../utils/navigation";
 
 const panels = [
@@ -29,28 +30,31 @@ export default function PanelGrid() {
   const fromPanel = prevPath && prevPath !== "/" ? prevPath.slice(1).toUpperCase() : null;
 
   return (
-    <div className="grid w-full h-full grid-cols-2 grid-rows-2 gap-4">
-      {panels.map((panel) => {
-        const fadeProps =
-          fromPanel && panel.label !== fromPanel
-            ? {
-                initial: { opacity: 0 },
-                animate: { opacity: 1 },
-                transition: { duration: 0.4 },
-              }
-            : {};
+    <div className="h-full flex flex-col px-6 pt-6 pb-6">
+      <Breadcrumbs className="mb-6" />
+      <div className="flex-1 grid w-full grid-cols-2 grid-rows-2 gap-4">
+        {panels.map((panel) => {
+          const fadeProps =
+            fromPanel && panel.label !== fromPanel
+              ? {
+                  initial: { opacity: 0 },
+                  animate: { opacity: 1 },
+                  transition: { duration: 0.4 },
+                }
+              : {};
 
-        return (
-          <PanelCard
-            key={panel.label}
-            className="w-full h-full"
-            imageSrc={panel.image}
-            label={panel.label}
-            to={panel.to}
-            {...fadeProps}
-          />
-        );
-      })}
+          return (
+            <PanelCard
+              key={panel.label}
+              className="w-full h-full"
+              imageSrc={panel.image}
+              label={panel.label}
+              to={panel.to}
+              {...fadeProps}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
