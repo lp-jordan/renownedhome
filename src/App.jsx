@@ -9,6 +9,7 @@ import Read from "./pages/Read";
 import Buy from "./pages/Buy";
 import Meet from "./pages/Meet";
 import Connect from "./pages/Connect";
+import Breadcrumbs from "./components/Breadcrumbs";
 
 export default function App() {
   const location = useLocation();
@@ -19,6 +20,7 @@ export default function App() {
 
   return (
     <div className="fixed inset-0 overflow-hidden p-3 bg-[#fdfaf5]">
+      <Breadcrumbs className="absolute top-6 left-6 z-10" />
       <LayoutGroup>
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
