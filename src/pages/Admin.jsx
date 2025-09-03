@@ -153,6 +153,13 @@ export default function Admin() {
                     : renderInput(`${key}[${idx}]`, item, [...fieldPath, idx])}
                 </div>
               ))}
+              <button
+                type="button"
+                onClick={() => addArrayItem(fieldPath)}
+                className="px-2 py-1 text-sm border rounded"
+              >
+                Add
+              </button>
             </div>
           );
         }
@@ -165,6 +172,36 @@ export default function Admin() {
       }
       return renderInput(key, value, fieldPath);
     });
+
+  const getPlaceholder = (path, length) => {
+    const joined = path.join('.');
+    if (joined === 'issues') {
+      return {
+        order: length + 1,
+        releaseDate: 'date',
+        title: 'title',
+        subtitle: 'subtitle',
+        description: 'description',
+        writer: 'writer',
+        artist: 'artist',
+        colorist: 'colorist',
+        thumbnail: '/uploads/placeholder.png',
+      };
+    }
+    return '';
+  };
+
+  const addArrayItem = (path) => {
+    setFormData((prev) => {
+      const updated = structuredClone(prev);
+      let arr = updated;
+      for (let i = 0; i < path.length; i += 1) {
+        arr = arr[path[i]];
+      }
+      arr.push(getPlaceholder(path, arr.length));
+      return updated;
+    });
+  };
 
   const renderInput = (label, value, path) => {
     const name = path.join('.');
@@ -184,6 +221,7 @@ export default function Admin() {
       const isDate = !Number.isNaN(Date.parse(value)) && /\d{4}-\d{2}-\d{2}/.test(value);
       const isImageField =
         label.toLowerCase().includes('image') ||
+        label.toLowerCase().includes('thumbnail') ||
         /\.(png|jpe?g|gif|webp|svg)$/i.test(value);
       if (isImageField) {
         return (
