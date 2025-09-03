@@ -18,7 +18,7 @@ export default function PanelCard({
       initial={initial}
       animate={animate}
         transition={transition}
-        className={`relative w-full h-full cursor-pointer border border-black rounded-lg overflow-hidden group bg-transparent flex items-center justify-center ${className}`}
+        className={`relative w-full h-full cursor-pointer border border-[var(--border)] rounded-lg overflow-hidden group bg-transparent flex items-center justify-center ${className}`}
     >
       {imageSrc && (
         <ImageWithFallback
@@ -30,7 +30,7 @@ export default function PanelCard({
       {label && (
         <motion.span
           layoutId={label}
-          className="pointer-events-none text-black font-hero font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
+          className="pointer-events-none text-[var(--foreground)] font-hero font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
         >
           {label}
         </motion.span>
