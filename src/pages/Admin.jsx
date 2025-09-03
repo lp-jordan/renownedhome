@@ -2,10 +2,10 @@ import { useState } from "react";
 
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || "admin";
 const PAGES = [
-  { path: "/read", name: "Read" },
-  { path: "/buy", name: "Buy" },
-  { path: "/meet", name: "Meet" },
-  { path: "/connect", name: "Connect" },
+  { id: "read", name: "Read" },
+  { id: "buy", name: "Buy" },
+  { id: "meet", name: "Meet" },
+  { id: "connect", name: "Connect" },
 ];
 
 export default function Admin() {
@@ -13,6 +13,9 @@ export default function Admin() {
   const [authorized, setAuthorized] = useState(
     () => localStorage.getItem("adminAuthed") === "true"
   );
+  const [selectedPage, setSelectedPage] = useState(null);
+  const [formData, setFormData] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -46,13 +49,194 @@ export default function Admin() {
     );
   }
 
+  const loadPage = async (page) => {
+    setSelectedPage(page);
+    setFormData(null);
+    try {
+      const res = await fetch(`/api/pages/${page.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setFormData(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const updateField = (path, value) => {
+    setFormData((prev) => {
+      const updated = structuredClone(prev);
+      let obj = updated;
+      for (let i = 0; i < path.length - 1; i += 1) {
+        obj = obj[path[i]];
+      }
+      obj[path[path.length - 1]] = value;
+      return updated;
+    });
+  };
+
+  const renderFields = (data, path = []) =>
+    Object.entries(data).map(([key, value]) => {
+      const fieldPath = [...path, key];
+      if (typeof value === "object" && value !== null) {
+        if (Array.isArray(value)) {
+          return (
+            <div key={fieldPath.join('.')} className="space-y-2">
+              <div className="font-semibold">{key}</div>
+              {value.map((item, idx) => (
+                <div key={idx} className="pl-4 border-l">
+                  {typeof item === "object"
+                    ? renderFields(item, [...fieldPath, idx])
+                    : renderInput(`${key}[${idx}]`, item, [...fieldPath, idx])}
+                </div>
+              ))}
+            </div>
+          );
+        }
+        return (
+          <fieldset key={fieldPath.join('.')} className="border p-2">
+            <legend className="font-semibold">{key}</legend>
+            {renderFields(value, fieldPath)}
+          </fieldset>
+        );
+      }
+      return renderInput(key, value, fieldPath);
+    });
+
+  const renderInput = (label, value, path) => {
+    const name = path.join('.');
+    const handleChange = (e) => {
+      let val;
+      if (typeof value === 'number') {
+        val = Number(e.target.value);
+      } else if (typeof value === 'boolean') {
+        val = e.target.checked;
+      } else {
+        val = e.target.value;
+      }
+      updateField(path, val);
+    };
+
+    if (typeof value === 'string') {
+      const isDate = !Number.isNaN(Date.parse(value)) && /\d{4}-\d{2}-\d{2}/.test(value);
+      if (isDate) {
+        return (
+          <div key={name} className="flex flex-col gap-1">
+            <label className="font-medium">{label}</label>
+            <input
+              type="date"
+              value={value.slice(0, 10)}
+              onChange={handleChange}
+              className="border px-2 py-1 rounded"
+            />
+          </div>
+        );
+      }
+      if (value.length > 60 || value.includes('\n')) {
+        return (
+          <div key={name} className="flex flex-col gap-1">
+            <label className="font-medium">{label}</label>
+            <textarea
+              value={value}
+              onChange={handleChange}
+              className="border px-2 py-1 rounded"
+            />
+          </div>
+        );
+      }
+      return (
+        <div key={name} className="flex flex-col gap-1">
+          <label className="font-medium">{label}</label>
+          <input
+            type="text"
+            value={value}
+            onChange={handleChange}
+            className="border px-2 py-1 rounded"
+          />
+        </div>
+      );
+    }
+    if (typeof value === 'number') {
+      return (
+        <div key={name} className="flex flex-col gap-1">
+          <label className="font-medium">{label}</label>
+          <input
+            type="number"
+            value={value}
+            onChange={handleChange}
+            className="border px-2 py-1 rounded"
+          />
+        </div>
+      );
+    }
+    if (typeof value === 'boolean') {
+      return (
+        <div key={name} className="flex items-center gap-2">
+          <input type="checkbox" checked={value} onChange={handleChange} />
+          <label className="font-medium">{label}</label>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await fetch(`/api/pages/${selectedPage.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData, null, 2),
+      });
+      setSelectedPage(null);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (selectedPage && formData) {
+    return (
+      <div className="w-full h-full border border-black rounded-lg overflow-hidden">
+        <div className="h-full overflow-y-auto flex flex-col px-6 pt-10 pb-6 gap-4">
+          <h1 className="text-2xl font-bold">Edit {selectedPage.name}</h1>
+          <form onSubmit={handleSave} className="flex flex-col gap-4">
+            {renderFields(formData)}
+            <div className="flex gap-4">
+              <button
+                type="submit"
+                disabled={saving}
+                className="bg-black text-white px-4 py-2 rounded"
+              >
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedPage(null)}
+                className="px-4 py-2 border rounded"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full border border-black rounded-lg overflow-hidden">
       <div className="h-full overflow-y-auto flex flex-col px-6 pt-10 pb-6">
         <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
         <ul className="space-y-4">
           {PAGES.map((page) => (
-            <li key={page.path} className="border p-4 rounded">
+            <li
+              key={page.id}
+              className="border p-4 rounded cursor-pointer hover:bg-gray-50"
+              onClick={() => loadPage(page)}
+            >
               {page.name}
             </li>
           ))}
@@ -61,4 +245,3 @@ export default function Admin() {
     </div>
   );
 }
-
