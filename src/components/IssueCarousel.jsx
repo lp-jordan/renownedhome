@@ -1,6 +1,8 @@
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import ImageWithFallback from "./ImageWithFallback";
 
-export default function IssueCarousel({ issues = [], selectedId, onSelect }) {
+export default function IssueCarousel({ issues = [] }) {
   if (!issues.length) {
     return <div>No issues available.</div>;
   }
@@ -8,17 +10,11 @@ export default function IssueCarousel({ issues = [], selectedId, onSelect }) {
   return (
     <div className="w-full overflow-x-auto touch-pan-x">
       <div className="flex space-x-4 p-4">
-        {issues.map((issue) => {
-          const isSelected = selectedId === issue.order;
-          const handleClick = () => onSelect?.(isSelected ? null : issue.order);
-          return (
-            <div
-              key={issue.order}
-              onClick={handleClick}
-              className={[
-                "flex-shrink-0 rounded border bg-[var(--background)] overflow-hidden w-[150px] sm:w-[200px] cursor-pointer",
-                isSelected ? "ring-2 ring-[var(--accent)]" : "",
-              ].join(" ")}
+        {issues.map((issue) => (
+          <Link key={issue.order} to={`/read/${issue.order}`} className="block">
+            <motion.div
+              layoutId={`panel-issue-${issue.order}`}
+              className="flex-shrink-0 rounded border bg-[var(--background)] overflow-hidden w-[150px] sm:w-[200px] cursor-pointer"
               style={{ borderColor: "var(--border)" }}
             >
               <div className="w-full aspect-square">
@@ -33,20 +29,11 @@ export default function IssueCarousel({ issues = [], selectedId, onSelect }) {
                   {issue.title}
                 </p>
               </div>
-              {isSelected && (
-                <div className="p-2 text-xs text-left space-y-1">
-                  <p className="font-semibold">{issue.subtitle}</p>
-                  <p>{issue.description}</p>
-                  <p>Writer: {issue.writer}</p>
-                  <p>Artist: {issue.artist}</p>
-                  <p>Colorist: {issue.colorist}</p>
-                  <p>Release: {issue.releaseDate}</p>
-                </div>
-              )}
-            </div>
-          );
-        })}
+            </motion.div>
+          </Link>
+        ))}
       </div>
     </div>
   );
 }
+

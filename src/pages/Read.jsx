@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { motion } from "framer-motion";
 import Panel from "../components/Panel";
 import ImageWithFallback from "../components/ImageWithFallback";
@@ -11,10 +10,9 @@ export default function Read() {
     hero: { heading, subtitle, image },
     issues = [],
   } = content;
-  const [selectedId, setSelectedId] = useState(null);
 
   return (
-    <Panel id={panel.main.id}>
+    <Panel id={panel.main.id} centerChildren={false}>
       <div className="flex flex-col items-center">
         <motion.h1
           layoutId={heading.layoutId}
@@ -35,13 +33,7 @@ export default function Read() {
           />
         )}
       </div>
-      {issues.length > 0 && (
-        <IssueCarousel
-          issues={issues}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-        />
-      )}
+      {issues.length > 0 && <IssueCarousel issues={issues} />}
     </Panel>
   );
 }
