@@ -11,6 +11,10 @@
   --border: #e2e8f0;
 }
 
+html {
+  font-size: clamp(14px, 1.5vw, 18px);
+}
+
 html,
 body,
 #root {

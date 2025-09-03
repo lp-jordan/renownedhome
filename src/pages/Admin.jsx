@@ -8,6 +8,23 @@ const PAGES = [
   { id: "connect", name: "Connect" },
 ];
 
+const SIZE_OPTIONS = [
+  "text-xs",
+  "text-sm",
+  "text-base",
+  "text-lg",
+  "text-xl",
+  "text-2xl",
+  "text-3xl",
+  "text-4xl",
+  "text-5xl",
+  "text-6xl",
+  "text-7xl",
+  "text-8xl",
+  "text-9xl",
+  "text-[clamp(3rem,8vw,10rem)]",
+];
+
 export default function Admin() {
   const [password, setPassword] = useState("");
   const [authorized, setAuthorized] = useState(
@@ -15,6 +32,7 @@ export default function Admin() {
   );
   const [selectedPage, setSelectedPage] = useState(null);
   const [formData, setFormData] = useState(null);
+  const [defaultData, setDefaultData] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -53,6 +71,7 @@ export default function Admin() {
   const loadPage = async (page) => {
     setSelectedPage(page);
     setFormData(null);
+    setDefaultData(null);
     try {
       const res = await fetch(`/api/pages/${page.id}`);
       if (!res.ok) {
@@ -61,6 +80,7 @@ export default function Admin() {
       }
       const data = await res.json();
       setFormData(data);
+      setDefaultData(structuredClone(data));
       setError(null);
     } catch (err) {
       console.error(err);
@@ -76,6 +96,26 @@ export default function Admin() {
         obj = obj[path[i]];
       }
       obj[path[path.length - 1]] = value;
+      return updated;
+    });
+  };
+
+  const getValueAtPath = (obj, path) => {
+    let val = obj;
+    for (const key of path) {
+      val = val[key];
+    }
+    return val;
+  };
+
+  const resetField = (path) => {
+    setFormData((prev) => {
+      const updated = structuredClone(prev);
+      let obj = updated;
+      for (let i = 0; i < path.length - 1; i += 1) {
+        obj = obj[path[i]];
+      }
+      obj[path[path.length - 1]] = getValueAtPath(defaultData, path);
       return updated;
     });
   };
@@ -216,16 +256,52 @@ export default function Admin() {
           </div>
         );
       }
+      if (path[path.length - 1] === 'size') {
+        return (
+          <div key={name} className="flex flex-col gap-1">
+            <label className="font-medium">{label}</label>
+            <div className="flex items-center gap-2">
+              <select
+                value={value}
+                onChange={handleChange}
+                className="border px-2 py-1 rounded"
+              >
+                {SIZE_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => resetField(path)}
+                className="p-1 border rounded-full"
+              >
+                ↺
+              </button>
+            </div>
+          </div>
+        );
+      }
       if (isDate) {
         return (
           <div key={name} className="flex flex-col gap-1">
             <label className="font-medium">{label}</label>
-            <input
-              type="date"
-              value={value.slice(0, 10)}
-              onChange={handleChange}
-              className="border px-2 py-1 rounded"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={value.slice(0, 10)}
+                onChange={handleChange}
+                className="border px-2 py-1 rounded"
+              />
+              <button
+                type="button"
+                onClick={() => resetField(path)}
+                className="p-1 border rounded-full"
+              >
+                ↺
+              </button>
+            </div>
           </div>
         );
       }
@@ -233,23 +309,41 @@ export default function Admin() {
         return (
           <div key={name} className="flex flex-col gap-1">
             <label className="font-medium">{label}</label>
-            <textarea
-              value={value}
-              onChange={handleChange}
-              className="border px-2 py-1 rounded"
-            />
+            <div className="flex items-center gap-2">
+              <textarea
+                value={value}
+                onChange={handleChange}
+                className="border px-2 py-1 rounded flex-1"
+              />
+              <button
+                type="button"
+                onClick={() => resetField(path)}
+                className="p-1 border rounded-full"
+              >
+                ↺
+              </button>
+            </div>
           </div>
         );
       }
       return (
         <div key={name} className="flex flex-col gap-1">
           <label className="font-medium">{label}</label>
-          <input
-            type="text"
-            value={value}
-            onChange={handleChange}
-            className="border px-2 py-1 rounded"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={value}
+              onChange={handleChange}
+              className="border px-2 py-1 rounded"
+            />
+            <button
+              type="button"
+              onClick={() => resetField(path)}
+              className="p-1 border rounded-full"
+            >
+              ↺
+            </button>
+          </div>
         </div>
       );
     }
@@ -257,12 +351,21 @@ export default function Admin() {
       return (
         <div key={name} className="flex flex-col gap-1">
           <label className="font-medium">{label}</label>
-          <input
-            type="number"
-            value={value}
-            onChange={handleChange}
-            className="border px-2 py-1 rounded"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              value={value}
+              onChange={handleChange}
+              className="border px-2 py-1 rounded"
+            />
+            <button
+              type="button"
+              onClick={() => resetField(path)}
+              className="p-1 border rounded-full"
+            >
+              ↺
+            </button>
+          </div>
         </div>
       );
     }
@@ -270,7 +373,14 @@ export default function Admin() {
       return (
         <div key={name} className="flex items-center gap-2">
           <input type="checkbox" checked={value} onChange={handleChange} />
-          <label className="font-medium">{label}</label>
+          <label className="font-medium flex-1">{label}</label>
+          <button
+            type="button"
+            onClick={() => resetField(path)}
+            className="p-1 border rounded-full"
+          >
+            ↺
+          </button>
         </div>
       );
     }
