@@ -46,19 +46,19 @@ export default function Admin() {
 
   if (!authorized) {
     return (
-      <div className="w-full h-full border border-[var(--border)] rounded-lg overflow-hidden">
+      <div className="w-full h-full border border-black rounded-lg overflow-hidden">
         <div className="h-full flex items-center justify-center p-6">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="border border-[var(--border)] px-3 py-2 rounded"
+              className="border px-3 py-2 rounded"
               placeholder="Password"
             />
             <button
               type="submit"
-              className="bg-[var(--foreground)] text-[var(--background)] px-4 py-2 rounded"
+              className="bg-black text-white px-4 py-2 rounded"
             >
               Enter
             </button>
@@ -164,7 +164,7 @@ export default function Admin() {
           );
         }
         return (
-          <fieldset key={fieldPath.join('.')} className="border border-[var(--border)] p-2">
+          <fieldset key={fieldPath.join('.')} className="border p-2">
             <legend className="font-semibold">{key}</legend>
             {renderFields(value, fieldPath)}
           </fieldset>
@@ -240,7 +240,7 @@ export default function Admin() {
                 e.preventDefault();
                 handleImageUpload(e.dataTransfer.files[0], path);
               }}
-              className="border border-[var(--border)] border-dashed rounded p-4 text-center"
+              className="border border-dashed rounded p-4 text-center"
             >
               <input
                 id={`${name}-file`}
@@ -264,7 +264,7 @@ export default function Admin() {
               <select
                 value={value}
                 onChange={handleChange}
-                className="border border-[var(--border)] px-2 py-1 rounded"
+                className="border px-2 py-1 rounded"
               >
                 {SIZE_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>
@@ -292,7 +292,7 @@ export default function Admin() {
                 type="date"
                 value={value.slice(0, 10)}
                 onChange={handleChange}
-                className="border border-[var(--border)] px-2 py-1 rounded"
+                className="border px-2 py-1 rounded"
               />
               <button
                 type="button"
@@ -313,7 +313,7 @@ export default function Admin() {
               <textarea
                 value={value}
                 onChange={handleChange}
-                className="border border-[var(--border)] px-2 py-1 rounded flex-1"
+                className="border px-2 py-1 rounded flex-1"
               />
               <button
                 type="button"
@@ -334,7 +334,7 @@ export default function Admin() {
               type="text"
               value={value}
               onChange={handleChange}
-              className="border border-[var(--border)] px-2 py-1 rounded"
+              className="border px-2 py-1 rounded"
             />
             <button
               type="button"
@@ -356,7 +356,7 @@ export default function Admin() {
               type="number"
               value={value}
               onChange={handleChange}
-              className="border border-[var(--border)] px-2 py-1 rounded"
+              className="border px-2 py-1 rounded"
             />
             <button
               type="button"
@@ -406,7 +406,7 @@ export default function Admin() {
 
   if (selectedPage && formData) {
     return (
-      <div className="w-full h-full border border-[var(--border)] rounded-lg overflow-hidden">
+      <div className="w-full h-full border border-black rounded-lg overflow-hidden">
         <div className="h-full overflow-y-auto flex flex-col px-6 pt-10 pb-6 gap-4">
           <h1 className="text-2xl font-bold">Edit {selectedPage.name}</h1>
           {error && <div className="text-red-500">{error}</div>}
@@ -416,7 +416,7 @@ export default function Admin() {
               <button
                 type="submit"
                 disabled={saving}
-                className="bg-[var(--foreground)] text-[var(--background)] px-4 py-2 rounded"
+                className="bg-black text-white px-4 py-2 rounded"
               >
                 {saving ? 'Saving...' : 'Save'}
               </button>
@@ -435,7 +435,7 @@ export default function Admin() {
   }
 
   return (
-    <div className="w-full h-full border border-[var(--border)] rounded-lg overflow-hidden">
+    <div className="w-full h-full border border-black rounded-lg overflow-hidden">
       <div className="h-full overflow-y-auto flex flex-col px-6 pt-10 pb-6">
         <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
         {error && <div className="text-red-500 mb-4">{error}</div>}
@@ -443,7 +443,7 @@ export default function Admin() {
           {PAGES.map((page) => (
             <li
               key={page.id}
-              className="border border-[var(--border)] p-4 rounded cursor-pointer hover:bg-[var(--muted)]/20"
+              className="border p-4 rounded cursor-pointer hover:bg-gray-50"
               onClick={() => loadPage(page)}
             >
               {page.name}
