@@ -1,0 +1,14 @@
+{
+  "panel": {
+    "main": {
+      "id": "BUY"
+    }
+  },
+  "hero": {
+    "heading": {
+      "layoutId": "BUY",
+      "text": "BUY",
+      "className": "text-black font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "panel": {
+    "main": {
+      "id": "MEET"
+    }
+  },
+  "hero": {
+    "heading": {
+      "layoutId": "MEET",
+      "text": "MEET",
+      "className": "text-black font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
+    }
+  }
+}
