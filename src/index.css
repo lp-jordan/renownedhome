@@ -65,16 +65,3 @@ body::before {
   }
 }
 
-/* Notch for BUY panel to accommodate persistent breadcrumbs */
-.buy-notch::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 2.5rem;
-  height: 2.5rem;
-  background: #fdfaf5;
-  border-right: 1px solid black;
-  border-bottom: 1px solid black;
-  border-bottom-right-radius: 0.5rem;
-}
