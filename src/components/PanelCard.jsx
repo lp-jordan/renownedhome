@@ -30,7 +30,7 @@ export default function PanelCard({
       {label && (
         <motion.span
           layoutId={label}
-          className="pointer-events-none text-black font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
+          className="pointer-events-none text-black font-hero font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
         >
           {label}
         </motion.span>
