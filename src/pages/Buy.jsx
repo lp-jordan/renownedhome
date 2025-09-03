@@ -21,14 +21,14 @@ export default function Buy() {
         {button && (
           <a
             href={button.url}
-            className="mt-4 group relative inline-block bg-black text-white px-6 py-3 overflow-hidden [perspective:1000px]"
+            className="mt-4 group relative inline-flex items-center justify-center rounded bg-black px-6 py-3 text-white overflow-hidden"
             target="_blank"
             rel="noopener noreferrer"
           >
-            <span className="block transition-transform duration-300 [transform-origin:top] group-hover:[transform:rotateX(90deg)]">
+            <span className="transition-opacity duration-300 group-hover:opacity-0">
               {button.defaultText}
             </span>
-            <span className="absolute inset-0 block transition-transform duration-300 [transform-origin:bottom] [transform:rotateX(-90deg)] group-hover:[transform:rotateX(0deg)]">
+            <span className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
               {button.hoverText}
             </span>
           </a>
