@@ -1,0 +1,14 @@
+{
+  "panel": {
+    "main": {
+      "id": "CONNECT"
+    }
+  },
+  "hero": {
+    "heading": {
+      "layoutId": "CONNECT",
+      "text": "CONNECT",
+      "className": "text-black font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
+    }
+  }
+}
