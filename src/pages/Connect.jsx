@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Panel from "../components/Panel";
+import ImageWithFallback from "../components/ImageWithFallback";
 import { fetchJson } from "../utils/fetchJson";
 
 export default function Connect() {
@@ -16,14 +17,23 @@ export default function Connect() {
 
   const {
     panel,
-    hero: { heading },
+    hero: { heading, image },
   } = content;
 
   return (
     <Panel id={panel.main.id}>
-      <motion.h1 layoutId={heading.layoutId} className={heading.className}>
-        {heading.text}
-      </motion.h1>
+      <div className="flex flex-col items-center">
+        <motion.h1 layoutId={heading.layoutId} className={heading.className}>
+          {heading.text}
+        </motion.h1>
+        {image && (
+          <ImageWithFallback
+            src={image}
+            alt={heading.text}
+            className="mt-4 max-w-full"
+          />
+        )}
+      </div>
     </Panel>
   );
 }
