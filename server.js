@@ -2,12 +2,26 @@ import express from 'express';
 import cors from 'cors';
 import fs from 'fs/promises';
 import path from 'path';
+import multer from 'multer';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 const CONTENT_DIR = path.join(process.cwd(), 'content');
+const UPLOAD_DIR = path.join(process.cwd(), 'public/uploads');
+await fs.mkdir(UPLOAD_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: UPLOAD_DIR,
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const name = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    cb(null, name);
+  },
+});
+
+const upload = multer({ storage });
 
 app.get('/api/pages/:page', async (req, res) => {
   const file = path.join(CONTENT_DIR, `${req.params.page}.json`);
@@ -27,6 +41,13 @@ app.post('/api/pages/:page', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Unable to write file' });
   }
+});
+
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+  res.json({ path: `/uploads/${req.file.filename}` });
 });
 
 const port = process.env.PORT || 3001;

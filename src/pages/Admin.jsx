@@ -75,6 +75,24 @@ export default function Admin() {
     });
   };
 
+  const handleImageUpload = async (file, path) => {
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: form,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        updateField(path, data.path);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const renderFields = (data, path = []) =>
     Object.entries(data).map(([key, value]) => {
       const fieldPath = [...path, key];
@@ -119,6 +137,42 @@ export default function Admin() {
 
     if (typeof value === 'string') {
       const isDate = !Number.isNaN(Date.parse(value)) && /\d{4}-\d{2}-\d{2}/.test(value);
+      const isImageField =
+        label.toLowerCase().includes('image') ||
+        /\.(png|jpe?g|gif|webp|svg)$/i.test(value);
+      if (isImageField) {
+        return (
+          <div key={name} className="flex flex-col gap-1">
+            <label className="font-medium">{label}</label>
+            {value && (
+              <img
+                src={value}
+                alt=""
+                className="w-32 h-32 object-cover border rounded mb-2"
+              />
+            )}
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                handleImageUpload(e.dataTransfer.files[0], path);
+              }}
+              className="border border-dashed rounded p-4 text-center"
+            >
+              <input
+                id={`${name}-file`}
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleImageUpload(e.target.files[0], path)}
+                className="hidden"
+              />
+              <label htmlFor={`${name}-file`} className="cursor-pointer">
+                Drag & drop image here or click to upload
+              </label>
+            </div>
+          </div>
+        );
+      }
       if (isDate) {
         return (
           <div key={name} className="flex flex-col gap-1">
