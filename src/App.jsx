@@ -9,6 +9,7 @@ import Read from "./pages/Read";
 import Buy from "./pages/Buy";
 import Meet from "./pages/Meet";
 import Connect from "./pages/Connect";
+import Admin from "./pages/Admin";
 import Breadcrumbs from "./components/Breadcrumbs";
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
             <Route path="/buy" element={<Buy />} />
             <Route path="/meet" element={<Meet />} />
             <Route path="/connect" element={<Connect />} />
+            <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AnimatePresence>
