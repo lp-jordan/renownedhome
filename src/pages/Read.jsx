@@ -27,7 +27,7 @@ export default function Read() {
           <ImageWithFallback
             src={image}
             alt={heading.text}
-            className="mt-4 max-w-full"
+            className="mt-4 w-full h-auto"
           />
         )}
       </div>
