@@ -12,7 +12,7 @@
     },
     "subtitle": {
       "text": "",
-      "className": "mt-2 text-center text-sm font-sans"
+      "className": "mt-2 text-center text-8xl font-sans"
     },
     "image": "/uploads/placeholder.png"
   }
