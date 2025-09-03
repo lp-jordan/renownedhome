@@ -2,7 +2,11 @@ import forms from "@tailwindcss/forms";
 
 export default {
   darkMode: "class",
-  content: ["./public/index.html", "./src/**/*.{js,jsx,ts,tsx}"],
+  content: [
+    "./public/index.html",
+    "./src/**/*.{js,jsx,ts,tsx}",
+    "./content/**/*.json",
+  ],
   theme: {
     extend: {
       colors: {
