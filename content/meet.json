@@ -4,16 +4,18 @@
       "id": "MEET"
     }
   },
-  "hero": {
-    "heading": {
-      "layoutId": "MEET",
-      "text": "MEET",
-      "className": "text-black font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
-    },
-    "subtitle": {
-      "text": "",
-      "className": "mt-2 text-center text-8xl font-sans"
-    },
-    "image": "/uploads/placeholder.png"
+    "hero": {
+      "heading": {
+        "layoutId": "MEET",
+        "text": "MEET",
+      "className": "text-black font-bold uppercase",
+      "size": "text-[clamp(3rem,8vw,10rem)]"
+      },
+      "subtitle": {
+        "text": "",
+      "className": "mt-2 text-center font-sans",
+      "size": "text-8xl"
+      },
+      "image": "/uploads/placeholder.png"
+    }
   }
-}
