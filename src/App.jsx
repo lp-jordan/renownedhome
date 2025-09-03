@@ -11,6 +11,7 @@ import Meet from "./pages/Meet";
 import Connect from "./pages/Connect";
 import Admin from "./pages/Admin";
 import Breadcrumbs from "./components/Breadcrumbs";
+import DarkModeToggle from "./components/DarkModeToggle";
 
 export default function App() {
   const location = useLocation();
@@ -20,8 +21,9 @@ export default function App() {
   }, [location.pathname]);
 
   return (
-    <div className="fixed inset-0 overflow-hidden p-3 bg-[#fdfaf5]">
+    <div className="fixed inset-0 overflow-hidden p-3 bg-[var(--background)] text-[var(--foreground)]">
       <Breadcrumbs className="absolute top-6 left-6 z-10" />
+      <DarkModeToggle className="absolute top-6 right-6 z-10" />
       <LayoutGroup>
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
