@@ -16,6 +16,7 @@ export default function Admin() {
   const [selectedPage, setSelectedPage] = useState(null);
   const [formData, setFormData] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -54,12 +55,16 @@ export default function Admin() {
     setFormData(null);
     try {
       const res = await fetch(`/api/pages/${page.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setFormData(data);
+      if (!res.ok) {
+        setError('Failed to load page');
+        return;
       }
+      const data = await res.json();
+      setFormData(data);
+      setError(null);
     } catch (err) {
       console.error(err);
+      setError('Failed to load page');
     }
   };
 
@@ -256,6 +261,7 @@ export default function Admin() {
       <div className="w-full h-full border border-black rounded-lg overflow-hidden">
         <div className="h-full overflow-y-auto flex flex-col px-6 pt-10 pb-6 gap-4">
           <h1 className="text-2xl font-bold">Edit {selectedPage.name}</h1>
+          {error && <div className="text-red-500">{error}</div>}
           <form onSubmit={handleSave} className="flex flex-col gap-4">
             {renderFields(formData)}
             <div className="flex gap-4">
@@ -284,6 +290,7 @@ export default function Admin() {
     <div className="w-full h-full border border-black rounded-lg overflow-hidden">
       <div className="h-full overflow-y-auto flex flex-col px-6 pt-10 pb-6">
         <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+        {error && <div className="text-red-500 mb-4">{error}</div>}
         <ul className="space-y-4">
           {PAGES.map((page) => (
             <li
