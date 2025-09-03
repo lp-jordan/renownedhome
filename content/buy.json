@@ -12,7 +12,7 @@
     },
     "subtitle": {
       "text": "",
-      "className": "mt-2 text-center text-8xl font-sans"
+      "className": "mt-1 text-center text-[clamp(1rem,5vw,4rem)] font-sans"
     },
     "button": {
       "url": "https://www.kickstarter.com/",

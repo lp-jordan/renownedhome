@@ -21,7 +21,7 @@ export default function Buy() {
         {button && (
           <a
             href={button.url}
-            className="mt-4 group relative inline-block bg-black text-white px-6 py-3 overflow-hidden [perspective:1000px]"
+            className="mt-4 group relative inline-block bg-black text-white px-[clamp(1rem,5vw,3rem)] py-[clamp(0.5rem,2vw,1rem)] text-[clamp(1rem,3vw,2rem)] overflow-hidden [perspective:1000px]"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -37,7 +37,7 @@ export default function Buy() {
           <ImageWithFallback
             src={image}
             alt={heading.text}
-            className="mt-4 max-w-full"
+            className="mt-4 w-full h-auto"
           />
         )}
       </div>
