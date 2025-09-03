@@ -1,20 +1,9 @@
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Panel from "../components/Panel";
 import ImageWithFallback from "../components/ImageWithFallback";
-import { fetchJson } from "../utils/fetchJson";
+import content from "../../content/connect.json";
 
 export default function Connect() {
-  const [content, setContent] = useState(null);
-
-  useEffect(() => {
-    fetchJson("/content/connect.json").then(setContent);
-  }, []);
-
-  if (!content) {
-    return null;
-  }
-
   const {
     panel,
     hero: { heading, image },
