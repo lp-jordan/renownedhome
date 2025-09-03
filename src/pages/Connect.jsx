@@ -12,11 +12,16 @@ export default function Connect() {
   return (
     <Panel id={panel.main.id}>
       <div className="flex flex-col items-center">
-        <motion.h1 layoutId={heading.layoutId} className={heading.className}>
+        <motion.h1
+          layoutId={heading.layoutId}
+          className={`${heading.className} ${heading.size}`}
+        >
           {heading.text}
         </motion.h1>
         {subtitle?.text && (
-          <p className={subtitle.className}>{subtitle.text}</p>
+          <p className={`${subtitle.className} ${subtitle.size}`}>
+            {subtitle.text}
+          </p>
         )}
         {image && (
           <ImageWithFallback

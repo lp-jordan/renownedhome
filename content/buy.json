@@ -4,19 +4,21 @@
       "id": "BUY"
     }
   },
-  "hero": {
-    "heading": {
-      "layoutId": "BUY",
-      "text": "BUY",
-      "className": "text-black font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
-    },
-    "subtitle": {
-      "text": "",
-      "className": "mt-1 text-center text-[clamp(1rem,5vw,4rem)] font-sans"
-    },
-    "button": {
-      "url": "https://www.kickstarter.com/",
-      "defaultText": "Kickstarter",
+    "hero": {
+      "heading": {
+        "layoutId": "BUY",
+        "text": "BUY",
+      "className": "text-black font-bold uppercase",
+      "size": "text-[clamp(3rem,8vw,10rem)]"
+      },
+      "subtitle": {
+        "text": "",
+      "className": "mt-2 text-center font-sans",
+      "size": "text-8xl"
+      },
+      "button": {
+        "url": "https://www.kickstarter.com/",
+        "defaultText": "Kickstarter",
       "hoverText": "Follow Now!"
     },
     "image": "/uploads/placeholder.png"
