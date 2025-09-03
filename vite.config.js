@@ -5,9 +5,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/api": "https://renownedcomic.com",
-      changeOrigin: true,
-      secure: false,
+      "/api": {
+        target: "https://renownedcomic.com",
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 });
