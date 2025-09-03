@@ -18,7 +18,7 @@ export default function PanelCard({
       initial={initial}
       animate={animate}
       transition={transition}
-      className={`relative w-full h-full cursor-pointer border border-black rounded-lg overflow-hidden group bg-transparent flex items-center justify-center ${className}`}
+        className={`relative w-full h-full cursor-pointer border border-black rounded-lg overflow-hidden group bg-transparent flex items-center justify-center ${label === "BUY" ? "buy-notch" : ""} ${className}`}
     >
       {imageSrc && (
         <ImageWithFallback

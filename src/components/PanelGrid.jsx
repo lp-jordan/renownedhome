@@ -1,5 +1,4 @@
 import PanelCard from "./PanelCard";
-import Breadcrumbs from "./Breadcrumbs";
 import { getPreviousPathname } from "../utils/navigation";
 
 const panels = [
@@ -30,8 +29,7 @@ export default function PanelGrid() {
   const fromPanel = prevPath && prevPath !== "/" ? prevPath.slice(1).toUpperCase() : null;
 
   return (
-    <div className="h-full flex flex-col px-6 pt-6 pb-6">
-      <Breadcrumbs className="mb-6" />
+    <div className="h-full flex flex-col px-6 pt-10 pb-6">
       <div className="flex-1 grid w-full grid-cols-2 grid-rows-2 gap-4">
         {panels.map((panel) => {
           const fadeProps =
