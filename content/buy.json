@@ -14,6 +14,11 @@
       "text": "",
       "className": "mt-2 text-center text-sm font-sans"
     },
+    "button": {
+      "url": "https://www.kickstarter.com/",
+      "defaultText": "Kickstarter",
+      "hoverText": "Follow Now!"
+    },
     "image": "/uploads/placeholder.png"
   }
 }
