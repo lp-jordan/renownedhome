@@ -26,7 +26,7 @@ export default function Buy() {
         {button && (
           <a
             href={button.url}
-            className="mt-4 group relative inline-flex items-center justify-center rounded bg-[var(--foreground)] px-6 py-3 text-[var(--background)] overflow-hidden"
+            className="mt-4 group relative inline-flex items-center justify-center rounded bg-black px-6 py-3 text-white overflow-hidden"
             target="_blank"
             rel="noopener noreferrer"
           >
