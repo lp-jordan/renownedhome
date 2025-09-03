@@ -17,7 +17,7 @@ export default function Connect() {
 
   const {
     panel,
-    hero: { heading, image },
+    hero: { heading, subtitle, image },
   } = content;
 
   return (
@@ -26,6 +26,9 @@ export default function Connect() {
         <motion.h1 layoutId={heading.layoutId} className={heading.className}>
           {heading.text}
         </motion.h1>
+        {subtitle?.text && (
+          <p className={subtitle.className}>{subtitle.text}</p>
+        )}
         {image && (
           <ImageWithFallback
             src={image}

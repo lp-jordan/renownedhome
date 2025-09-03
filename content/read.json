@@ -10,6 +10,10 @@
       "text": "READ",
       "className": "text-black font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
     },
+    "subtitle": {
+      "text": "",
+      "className": "mt-2 text-center text-sm font-sans"
+    },
     "image": "/uploads/placeholder.png"
   }
 }
