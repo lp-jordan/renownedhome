@@ -1,0 +1,26 @@
+{
+  "panel": {
+    "main": {
+      "id": "BUY"
+    }
+  },
+  "hero": {
+    "heading": {
+      "layoutId": "BUY",
+      "text": "BUY",
+      "className": "text-black font-bold uppercase",
+      "size": "text-[clamp(3rem,8vw,10rem)]"
+    },
+    "subtitle": {
+      "text": "The best way to support Renowned is to back us on Kickstarter!",
+      "className": "mt-2 text-center font-sans",
+      "size": "text-3xl"
+    },
+    "button": {
+      "url": "https://www.kickstarter.com/projects/jmintonjohnson/renowned-2-supernatural-detective-series/",
+      "defaultText": "Issue #2",
+      "hoverText": "Follow Now!"
+    },
+    "image": "/uploads/placeholder.png"
+  }
+}

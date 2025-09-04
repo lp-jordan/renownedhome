@@ -1,0 +1,32 @@
+{
+  "panel": {
+    "main": {
+      "id": "READ"
+    }
+  },
+  "hero": {
+    "heading": {
+      "layoutId": "READ",
+      "text": "READ",
+      "className": "text-black font-bold uppercase text-[clamp(3rem,8vw,10rem)]"
+    },
+    "subtitle": {
+      "text": "",
+      "className": "mt-2 text-center text-8xl font-sans"
+    },
+    "image": "/uploads/1757015105407-444807703.jpg"
+  },
+  "issues": [
+    {
+      "order": 1,
+      "releaseDate": "date",
+      "title": "3:10 to Nowhere",
+      "subtitle": "Time Waits for No Man",
+      "description": "Abe Bone is stuck at a train station.",
+      "writer": "Jordan Johnson",
+      "artist": "Azrael Aguiar",
+      "colorist": "Maja Opacic",
+      "thumbnail": "/uploads/placeholder.png"
+    }
+  ]
+}
