@@ -205,7 +205,6 @@ export default function Admin() {
 
   const renderInput = (label, value, path) => {
     const name = path.join('.');
-    const displayLabel = name === 'panel.image' ? 'Panel Image' : label;
     const handleChange = (e) => {
       let val;
       if (typeof value === 'number') {
@@ -227,7 +226,7 @@ export default function Admin() {
       if (isImageField) {
         return (
           <div key={name} className="flex flex-col gap-1">
-            <label className="font-medium">{displayLabel}</label>
+            <label className="font-medium">{label}</label>
             {value && (
               <img
                 src={value}
@@ -260,7 +259,7 @@ export default function Admin() {
       if (path[path.length - 1] === 'size') {
         return (
           <div key={name} className="flex flex-col gap-1">
-            <label className="font-medium">{displayLabel}</label>
+            <label className="font-medium">{label}</label>
             <div className="flex items-center gap-2">
               <select
                 value={value}
@@ -287,7 +286,7 @@ export default function Admin() {
       if (isDate) {
         return (
           <div key={name} className="flex flex-col gap-1">
-            <label className="font-medium">{displayLabel}</label>
+            <label className="font-medium">{label}</label>
             <div className="flex items-center gap-2">
               <input
                 type="date"
@@ -309,7 +308,7 @@ export default function Admin() {
       if (value.length > 60 || value.includes('\n')) {
         return (
           <div key={name} className="flex flex-col gap-1">
-            <label className="font-medium">{displayLabel}</label>
+            <label className="font-medium">{label}</label>
             <div className="flex items-center gap-2">
               <textarea
                 value={value}
@@ -329,7 +328,7 @@ export default function Admin() {
       }
       return (
         <div key={name} className="flex flex-col gap-1">
-          <label className="font-medium">{displayLabel}</label>
+          <label className="font-medium">{label}</label>
           <div className="flex items-center gap-2">
             <input
               type="text"
@@ -351,7 +350,7 @@ export default function Admin() {
     if (typeof value === 'number') {
       return (
         <div key={name} className="flex flex-col gap-1">
-          <label className="font-medium">{displayLabel}</label>
+          <label className="font-medium">{label}</label>
           <div className="flex items-center gap-2">
             <input
               type="number"
@@ -374,7 +373,7 @@ export default function Admin() {
       return (
         <div key={name} className="flex items-center gap-2">
           <input type="checkbox" checked={value} onChange={handleChange} />
-          <label className="font-medium flex-1">{displayLabel}</label>
+          <label className="font-medium flex-1">{label}</label>
           <button
             type="button"
             onClick={() => resetField(path)}
