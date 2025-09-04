@@ -17,7 +17,7 @@ export default function IssueInfoPanel({ issue }) {
       style={{ borderColor: "var(--border)" }}
     >
       <div className="text-center">
-        <h2 className="text-2xl font-bold">{title}</h2>
+        <h2 className="text-2xl font-bold mb-2">{title}</h2>
         {issue.subtitle && (
           <h3 className="text-lg text-gray-500">{issue.subtitle}</h3>
         )}

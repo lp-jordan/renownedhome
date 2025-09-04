@@ -16,7 +16,7 @@ export default function Read() {
       <div className="flex flex-col items-center">
         <motion.h1
           layoutId={heading.layoutId}
-          className={`${heading.className} ${heading.size}`}
+          className={`${heading.className} ${heading.size} mb-2`}
         >
           {heading.text}
         </motion.h1>
