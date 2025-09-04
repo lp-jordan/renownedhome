@@ -1,26 +1,30 @@
 import PanelCard from "./PanelCard";
 import { getPreviousPathname } from "../utils/navigation";
+import read from "../../content/read.json";
+import buy from "../../content/buy.json";
+import meet from "../../content/meet.json";
+import connect from "../../content/connect.json";
 
 const panels = [
   {
     label: "READ",
     to: "/read",
-    image: "https://source.unsplash.com/random/800x1200?sig=1",
+    image: read.panel?.image,
   },
   {
     label: "BUY",
     to: "/buy",
-    image: "https://source.unsplash.com/random/800x1200?sig=2",
+    image: buy.panel?.image,
   },
   {
     label: "MEET",
     to: "/meet",
-    image: "https://source.unsplash.com/random/800x1200?sig=3",
+    image: meet.panel?.image,
   },
   {
     label: "CONNECT",
     to: "/connect",
-    image: "https://source.unsplash.com/random/800x1200?sig=4",
+    image: connect.panel?.image,
   },
 ];
 
