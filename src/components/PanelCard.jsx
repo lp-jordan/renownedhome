@@ -24,7 +24,7 @@ export default function PanelCard({
         <ImageWithFallback
           src={imageSrc}
           alt={label}
-          className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-[0.35] group-hover:grayscale"
+          className="absolute inset-0 w-full h-full object-cover filter grayscale contrast-75 transition duration-300 group-hover:grayscale-0 group-hover:contrast-100 group-hover:saturate-[0.75]"
         />
       )}
       {label && (
