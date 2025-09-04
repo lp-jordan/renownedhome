@@ -409,7 +409,7 @@ export default function Admin() {
     return (
       <div className="w-full h-full border border-black rounded-lg overflow-hidden">
         <div className="h-full overflow-y-auto flex flex-col px-6 pt-10 pb-6 gap-4">
-          <h1 className="text-2xl font-bold">Edit {selectedPage.name}</h1>
+          <h1 className="text-2xl font-bold mb-2">Edit {selectedPage.name}</h1>
           {error && <div className="text-red-500">{error}</div>}
           <form onSubmit={handleSave} className="flex flex-col gap-4">
             {renderFields(formData)}
@@ -438,7 +438,7 @@ export default function Admin() {
   return (
     <div className="w-full h-full border border-black rounded-lg overflow-hidden">
       <div className="h-full overflow-y-auto flex flex-col px-6 pt-10 pb-6">
-        <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+        <h1 className="text-2xl font-bold mb-2">Admin Dashboard</h1>
         {error && <div className="text-red-500 mb-4">{error}</div>}
         <ul className="space-y-4">
           {PAGES.map((page) => (
