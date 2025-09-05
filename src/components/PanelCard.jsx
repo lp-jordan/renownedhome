@@ -10,31 +10,44 @@ export default function PanelCard({
   initial,
   animate,
   transition,
+  isTransforming = false,
+  fadeDelay = 0,
 }) {
   const content = (
     <motion.div
-      layoutId={`panel-${label}`}
       whileHover={{ scale: 1.02 }}
       initial={initial}
       animate={animate}
-        transition={transition}
-        className={`relative w-full h-full cursor-pointer border border-black rounded-lg overflow-hidden group bg-transparent flex items-center justify-center ${className}`}
+      transition={transition}
+      className={`relative w-full h-full cursor-pointer rounded-lg overflow-hidden group ${className}`}
     >
       {imageSrc && (
-        <ImageWithFallback
-          src={imageSrc}
-          alt={label}
-          className="absolute inset-0 w-full h-full object-cover z-0 filter grayscale contrast-50 blur-sm transition duration-300 group-hover:grayscale-0 group-hover:contrast-100 group-hover:saturate-[0.75] group-hover:blur-0"
-        />
-      )}
-      {label && (
-        <motion.span
-          layoutId={label}
-          className="pointer-events-none relative z-10 text-black group-hover:text-white transition-colors duration-300 font-hero font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
+        <motion.div
+          initial={isTransforming ? { opacity: 0 } : undefined}
+          animate={isTransforming ? { opacity: 1 } : undefined}
+          transition={isTransforming ? { delay: fadeDelay, duration: 0.4 } : undefined}
+          className="absolute inset-0 w-full h-full"
         >
-          {label}
-        </motion.span>
+          <ImageWithFallback
+            src={imageSrc}
+            alt={label}
+            className="absolute inset-0 w-full h-full object-cover z-0 filter grayscale contrast-50 blur-sm transition duration-300 group-hover:grayscale-0 group-hover:contrast-100 group-hover:saturate-[0.75] group-hover:blur-0"
+          />
+        </motion.div>
       )}
+      <motion.div
+        layoutId={`panel-${label}`}
+        className="absolute inset-0 border border-black rounded-lg flex items-center justify-center pointer-events-none"
+      >
+        {label && (
+          <motion.span
+            layoutId={label}
+            className="relative z-10 text-black group-hover:text-white transition-colors duration-300 font-hero font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
+          >
+            {label}
+          </motion.span>
+        )}
+      </motion.div>
     </motion.div>
   );
 
