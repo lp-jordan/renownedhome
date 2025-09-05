@@ -15,12 +15,11 @@ export default function PanelCard({
 }) {
   const content = (
     <motion.div
-      layoutId={`panel-${label}`}
       whileHover={{ scale: 1.02 }}
       initial={initial}
       animate={animate}
       transition={transition}
-      className={`relative w-full h-full cursor-pointer border border-black rounded-lg overflow-hidden group bg-transparent flex items-center justify-center ${className}`}
+      className={`relative w-full h-full cursor-pointer rounded-lg overflow-hidden group ${className}`}
     >
       {imageSrc && (
         <motion.div
@@ -36,14 +35,19 @@ export default function PanelCard({
           />
         </motion.div>
       )}
-      {label && (
-        <motion.span
-          layoutId={label}
-          className="pointer-events-none relative z-10 text-black group-hover:text-white transition-colors duration-300 font-hero font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
-        >
-          {label}
-        </motion.span>
-      )}
+      <motion.div
+        layoutId={`panel-${label}`}
+        className="absolute inset-0 border border-black rounded-lg flex items-center justify-center pointer-events-none"
+      >
+        {label && (
+          <motion.span
+            layoutId={label}
+            className="relative z-10 text-black group-hover:text-white transition-colors duration-300 font-hero font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
+          >
+            {label}
+          </motion.span>
+        )}
+      </motion.div>
     </motion.div>
   );
 
