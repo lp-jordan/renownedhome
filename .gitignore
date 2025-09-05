@@ -37,6 +37,8 @@ pnpm-debug.log*
 # uploads
 public/uploads/*
 !public/uploads/.gitkeep
+!public/uploads/placeholder.png
 
 #page content: local until launch on site
 #/content
+
