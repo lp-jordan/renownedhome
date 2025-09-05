@@ -24,13 +24,13 @@ export default function PanelCard({
         <ImageWithFallback
           src={imageSrc}
           alt={label}
-          className="absolute inset-0 w-full h-full object-cover filter grayscale contrast-75 transition duration-300 group-hover:grayscale-0 group-hover:contrast-100 group-hover:saturate-[0.75]"
+          className="absolute inset-0 w-full h-full object-cover z-0 filter grayscale contrast-50 transition duration-300 group-hover:grayscale-0 group-hover:contrast-100 group-hover:saturate-[0.75]"
         />
       )}
       {label && (
         <motion.span
           layoutId={label}
-          className="pointer-events-none text-black font-hero font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
+          className="pointer-events-none relative z-10 text-black group-hover:text-white transition-colors duration-300 font-hero font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
         >
           {label}
         </motion.span>
