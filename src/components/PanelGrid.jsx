@@ -30,6 +30,8 @@ const panels = [
   },
 ];
 
+const TRANSFORM_DURATION = 0.4;
+
 export default function PanelGrid() {
   const prevPath = getPreviousPathname();
   const fromPanel = prevPath && prevPath !== "/" ? prevPath.slice(1).toUpperCase() : null;
@@ -38,12 +40,13 @@ export default function PanelGrid() {
     <div className="h-full flex flex-col px-6 pt-10 pb-6">
       <div className="flex-1 grid w-full grid-cols-2 grid-rows-2 gap-4">
         {panels.map((panel) => {
+          const isTransforming = fromPanel && panel.label === fromPanel;
           const fadeProps =
             fromPanel && panel.label !== fromPanel
               ? {
                   initial: { opacity: 0 },
                   animate: { opacity: 1 },
-                  transition: { duration: 0.4 },
+                  transition: { delay: TRANSFORM_DURATION, duration: 0.4 },
                 }
               : {};
 
@@ -54,6 +57,8 @@ export default function PanelGrid() {
               imageSrc={panel.image}
               label={panel.label}
               to={panel.to}
+              isTransforming={isTransforming}
+              fadeDelay={TRANSFORM_DURATION}
               {...fadeProps}
             />
           );
