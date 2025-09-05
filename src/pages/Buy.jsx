@@ -1,12 +1,11 @@
 import { motion } from "framer-motion";
 import Panel from "../components/Panel";
-import ImageWithFallback from "../components/ImageWithFallback";
 import content from "../../content/buy.json";
 
 export default function Buy() {
   const {
     panel,
-    hero: { heading, subtitle, image, button },
+    hero: { heading, subtitle, button },
   } = content;
 
   return (
@@ -37,13 +36,6 @@ export default function Buy() {
               {button.hoverText}
             </span>
           </a>
-        )}
-        {image && (
-          <ImageWithFallback
-            src={image}
-            alt={heading.text}
-            className="mt-4 w-full h-auto"
-          />
         )}
       </div>
     </Panel>

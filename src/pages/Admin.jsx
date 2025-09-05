@@ -141,6 +141,9 @@ export default function Admin() {
   const renderFields = (data, path = []) =>
     Object.entries(data).map(([key, value]) => {
       const fieldPath = [...path, key];
+      if (path[0] === "hero" && path.length === 1 && key === "image") {
+        return null;
+      }
       if (typeof value === "object" && value !== null) {
         if (Array.isArray(value)) {
           return (

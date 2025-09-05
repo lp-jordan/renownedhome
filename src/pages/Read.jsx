@@ -1,13 +1,12 @@
 import { motion } from "framer-motion";
 import Panel from "../components/Panel";
-import ImageWithFallback from "../components/ImageWithFallback";
 import IssueCarousel from "../components/IssueCarousel";
 import content from "../../content/read.json";
 
 export default function Read() {
   const {
     panel,
-    hero: { heading, subtitle, image },
+    hero: { heading, subtitle },
     issues = [],
   } = content;
 
@@ -24,13 +23,6 @@ export default function Read() {
           <p className={`${subtitle.className} ${subtitle.size}`}>
             {subtitle.text}
           </p>
-        )}
-        {image && (
-          <ImageWithFallback
-            src={image}
-            alt={heading.text}
-            className="mt-4 w-full h-auto"
-          />
         )}
       </div>
       {issues.length > 0 && <IssueCarousel issues={issues} />}
