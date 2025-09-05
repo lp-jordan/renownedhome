@@ -2,20 +2,21 @@
   "panel": {
     "main": {
       "id": "MEET"
-    }
+    },
+    "image": "/uploads/placeholder.png"
   },
-    "hero": {
-      "heading": {
-        "layoutId": "MEET",
-        "text": "MEET",
+  "hero": {
+    "heading": {
+      "layoutId": "MEET",
+      "text": "MEET",
       "className": "text-black font-bold uppercase",
       "size": "text-[clamp(3rem,8vw,10rem)]"
-      },
-      "subtitle": {
-        "text": "",
+    },
+    "subtitle": {
+      "text": "",
       "className": "mt-2 text-center font-sans",
       "size": "text-8xl"
-      },
-      "image": "/uploads/placeholder.png"
-    }
+    },
+    "image": "/uploads/placeholder.png"
   }
+}

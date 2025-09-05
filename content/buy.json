@@ -2,7 +2,8 @@
   "panel": {
     "main": {
       "id": "BUY"
-    }
+    },
+    "image": "/uploads/placeholder.png"
   },
   "hero": {
     "heading": {

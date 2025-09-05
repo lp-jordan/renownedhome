@@ -4,27 +4,29 @@ import read from "../../content/read.json";
 import buy from "../../content/buy.json";
 import meet from "../../content/meet.json";
 import connect from "../../content/connect.json";
+ 
+const placeholderImage = "/uploads/placeholder.png";
 
 const panels = [
   {
     label: "READ",
     to: "/read",
-    image: read.panel?.image,
+    image: read.panel?.image || placeholderImage,
   },
   {
     label: "BUY",
     to: "/buy",
-    image: buy.panel?.image,
+    image: buy.panel?.image || placeholderImage,
   },
   {
     label: "MEET",
     to: "/meet",
-    image: meet.panel?.image,
+    image: meet.panel?.image || placeholderImage,
   },
   {
     label: "CONNECT",
     to: "/connect",
-    image: connect.panel?.image,
+    image: connect.panel?.image || placeholderImage,
   },
 ];
 
