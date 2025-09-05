@@ -1,12 +1,11 @@
 import { motion } from "framer-motion";
 import Panel from "../components/Panel";
-import ImageWithFallback from "../components/ImageWithFallback";
 import content from "../../content/connect.json";
 
 export default function Connect() {
   const {
     panel,
-    hero: { heading, subtitle, image },
+    hero: { heading, subtitle },
   } = content;
 
   return (
@@ -22,13 +21,6 @@ export default function Connect() {
           <p className={`${subtitle.className} ${subtitle.size}`}>
             {subtitle.text}
           </p>
-        )}
-        {image && (
-          <ImageWithFallback
-            src={image}
-            alt={heading.text}
-            className="mt-4 w-full h-auto"
-          />
         )}
       </div>
     </Panel>
