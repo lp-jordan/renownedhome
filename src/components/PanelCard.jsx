@@ -10,6 +10,8 @@ export default function PanelCard({
   initial,
   animate,
   transition,
+  isTransforming = false,
+  fadeDelay = 0,
 }) {
   const content = (
     <motion.div
@@ -17,15 +19,22 @@ export default function PanelCard({
       whileHover={{ scale: 1.02 }}
       initial={initial}
       animate={animate}
-        transition={transition}
-        className={`relative w-full h-full cursor-pointer border border-black rounded-lg overflow-hidden group bg-transparent flex items-center justify-center ${className}`}
+      transition={transition}
+      className={`relative w-full h-full cursor-pointer border border-black rounded-lg overflow-hidden group bg-transparent flex items-center justify-center ${className}`}
     >
       {imageSrc && (
-        <ImageWithFallback
-          src={imageSrc}
-          alt={label}
-          className="absolute inset-0 w-full h-full object-cover z-0 filter grayscale contrast-50 blur-sm transition duration-300 group-hover:grayscale-0 group-hover:contrast-100 group-hover:saturate-[0.75] group-hover:blur-0"
-        />
+        <motion.div
+          initial={isTransforming ? { opacity: 0 } : undefined}
+          animate={isTransforming ? { opacity: 1 } : undefined}
+          transition={isTransforming ? { delay: fadeDelay, duration: 0.4 } : undefined}
+          className="absolute inset-0 w-full h-full"
+        >
+          <ImageWithFallback
+            src={imageSrc}
+            alt={label}
+            className="absolute inset-0 w-full h-full object-cover z-0 filter grayscale contrast-50 blur-sm transition duration-300 group-hover:grayscale-0 group-hover:contrast-100 group-hover:saturate-[0.75] group-hover:blur-0"
+          />
+        </motion.div>
       )}
       {label && (
         <motion.span
