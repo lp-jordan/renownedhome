@@ -13,24 +13,23 @@ export default function IssueInfoPanel({ issue }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
-      className="flex flex-col items-center gap-4 p-4 mt-4 border rounded bg-[var(--background)]"
-      style={{ borderColor: "var(--border)" }}
+      className="flex flex-col gap-4 mt-6 w-full"
     >
       <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">{title}</h2>
-        {issue.subtitle && (
-          <h3 className="text-lg text-gray-500">{issue.subtitle}</h3>
+        <h1 className="text-3xl font-bold">{title}</h1>
+        {(issue.writer || issue.artist || issue.colorist) && (
+          <div className="mt-2 text-sm text-gray-500">
+            {issue.writer && <p>Writer: {issue.writer}</p>}
+            {issue.artist && <p>Artist: {issue.artist}</p>}
+            {issue.colorist && <p>Colorist: {issue.colorist}</p>}
+          </div>
         )}
       </div>
-      {issue.long_description && (
-        <p className="max-w-xl text-center">{issue.long_description}</p>
+      {issue.subtitle && (
+        <h2 className="text-gray-500 text-left">{issue.subtitle}</h2>
       )}
-      {(issue.writer || issue.artist || issue.colorist) && (
-        <div className="text-sm text-gray-500 text-center">
-          {issue.writer && <p>Writer: {issue.writer}</p>}
-          {issue.artist && <p>Artist: {issue.artist}</p>}
-          {issue.colorist && <p>Colorist: {issue.colorist}</p>}
-        </div>
+      {issue.description && (
+        <p className="text-left text-black">{issue.description}</p>
       )}
     </motion.div>
   );

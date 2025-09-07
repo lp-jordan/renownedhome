@@ -18,13 +18,21 @@ export default function IssueDetail() {
 
   return (
     <Panel id={`issue-${issueId}`} centerChildren={false}>
-      <div className="flex flex-col items-center">
-        {issue.thumbnail && (
-          <ImageWithFallback
-            src={issue.thumbnail}
-            alt={issue.title}
-            className="w-full h-auto"
-          />
+      <div className="flex flex-col">
+        {issue.heroImage && (
+          <div className="w-full h-[50vh] overflow-hidden">
+            <ImageWithFallback
+              src={issue.heroImage}
+              alt={issue.title}
+              className="w-full h-full object-cover"
+              style={{
+                WebkitMaskImage:
+                  "linear-gradient(to bottom, black 50%, transparent 100%)",
+                maskImage:
+                  "linear-gradient(to bottom, black 50%, transparent 100%)",
+              }}
+            />
+          </div>
         )}
         <IssueInfoPanel issue={issue} />
       </div>
