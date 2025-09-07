@@ -188,6 +188,7 @@ export default function Admin() {
         writer: 'writer',
         artist: 'artist',
         colorist: 'colorist',
+        heroImage: '/uploads/placeholder.png',
         thumbnail: '/uploads/placeholder.png',
       };
     }
