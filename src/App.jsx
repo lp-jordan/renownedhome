@@ -24,7 +24,7 @@ export default function App() {
     <div className="fixed inset-0 overflow-hidden p-3 bg-[#fdfaf5]">
       <Breadcrumbs className="absolute top-6 left-6 z-10" />
       <LayoutGroup>
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<PanelGrid />} />
             <Route path="/read" element={<Read />} />
