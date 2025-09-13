@@ -21,10 +21,10 @@ export default function App() {
   }, [location.pathname]);
 
   return (
-    <div className="fixed inset-0 overflow-hidden p-3 bg-[#fdfaf5]">
+    <div className="relative fixed inset-0 overflow-hidden p-3 bg-[#fdfaf5]">
       <Breadcrumbs className="absolute top-6 left-6 z-10" />
       <LayoutGroup>
-        <AnimatePresence>
+        <AnimatePresence mode="wait" initial={false}>
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<PanelGrid />} />
             <Route path="/read" element={<Read />} />

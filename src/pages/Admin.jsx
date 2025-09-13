@@ -46,7 +46,7 @@ export default function Admin() {
 
   if (!authorized) {
     return (
-      <div className="w-full h-full border border-black rounded-lg overflow-hidden">
+      <div className="absolute inset-0 w-full h-full border border-black rounded-lg overflow-hidden">
         <div className="h-full flex items-center justify-center p-6">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <input
@@ -416,7 +416,7 @@ export default function Admin() {
 
   if (selectedPage && formData) {
     return (
-      <div className="w-full h-full border border-black rounded-lg overflow-hidden">
+      <div className="absolute inset-0 w-full h-full border border-black rounded-lg overflow-hidden">
         <div className="h-full overflow-y-auto flex flex-col px-6 pt-10 pb-6 gap-4">
           <h1 className="text-2xl font-bold mb-2">Edit {selectedPage.name}</h1>
           {error && <div className="text-red-500">{error}</div>}
@@ -445,7 +445,7 @@ export default function Admin() {
   }
 
   return (
-    <div className="w-full h-full border border-black rounded-lg overflow-hidden">
+    <div className="absolute inset-0 w-full h-full border border-black rounded-lg overflow-hidden">
       <div className="h-full overflow-y-auto flex flex-col px-6 pt-10 pb-6">
         <h1 className="text-2xl font-bold mb-2">Admin Dashboard</h1>
         {error && <div className="text-red-500 mb-4">{error}</div>}
