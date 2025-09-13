@@ -29,6 +29,7 @@ app.get('/api/pages/:page', async (req, res) => {
     const data = await fs.readFile(file, 'utf8');
     res.json(JSON.parse(data));
   } catch (err) {
+    console.error('Read/write error:', err);
     res.status(500).json({ error: 'Unable to read file' });
   }
 });
@@ -39,15 +40,22 @@ app.post('/api/pages/:page', async (req, res) => {
     await fs.writeFile(file, JSON.stringify(req.body, null, 2));
     res.json({ success: true });
   } catch (err) {
+    console.error('Read/write error:', err);
     res.status(500).json({ error: 'Unable to write file' });
   }
 });
 
 app.post('/api/upload', upload.single('file'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
+  try {
+    console.log('Uploading:', req.file);
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    res.json({ path: `/uploads/${req.file.filename}` });
+  } catch (err) {
+    console.error('Upload error:', err);
+    res.status(500).json({ error: 'Upload failed' });
   }
-  res.json({ path: `/uploads/${req.file.filename}` });
 });
 
 const port = process.env.PORT || 3001;
