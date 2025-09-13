@@ -125,14 +125,19 @@ export default function Admin() {
     const form = new FormData();
     form.append('file', file);
     try {
+      console.log('Uploading image:', file.name);
       const res = await fetch('/api/upload', {
         method: 'POST',
         body: form,
       });
-      if (res.ok) {
-        const data = await res.json();
-        updateField(path, data.path);
+      if (!res.ok) {
+        console.error('Upload failed:', res.status, await res.text());
+        setError('Failed to upload image');
+        return;
       }
+      const data = await res.json();
+      console.log('Upload succeeded:', data.path);
+      updateField(path, data.path);
     } catch (err) {
       console.error(err);
     }
