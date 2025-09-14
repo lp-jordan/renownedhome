@@ -3,6 +3,7 @@ import cors from 'cors';
 import fs from 'fs/promises';
 import path from 'path';
 import multer from 'multer';
+import { logInfo, logError } from './src/utils/logger.js';
 
 const app = express();
 app.use(cors());
@@ -29,7 +30,7 @@ app.get('/api/pages/:page', async (req, res) => {
     const data = await fs.readFile(file, 'utf8');
     res.json(JSON.parse(data));
   } catch (err) {
-    console.error('Read/write error:', err);
+    logError('Read/write error:', err);
     res.status(500).json({ error: 'Unable to read file' });
   }
 });
@@ -40,25 +41,25 @@ app.post('/api/pages/:page', async (req, res) => {
     await fs.writeFile(file, JSON.stringify(req.body, null, 2));
     res.json({ success: true });
   } catch (err) {
-    console.error('Read/write error:', err);
+    logError('Read/write error:', err);
     res.status(500).json({ error: 'Unable to write file' });
   }
 });
 
 app.post('/api/upload', upload.single('file'), (req, res) => {
   try {
-    console.log('Uploading:', req.file);
+    logInfo('Uploading file', req.file);
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
     res.json({ path: `/uploads/${req.file.filename}` });
   } catch (err) {
-    console.error('Upload error:', err);
+    logError('Upload error:', err);
     res.status(500).json({ error: 'Upload failed' });
   }
 });
 
 const port = process.env.PORT || 3001;
 app.listen(port, () => {
-  console.log(`API server listening on ${port}`);
+  logInfo(`API server listening on ${port}`);
 });
