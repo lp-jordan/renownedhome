@@ -20,6 +20,8 @@ if (!rootElement) {
     </React.StrictMode>
   );
 
-  const nodeEnv = import.meta.env?.NODE_ENV || process.env?.NODE_ENV;
+  const nodeEnv =
+    import.meta.env?.NODE_ENV ??
+    (typeof process !== "undefined" ? process.env?.NODE_ENV : undefined);
   logSuccess("Rendering started", { nodeEnv });
 }
