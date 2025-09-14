@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { LayoutGroup, AnimatePresence } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { updatePreviousPathname } from "./utils/navigation";
 
@@ -16,13 +16,21 @@ import Breadcrumbs from "./components/Breadcrumbs";
 
 export default function App() {
   const location = useLocation();
+  const [scrollLocked, setScrollLocked] = useState(location.pathname === "/");
 
   useEffect(() => {
     updatePreviousPathname(location.pathname);
+    if (location.pathname !== "/") {
+      setScrollLocked(false);
+    }
   }, [location.pathname]);
 
   return (
-    <div className="fixed inset-0 overflow-hidden p-3 bg-[#fdfaf5]">
+    <div
+      className={`fixed inset-0 p-3 bg-[#fdfaf5] ${
+        scrollLocked ? "overflow-hidden" : "overflow-y-auto"
+      }`}
+    >
       <Breadcrumbs className="absolute top-6 left-6 z-10" />
       <LayoutGroup>
         <AnimatePresence>
@@ -31,7 +39,7 @@ export default function App() {
               path="/"
               element=
                 {(
-                  <SplashScreen>
+                  <SplashScreen onUnlock={() => setScrollLocked(false)}>
                     <PanelGrid />
                   </SplashScreen>
                 )}

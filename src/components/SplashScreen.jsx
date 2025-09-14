@@ -1,20 +1,30 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
-export default function SplashScreen({ children }) {
+export default function SplashScreen({ children, onUnlock }) {
   const [hasScrolled, setHasScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
+    const handleInteraction = () => {
       setHasScrolled(true);
+      onUnlock?.();
     };
 
-    window.addEventListener("scroll", handleScroll, { once: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+    const opts = { once: true };
+    window.addEventListener("scroll", handleInteraction, opts);
+    window.addEventListener("wheel", handleInteraction, opts);
+    window.addEventListener("touchmove", handleInteraction, opts);
+    return () => {
+      window.removeEventListener("scroll", handleInteraction);
+      window.removeEventListener("wheel", handleInteraction);
+      window.removeEventListener("touchmove", handleInteraction);
+    };
+  }, [onUnlock]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    <div
+      className={`relative h-full w-full ${hasScrolled ? "" : "overflow-hidden"}`}
+    >
       <motion.img
         src="/logo.svg"
         initial={{ opacity: 0, top: "50%", left: "50%", x: "-50%", y: "-50%" }}
