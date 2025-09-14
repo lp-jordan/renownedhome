@@ -21,7 +21,7 @@ if (!rootElement) {
   );
 
   const nodeEnv =
-    import.meta.env?.NODE_ENV ??
+    import.meta.env?.MODE ??
     (typeof process !== "undefined" ? process.env?.NODE_ENV : undefined);
   logSuccess("Rendering started", { nodeEnv });
 }
