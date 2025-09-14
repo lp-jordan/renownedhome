@@ -67,5 +67,9 @@ body::before {
   .hero-half {
     @apply w-full h-[50vh] bg-gradient-to-b from-gray-400 to-white;
   }
+
+  .logo-top-right {
+    @apply absolute top-4 right-4;
+  }
 }
 
