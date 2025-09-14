@@ -4,7 +4,7 @@ export default function Panel({ id, children, centerChildren = true }) {
   return (
     <motion.div
       layoutId={`panel-${id}`}
-      className="absolute inset-0 w-full h-full border border-black rounded-lg overflow-hidden"
+      className="w-full h-full border border-black rounded-lg overflow-hidden"
     >
       <div className="h-full overflow-y-auto flex flex-col px-6 pt-10 pb-6">
         <div
