@@ -12,6 +12,7 @@ export default function SplashScreen({ children }) {
     const handleScroll = () => {
       sessionStorage.setItem("homeVisited", "true");
       setHasScrolled(true);
+      onUnlock?.();
     };
 
     window.addEventListener("scroll", handleScroll, { once: true });
@@ -19,7 +20,9 @@ export default function SplashScreen({ children }) {
   }, [hasScrolled]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    <div
+      className={`relative h-full w-full ${hasScrolled ? "" : "overflow-hidden"}`}
+    >
       <motion.img
         src="/logo.svg"
         initial=
