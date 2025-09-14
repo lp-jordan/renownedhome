@@ -40,12 +40,11 @@ export default function PanelCard({
         className="absolute inset-0 border border-black rounded-lg flex items-center justify-center pointer-events-none"
       >
         {label && (
-          <motion.span
-            layoutId={label}
+          <span
             className="relative z-10 text-black group-hover:text-white transition-colors duration-300 font-hero font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
           >
             {label}
-          </motion.span>
+          </span>
         )}
       </motion.div>
     </motion.div>
