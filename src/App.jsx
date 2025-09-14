@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { updatePreviousPathname } from "./utils/navigation";
 
 import PanelGrid from "./components/PanelGrid";
+import SplashScreen from "./components/SplashScreen";
 import Read from "./pages/Read";
 import IssueDetail from "./pages/IssueDetail";
 import Buy from "./pages/Buy";
@@ -26,7 +27,15 @@ export default function App() {
       <LayoutGroup>
         <AnimatePresence mode="wait" initial={false}>
           <Routes location={location} key={location.pathname}>
-            <Route path="/" element={<PanelGrid />} />
+            <Route
+              path="/"
+              element=
+                {(
+                  <SplashScreen>
+                    <PanelGrid />
+                  </SplashScreen>
+                )}
+            />
             <Route path="/read" element={<Read />} />
             <Route path="/read/:issueId" element={<IssueDetail />} />
             <Route path="/buy" element={<Buy />} />
