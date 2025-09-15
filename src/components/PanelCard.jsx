@@ -25,7 +25,8 @@ export default function PanelCard({
         <motion.div
           initial={isTransforming ? { opacity: 0 } : undefined}
           animate={isTransforming ? { opacity: 1 } : undefined}
-          transition={isTransforming ? { delay: fadeDelay, duration: 0.4 } : undefined}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.4, delay: isTransforming ? fadeDelay : 0 }}
           className="absolute inset-0 w-full h-full"
         >
           <ImageWithFallback
@@ -37,11 +38,13 @@ export default function PanelCard({
       )}
       <motion.div
         layoutId={`panel-${label}`}
+        transition={{ duration: 0.4 }}
         className="absolute inset-0 border border-black rounded-lg flex items-center justify-center pointer-events-none"
       >
         {label && (
           <motion.span
             layoutId={`panel-label-${label}`}
+            transition={{ duration: 0.4 }}
             className="relative z-10 text-black group-hover:text-white transition-colors duration-300 font-hero font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
           >
             {label}

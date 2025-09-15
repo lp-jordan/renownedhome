@@ -15,6 +15,7 @@ export default function Read() {
       <div className="flex flex-col items-center">
         <motion.h1
           layoutId={`panel-label-${panel.main.name}`}
+          transition={{ duration: 0.4 }}
           className={`${heading.className} ${heading.size} mb-2`}
         >
           {heading.text}
