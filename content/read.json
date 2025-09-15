@@ -25,9 +25,9 @@
       "title": "3:10 to Nowhere",
       "subtitle": "Time Waits for No Man",
       "description": "Abe Bone is stuck at a train station.",
-      "writer": "Jordan Johnson",
-      "artist": "Azrael Aguiar",
-      "colorist": "Maja Opacic",
+      "writer": { "text": "Jordan Johnson", "bioId": 1 },
+      "artist": { "text": "Azrael Aguiar", "bioId": 2 },
+      "colorist": { "text": "Maja Opacic", "bioId": 3 },
       "heroImage": "/uploads/placeholder.png",
       "thumbnail": "/uploads/placeholder.png"
     }

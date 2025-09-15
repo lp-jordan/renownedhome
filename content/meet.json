@@ -20,13 +20,24 @@
   "bios": [
     {
       "id": 1,
-      "name": "Name",
+      "name": "Jordan Johnson",
       "image": "/uploads/placeholder.png",
       "biography": "Biography",
-      "works": [
-        { "text": "Work 1", "url": "" },
-        { "text": "Work 2", "url": "" }
-      ]
+      "works": []
+    },
+    {
+      "id": 2,
+      "name": "Azrael Aguiar",
+      "image": "/uploads/placeholder.png",
+      "biography": "Biography",
+      "works": []
+    },
+    {
+      "id": 3,
+      "name": "Maja Opacic",
+      "image": "/uploads/placeholder.png",
+      "biography": "Biography",
+      "works": []
     }
   ]
 }
