@@ -19,7 +19,7 @@
   },
   "bios": [
     {
-      "id": "bio-1",
+      "id": 1,
       "name": "Jordan Johnson",
       "image": "/uploads/placeholder.png",
       "biography": "Biography",
