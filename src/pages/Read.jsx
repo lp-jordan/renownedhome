@@ -14,7 +14,7 @@ export default function Read() {
     <Panel id={panel.main.name} centerChildren={false}>
       <div className="flex flex-col items-center">
         <motion.h1
-          layoutId={heading.layoutId}
+          layoutId={`panel-label-${panel.main.name}`}
           className={`${heading.className} ${heading.size} mb-2`}
         >
           {heading.text}
