@@ -23,11 +23,15 @@ export default function BioInfoPanel({ bio }) {
   }
 
   const works = Array.isArray(bio.works)
-    ? bio.works
+    ? bio.works.map((w) =>
+        typeof w === "string" ? { text: w, url: "" } : w
+      )
     : bio.works
+    ? bio.works
         .split(",")
-        .map((w) => w.trim())
-        .filter(Boolean);
+        .map((w) => ({ text: w.trim(), url: "" }))
+        .filter((w) => w.text)
+    : [];
 
   return (
     <motion.div
@@ -48,10 +52,23 @@ export default function BioInfoPanel({ bio }) {
       {works.length > 0 && (
         <motion.ul
           variants={itemVariants}
-          className="text-left text-gray-500 list-disc pl-5"
+          className="flex flex-wrap justify-center gap-4 list-none p-0 text-gray-500"
         >
           {works.map((work, idx) => (
-            <li key={idx}>{work}</li>
+            <li key={idx}>
+              {work.url ? (
+                <a
+                  href={work.url}
+                  className="no-underline hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {work.text}
+                </a>
+              ) : (
+                work.text
+              )}
+            </li>
           ))}
         </motion.ul>
       )}

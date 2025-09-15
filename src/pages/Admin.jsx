@@ -163,6 +163,13 @@ export default function Admin() {
                   {typeof item === "object"
                     ? renderFields(item, [...fieldPath, idx])
                     : renderInput(`${key}[${idx}]`, item, [...fieldPath, idx])}
+                  <button
+                    type="button"
+                    onClick={() => removeArrayItem([...fieldPath, idx])}
+                    className="mt-2 px-2 py-1 text-xs border rounded"
+                  >
+                    Remove
+                  </button>
                 </div>
               ))}
               <button
@@ -206,8 +213,11 @@ export default function Admin() {
         name: 'Name',
         image: '/uploads/placeholder.png',
         biography: 'Biography',
-        works: 'Work 1, Work 2',
+        works: [],
       };
+    }
+    if (path[path.length - 1] === 'works') {
+      return { text: 'Work', url: '' };
     }
     return '';
   };
@@ -220,6 +230,18 @@ export default function Admin() {
         arr = arr[path[i]];
       }
       arr.push(getPlaceholder(path, arr.length));
+      return updated;
+    });
+  };
+
+  const removeArrayItem = (path) => {
+    setFormData((prev) => {
+      const updated = structuredClone(prev);
+      let arr = updated;
+      for (let i = 0; i < path.length - 1; i += 1) {
+        arr = arr[path[i]];
+      }
+      arr.splice(path[path.length - 1], 1);
       return updated;
     });
   };
