@@ -196,6 +196,7 @@ export default function Admin() {
     const joined = path.join('.');
     if (joined === 'issues') {
       return {
+        id: length + 1,
         order: length + 1,
         releaseDate: 'date',
         title: 'title',
@@ -210,6 +211,7 @@ export default function Admin() {
     }
     if (joined === 'bios') {
       return {
+        id: length + 1,
         name: 'Name',
         image: '/uploads/placeholder.png',
         biography: 'Biography',

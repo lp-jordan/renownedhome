@@ -19,6 +19,7 @@
   },
   "bios": [
     {
+      "id": 1,
       "name": "Name",
       "image": "/uploads/placeholder.png",
       "biography": "Biography",

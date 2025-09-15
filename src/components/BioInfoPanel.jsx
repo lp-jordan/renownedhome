@@ -31,7 +31,7 @@ export default function BioInfoPanel({ bio }) {
 
   return (
     <motion.div
-      key={bio.name}
+      key={bio.id}
       variants={containerVariants}
       initial="hidden"
       animate="show"

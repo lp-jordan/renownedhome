@@ -10,8 +10,8 @@ export default function BioCarousel({ bios = [] }) {
   return (
     <div className="w-full overflow-x-auto touch-pan-x">
       <div className="flex space-x-4 p-4">
-        {bios.map((bio, index) => (
-          <Link key={index} to={`/meet/${index}`} className="block">
+        {bios.map((bio) => (
+          <Link key={bio.id} to={`/meet/${bio.id}`} className="block">
             <div
               className={[
                 "flex-shrink-0 rounded border bg-[var(--background)] overflow-hidden",
@@ -19,7 +19,7 @@ export default function BioCarousel({ bios = [] }) {
               ].join(" ")}
               style={{ borderColor: "var(--border)" }}
             >
-              <motion.div layoutId={`bio-image-${index}`} className="w-full aspect-square">
+              <motion.div layoutId={`bio-image-${bio.id}`} className="w-full aspect-square">
                 <ImageWithFallback
                   src={bio.image}
                   alt={bio.name}
