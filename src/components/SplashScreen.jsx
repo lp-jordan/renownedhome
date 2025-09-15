@@ -53,7 +53,7 @@ export default function SplashScreen({ children }) {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.5 }}
-              className="mb-4 h-24 w-24"
+              className="mb-4 h-24 w-auto"
             />
             <motion.p
               className="text-center"
@@ -63,11 +63,8 @@ export default function SplashScreen({ children }) {
               exit="exit"
             >
               {words.map((word, idx) => (
-                <motion.span
-                  key={idx}
-                  variants={wordVariants}
-                  className="inline-block mr-2"
-                >
+                <motion.span key={idx} variants={wordVariants}>
+                  {idx > 0 && " "}
                   {word}
                 </motion.span>
               ))}
