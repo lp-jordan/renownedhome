@@ -34,6 +34,15 @@ export default function SplashScreen({ children, onDismiss }) {
     },
     exit: { opacity: 0 },
   };
+  const logoVariants = {
+    hidden: { opacity: 0, scale: 0.8 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: { duration: 1, ease: "easeInOut" },
+    },
+    exit: { opacity: 0, scale: 0.8 },
+  };
   const wordVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { duration: 0.5 } },
@@ -51,10 +60,10 @@ export default function SplashScreen({ children, onDismiss }) {
           >
             <motion.img
               src={logoSrc}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.5 }}
+              variants={logoVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
               className="mb-4 h-24 w-auto"
             />
             <motion.p
