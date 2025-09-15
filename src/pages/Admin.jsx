@@ -53,6 +53,12 @@ export default function Admin() {
     loadBios();
   }, []);
 
+  useEffect(() => {
+    if (selectedPage?.id === 'meet') {
+      setBios(formData?.bios || []);
+    }
+  }, [selectedPage, formData]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (password === ADMIN_PASSWORD) {
