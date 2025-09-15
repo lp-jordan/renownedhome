@@ -16,5 +16,13 @@
       "className": "mt-2 text-center font-sans",
       "size": "text-8xl"
     }
-  }
+  },
+  "bios": [
+    {
+      "name": "Name",
+      "image": "/uploads/placeholder.png",
+      "biography": "Biography",
+      "works": "Work 1, Work 2"
+    }
+  ]
 }
