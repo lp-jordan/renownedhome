@@ -1,27 +1,20 @@
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import content from "../../content/splash.json";
 
-export default function SplashScreen({
-  children,
-  onUnlock,
-  logoSrc = "/logo.svg",
-  subtitle = "Renowned Home",
-}) {
-  const [isAtTop, setIsAtTop] = useState(true);
-  const unlockedRef = useRef(false);
+export default function SplashScreen({ children }) {
+  const { logoSrc, subtitle } = content;
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      const atTop = window.scrollY === 0;
-      setIsAtTop(atTop);
-      if (!unlockedRef.current && !atTop) {
-        unlockedRef.current = true;
-        onUnlock?.();
-      }
+    const handleDismiss = () => setDismissed(true);
+    window.addEventListener("wheel", handleDismiss, { once: true });
+    window.addEventListener("touchmove", handleDismiss, { once: true });
+    return () => {
+      window.removeEventListener("wheel", handleDismiss);
+      window.removeEventListener("touchmove", handleDismiss);
     };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [onUnlock]);
+  }, []);
 
   const words = subtitle.split(" ");
   const containerVariants = {
@@ -42,63 +35,43 @@ export default function SplashScreen({
 
   return (
     <div className="relative h-full w-full">
-     <motion.img
-  key="logo"
-  src={logoSrc}
-  initial={{ opacity: 0, top: "50%", left: "50%", x: "-50%", y: "-50%" }}
-  animate={
-    isAtTop
-      ? {
-          opacity: 1,
-          top: "50%",
-          left: "50%",
-          x: "-50%",
-          y: "-50%",
-          scale: 1,
-        }
-      : {
-          opacity: 1,
-          top: "1.5rem",
-          right: "1.5rem",
-          left: "auto",
-          x: 0,
-          y: 0,
-          scale: 0.5,
-        }
-  }
-  transition={{ duration: 0.5 }}
-  className="absolute z-50 pointer-events-none"
-/>
       <AnimatePresence>
-        {isAtTop && (
-          <motion.p
-            key="text"
-            className="absolute left-1/2 top-1/2 mt-16 -translate-x-1/2 text-center z-40"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
+        {!dismissed && (
+          <motion.div
+            key="splash"
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#fdfaf5]"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
           >
-            {words.map((word, idx) => (
-              <motion.span
-                key={idx}
-                variants={wordVariants}
-                className="inline-block mr-2"
-              >
-                {word}
-              </motion.span>
-            ))}
-          </motion.p>
+            <motion.img
+              src={logoSrc}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.5 }}
+              className="mb-8"
+            />
+            <motion.p
+              className="text-center"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+            >
+              {words.map((word, idx) => (
+                <motion.span
+                  key={idx}
+                  variants={wordVariants}
+                  className="inline-block mr-2"
+                >
+                  {word}
+                </motion.span>
+              ))}
+            </motion.p>
+          </motion.div>
         )}
       </AnimatePresence>
-      <motion.div
-        className="relative h-full w-full"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: isAtTop ? 0 : 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        {children}
-      </motion.div>
+      {children}
     </div>
   );
 }
