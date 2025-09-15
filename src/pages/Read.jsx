@@ -12,7 +12,7 @@ export default function Read() {
 
   return (
     <Panel id={panel.main.name} centerChildren={false}>
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center w-full">
         <motion.h1
           layoutId={`panel-label-${panel.main.name}`}
           transition={{ duration: 0.4 }}
@@ -25,8 +25,8 @@ export default function Read() {
             {subtitle.text}
           </p>
         )}
+        {issues.length > 0 && <IssueCarousel issues={issues} />}
       </div>
-      {issues.length > 0 && <IssueCarousel issues={issues} />}
     </Panel>
   );
 }
