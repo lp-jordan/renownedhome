@@ -30,7 +30,7 @@ export default function App() {
       <Breadcrumbs className="absolute top-6 left-6 z-10" />
       <LayoutGroup>
         <div className="relative h-full">
-          <AnimatePresence mode="wait">
+          <AnimatePresence>
             <Routes location={location} key={location.pathname}>
               <Route
                 path="/"
