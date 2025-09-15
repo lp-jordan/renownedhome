@@ -11,7 +11,7 @@ export default function Read() {
   } = content;
 
   return (
-    <Panel id={panel.main.id} centerChildren={false}>
+    <Panel id={panel.main.name} centerChildren={false}>
       <div className="flex flex-col items-center">
         <motion.h1
           layoutId={heading.layoutId}

@@ -9,7 +9,7 @@ export default function Buy() {
   } = content;
 
   return (
-    <Panel id={panel.main.id}>
+    <Panel id={panel.main.name}>
       <div className="flex flex-col items-center">
         <motion.h1
           layoutId={heading.layoutId}

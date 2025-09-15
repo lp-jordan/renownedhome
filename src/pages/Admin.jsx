@@ -9,20 +9,20 @@ const PAGES = [
 ];
 
 const SIZE_OPTIONS = [
-  "text-xs",
-  "text-sm",
-  "text-base",
-  "text-lg",
-  "text-xl",
-  "text-2xl",
-  "text-3xl",
-  "text-4xl",
-  "text-5xl",
-  "text-6xl",
-  "text-7xl",
-  "text-8xl",
-  "text-9xl",
-  "text-[clamp(3rem,8vw,10rem)]",
+  { value: "text-xs", label: "Extra Small" },
+  { value: "text-sm", label: "Small" },
+  { value: "text-base", label: "Base" },
+  { value: "text-lg", label: "Large" },
+  { value: "text-xl", label: "Extra Large" },
+  { value: "text-2xl", label: "2XL" },
+  { value: "text-3xl", label: "3XL" },
+  { value: "text-4xl", label: "4XL" },
+  { value: "text-5xl", label: "5XL" },
+  { value: "text-6xl", label: "6XL" },
+  { value: "text-7xl", label: "7XL" },
+  { value: "text-8xl", label: "8XL" },
+  { value: "text-9xl", label: "9XL" },
+  { value: "text-[clamp(3rem,8vw,10rem)]", label: "Responsive Hero" },
 ];
 
 export default function Admin() {
@@ -146,6 +146,9 @@ export default function Admin() {
   const renderFields = (data, path = []) =>
     Object.entries(data).map(([key, value]) => {
       const fieldPath = [...path, key];
+      if (key === "className") {
+        return null;
+      }
       if (path[0] === "hero" && path.length === 1 && key === "image") {
         return null;
       }
@@ -214,7 +217,14 @@ export default function Admin() {
 
   const renderInput = (label, value, path) => {
     const name = path.join('.');
-    const displayLabel = name === 'panel.image' ? 'Panel Image' : label;
+    const displayLabel =
+      name === 'panel.image'
+        ? 'Panel Image'
+        : name === 'panel.main.name'
+        ? 'Panel Name'
+        : path[path.length - 1] === 'size'
+        ? 'Text Size'
+        : label;
     const handleChange = (e) => {
       let val;
       if (typeof value === 'number') {
@@ -237,32 +247,36 @@ export default function Admin() {
         return (
           <div key={name} className="flex flex-col gap-1">
             <label className="font-medium">{displayLabel}</label>
-            {value && (
-              <img
-                src={value}
-                alt=""
-                className="w-32 h-32 object-cover border rounded mb-2"
-              />
-            )}
             <div
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
                 handleImageUpload(e.dataTransfer.files[0], path);
               }}
-              className="border border-dashed rounded p-4 text-center"
+              onClick={() =>
+                document.getElementById(`${name}-file`).click()
+              }
+              className="w-32 h-32 border rounded overflow-hidden flex items-center justify-center cursor-pointer"
             >
-              <input
-                id={`${name}-file`}
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleImageUpload(e.target.files[0], path)}
-                className="hidden"
-              />
-              <label htmlFor={`${name}-file`} className="cursor-pointer">
-                Drag & drop image here or click to upload
-              </label>
+              {value ? (
+                <img
+                  src={value}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-sm text-gray-500 text-center p-2">
+                  Drop image or click to upload
+                </span>
+              )}
             </div>
+            <input
+              id={`${name}-file`}
+              type="file"
+              accept="image/*"
+              onChange={(e) => handleImageUpload(e.target.files[0], path)}
+              className="hidden"
+            />
           </div>
         );
       }
@@ -277,11 +291,33 @@ export default function Admin() {
                 className="border px-2 py-1 rounded"
               >
                 {SIZE_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
                   </option>
                 ))}
               </select>
+              <button
+                type="button"
+                onClick={() => resetField(path)}
+                className="p-1 border rounded-full"
+              >
+                ↺
+              </button>
+            </div>
+          </div>
+        );
+      }
+      if (path[path.length - 1] === 'subtitle') {
+        return (
+          <div key={name} className="flex flex-col gap-1">
+            <label className="font-medium">{displayLabel}</label>
+            <div className="flex items-center gap-2">
+              <textarea
+                value={value}
+                onChange={handleChange}
+                className="border px-2 py-1 rounded flex-1"
+                rows={3}
+              />
               <button
                 type="button"
                 onClick={() => resetField(path)}
