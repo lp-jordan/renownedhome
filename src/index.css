@@ -69,7 +69,7 @@ body::before {
   }
 
   .logo-top-right {
-    @apply absolute top-4 right-4;
+    @apply absolute top-6 right-6 z-10;
   }
 }
 
