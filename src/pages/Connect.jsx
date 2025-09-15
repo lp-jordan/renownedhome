@@ -35,7 +35,7 @@ export default function Connect() {
               <a
                 key={icon.id}
                 href={icon.link || "#"}
-                className="w-24 h-24"
+                className="w-24 h-24 rounded-full overflow-hidden transition-transform duration-200 hover:scale-105"
               >
                 <img
                   src={icon.image}
