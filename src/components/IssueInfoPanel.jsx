@@ -1,5 +1,22 @@
 import { motion } from "framer-motion";
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.2, delayChildren: 0.1 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: -10 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: "easeOut" },
+  },
+};
+
 export default function IssueInfoPanel({ issue }) {
   if (!issue) {
     return null;
@@ -10,26 +27,33 @@ export default function IssueInfoPanel({ issue }) {
   return (
     <motion.div
       key={issue.id}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
       className="flex flex-col gap-4 mt-6 w-full"
     >
-      <div className="text-center">
-        <h1 className="text-3xl font-bold">{title}</h1>
-        {(issue.writer || issue.artist || issue.colorist) && (
-          <div className="mt-2 text-sm text-gray-500">
-            {issue.writer && <p>Writer: {issue.writer}</p>}
-            {issue.artist && <p>Artist: {issue.artist}</p>}
-            {issue.colorist && <p>Colorist: {issue.colorist}</p>}
-          </div>
-        )}
-      </div>
+      <motion.h1 variants={itemVariants} className="text-3xl font-bold text-center">
+        {title}
+      </motion.h1>
+      {(issue.writer || issue.artist || issue.colorist) && (
+        <motion.div
+          variants={itemVariants}
+          className="mt-2 text-sm text-gray-500 text-center"
+        >
+          {issue.writer && <p>Writer: {issue.writer}</p>}
+          {issue.artist && <p>Artist: {issue.artist}</p>}
+          {issue.colorist && <p>Colorist: {issue.colorist}</p>}
+        </motion.div>
+      )}
       {issue.subtitle && (
-        <h2 className="text-gray-500 text-left">{issue.subtitle}</h2>
+        <motion.h2 variants={itemVariants} className="text-gray-500 text-left">
+          {issue.subtitle}
+        </motion.h2>
       )}
       {issue.description && (
-        <p className="text-left text-black">{issue.description}</p>
+        <motion.p variants={itemVariants} className="text-left text-black">
+          {issue.description}
+        </motion.p>
       )}
     </motion.div>
   );
