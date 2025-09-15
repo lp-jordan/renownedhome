@@ -42,13 +42,13 @@ export default function PanelCard({
         className="absolute inset-0 border border-black rounded-lg flex items-center justify-center pointer-events-none"
       >
         {label && (
-          <motion.h1
+          <motion.span
             layoutId={`panel-label-${label}`}
             transition={{ duration: 0.4 }}
-            className="relative z-10 inline-block text-white transition-transform duration-300 ease-out group-hover:scale-105 font-bold uppercase text-center text-[clamp(3rem,8vw,10rem)]"
+            className="relative z-10 text-white transition-transform duration-300 ease-out group-hover:scale-105 font-hero font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
           >
             {label}
-          </motion.h1>
+          </motion.span>
         )}
       </motion.div>
     </motion.div>
