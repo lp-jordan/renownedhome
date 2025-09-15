@@ -1,7 +1,7 @@
 {
   "panel": {
     "main": {
-      "id": "BUY"
+      "name": "BUY"
     },
     "image": "/uploads/placeholder.png"
   },

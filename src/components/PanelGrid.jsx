@@ -9,22 +9,22 @@ const placeholderImage = "/uploads/placeholder.png";
 
 const panels = [
   {
-    label: "READ",
+    label: read.panel?.main?.name || "READ",
     to: "/read",
     image: read.panel?.image || placeholderImage,
   },
   {
-    label: "BUY",
+    label: buy.panel?.main?.name || "BUY",
     to: "/buy",
     image: buy.panel?.image || placeholderImage,
   },
   {
-    label: "MEET",
+    label: meet.panel?.main?.name || "MEET",
     to: "/meet",
     image: meet.panel?.image || placeholderImage,
   },
   {
-    label: "CONNECT",
+    label: connect.panel?.main?.name || "CONNECT",
     to: "/connect",
     image: connect.panel?.image || placeholderImage,
   },
@@ -40,9 +40,10 @@ export default function PanelGrid() {
     <div className="h-full flex flex-col px-6 pt-10 pb-6">
       <div className="flex-1 grid w-full grid-cols-2 grid-rows-2 gap-4">
         {panels.map((panel) => {
-          const isTransforming = fromPanel && panel.label === fromPanel;
+          const isTransforming =
+            fromPanel && panel.label.toUpperCase() === fromPanel;
           const fadeProps =
-            fromPanel && panel.label !== fromPanel
+            fromPanel && panel.label.toUpperCase() !== fromPanel
               ? {
                   initial: { opacity: 0 },
                   animate: { opacity: 1 },
