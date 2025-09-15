@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import content from "../../content/splash.json";
+import { getPreviousPathname } from "../utils/navigation";
 
 export default function SplashScreen({ children }) {
   const { logoSrc, subtitle } = content;
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(
+    () => getPreviousPathname() !== "/"
+  );
 
   useEffect(() => {
+    if (dismissed) return;
     const handleDismiss = () => setDismissed(true);
     window.addEventListener("wheel", handleDismiss, { once: true });
     window.addEventListener("touchmove", handleDismiss, { once: true });
@@ -14,7 +18,7 @@ export default function SplashScreen({ children }) {
       window.removeEventListener("wheel", handleDismiss);
       window.removeEventListener("touchmove", handleDismiss);
     };
-  }, []);
+  }, [dismissed]);
 
   const words = subtitle.split(" ");
   const containerVariants = {
