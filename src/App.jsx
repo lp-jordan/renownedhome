@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { LayoutGroup, AnimatePresence, motion } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { updatePreviousPathname } from "./utils/navigation";
 
@@ -13,9 +13,12 @@ import Meet from "./pages/Meet";
 import Connect from "./pages/Connect";
 import Admin from "./pages/Admin";
 import Breadcrumbs from "./components/Breadcrumbs";
+import splashContent from "../content/splash.json";
 
 export default function App() {
   const location = useLocation();
+  const { logoSrc } = splashContent;
+  const [logoVisible, setLogoVisible] = useState(location.pathname !== "/");
   useEffect(() => {
     updatePreviousPathname(location.pathname);
   }, [location.pathname]);
@@ -27,7 +30,23 @@ export default function App() {
         scrollLocked ? "overflow-hidden" : "overflow-y-auto"
       }`}
     >
-      <Breadcrumbs className="absolute top-6 left-6 z-10" />
+      <header className="absolute top-6 left-6 right-6 z-10 flex items-center justify-between">
+        <Breadcrumbs />
+        <AnimatePresence>
+          {logoVisible && (
+            <motion.img
+              key="corner-logo"
+              src={logoSrc}
+              alt="Renowned Home logo"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              className="h-8 w-auto"
+            />
+          )}
+        </AnimatePresence>
+      </header>
       <LayoutGroup>
         <div className="relative h-full">
           <AnimatePresence>
@@ -36,7 +55,7 @@ export default function App() {
                 path="/"
                 element={
                   <Page>
-                    <SplashScreen>
+                    <SplashScreen onDismiss={() => setLogoVisible(true)}>
                       <PanelGrid />
                     </SplashScreen>
                   </Page>
