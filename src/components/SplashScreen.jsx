@@ -4,7 +4,7 @@ import content from "../../content/splash.json";
 
 let hasShownSplash = false;
 
-export default function SplashScreen({ children }) {
+export default function SplashScreen({ children, onDismiss }) {
   const { logoSrc, subtitle } = content;
   const [dismissed, setDismissed] = useState(() => hasShownSplash);
 
@@ -41,7 +41,7 @@ export default function SplashScreen({ children }) {
 
   return (
     <div className="relative h-full w-full">
-      <AnimatePresence>
+      <AnimatePresence onExitComplete={onDismiss}>
         {!dismissed && (
           <motion.div
             key="splash"
