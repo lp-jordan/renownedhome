@@ -1,4 +1,5 @@
 import { useParams } from "react-router-dom";
+import { motion } from "framer-motion";
 import Panel from "../components/Panel";
 import ImageWithFallback from "../components/ImageWithFallback";
 import IssueInfoPanel from "../components/IssueInfoPanel";
@@ -20,7 +21,10 @@ export default function IssueDetail() {
     <Panel id={`issue-${issueId}`} centerChildren={false}>
       <div className="flex flex-col">
         {issue.heroImage && (
-          <div className="w-full h-[50vh] overflow-hidden">
+          <motion.div
+            layoutId={`issue-image-${issue.order}`}
+            className="w-full h-[50vh] overflow-hidden"
+          >
             <ImageWithFallback
               src={issue.heroImage}
               alt={issue.title}
@@ -32,7 +36,7 @@ export default function IssueDetail() {
                   "linear-gradient(to bottom, black 50%, transparent 100%)",
               }}
             />
-          </div>
+          </motion.div>
         )}
         <IssueInfoPanel issue={issue} />
       </div>
