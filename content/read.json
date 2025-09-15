@@ -19,7 +19,7 @@
   },
   "issues": [
     {
-      "id": 1,
+      "id": "issue-1",
       "order": 1,
       "releaseDate": "date",
       "title": "3:10 to Nowhere",
