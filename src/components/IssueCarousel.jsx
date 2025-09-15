@@ -8,12 +8,12 @@ export default function IssueCarousel({ issues = [] }) {
   }
 
   return (
-    <div className="w-full overflow-x-auto touch-pan-x">
-      <div className="flex space-x-4 p-4">
+    <div className="w-full p-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {issues.map((issue) => (
           <Link key={issue.id} to={`/read/${issue.id}`} className="block">
             <div
-              className="flex-shrink-0 rounded border bg-[var(--background)] overflow-hidden w-[150px] sm:w-[200px] cursor-pointer"
+              className="rounded border bg-[var(--background)] overflow-hidden cursor-pointer"
               style={{ borderColor: "var(--border)" }}
             >
               <motion.div

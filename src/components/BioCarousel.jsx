@@ -8,15 +8,12 @@ export default function BioCarousel({ bios = [] }) {
   }
 
   return (
-    <div className="w-full overflow-x-auto touch-pan-x">
-      <div className="flex space-x-4 p-4">
+    <div className="w-full p-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {bios.map((bio) => (
           <Link key={bio.id} to={`/meet/${bio.id}`} className="block">
             <div
-              className={[
-                "flex-shrink-0 rounded border bg-[var(--background)] overflow-hidden",
-                "w-[150px] sm:w-[200px] cursor-pointer",
-              ].join(" ")}
+              className="rounded border bg-[var(--background)] overflow-hidden cursor-pointer"
               style={{ borderColor: "var(--border)" }}
             >
               <motion.div layoutId={`bio-image-${bio.id}`} className="w-full aspect-square">
