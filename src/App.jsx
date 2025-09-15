@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { LayoutGroup, AnimatePresence } from "framer-motion";
+import { LayoutGroup, AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
 
 import { updatePreviousPathname } from "./utils/navigation";
@@ -29,27 +29,44 @@ export default function App() {
     >
       <Breadcrumbs className="absolute top-6 left-6 z-10" />
       <LayoutGroup>
-        <AnimatePresence>
-          <Routes location={location} key={location.pathname}>
-            <Route
-              path="/"
-              element=
-                {(
-                  <SplashScreen>
-                    <PanelGrid />
-                  </SplashScreen>
-                )}
-            />
-            <Route path="/read" element={<Read />} />
-            <Route path="/read/:issueId" element={<IssueDetail />} />
-            <Route path="/buy" element={<Buy />} />
-            <Route path="/meet" element={<Meet />} />
-            <Route path="/connect" element={<Connect />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AnimatePresence>
+        <div className="relative h-full">
+          <AnimatePresence>
+            <Routes location={location} key={location.pathname}>
+              <Route
+                path="/"
+                element={
+                  <Page>
+                    <SplashScreen>
+                      <PanelGrid />
+                    </SplashScreen>
+                  </Page>
+                }
+              />
+              <Route path="/read" element={<Page><Read /></Page>} />
+              <Route path="/read/:issueId" element={<Page><IssueDetail /></Page>} />
+              <Route path="/buy" element={<Page><Buy /></Page>} />
+              <Route path="/meet" element={<Page><Meet /></Page>} />
+              <Route path="/connect" element={<Page><Connect /></Page>} />
+              <Route path="/admin" element={<Page><Admin /></Page>} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </AnimatePresence>
+        </div>
       </LayoutGroup>
     </div>
+  );
+}
+
+function Page({ children }) {
+  return (
+    <motion.div
+      className="absolute inset-0"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      {children}
+    </motion.div>
   );
 }
