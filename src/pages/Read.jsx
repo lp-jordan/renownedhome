@@ -16,7 +16,7 @@ export default function Read() {
         <motion.h1
           layoutId={`panel-label-${panel.main.name}`}
           transition={{ duration: 0.4 }}
-          className={`${heading.className} ${heading.size} mb-2`}
+          className={`${heading.className} ${heading.size} mb-2 text-center`}
         >
           {heading.text}
         </motion.h1>
