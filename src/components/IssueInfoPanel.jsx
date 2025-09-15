@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -24,6 +25,28 @@ export default function IssueInfoPanel({ issue }) {
 
   const title = issue.title?.rendered || issue.title;
 
+  const renderCredit = (credit, label) => {
+    if (!credit) return null;
+    const name =
+      typeof credit === "object" ? credit.text || credit.name : credit;
+    const bioId =
+      typeof credit === "object" ? credit.bioId || credit.id : null;
+
+    return (
+      <p>
+        {label}: {
+          bioId ? (
+            <Link to={`/meet/${bioId}`} className="no-underline hover:underline">
+              {name}
+            </Link>
+          ) : (
+            name
+          )
+        }
+      </p>
+    );
+  };
+
   return (
     <motion.div
       key={issue.id}
@@ -40,9 +63,9 @@ export default function IssueInfoPanel({ issue }) {
           variants={itemVariants}
           className="mt-2 text-sm text-gray-500 text-center"
         >
-          {issue.writer && <p>Writer: {issue.writer}</p>}
-          {issue.artist && <p>Artist: {issue.artist}</p>}
-          {issue.colorist && <p>Colorist: {issue.colorist}</p>}
+          {renderCredit(issue.writer, "Writer")}
+          {renderCredit(issue.artist, "Artist")}
+          {renderCredit(issue.colorist, "Colorist")}
         </motion.div>
       )}
       {issue.subtitle && (
