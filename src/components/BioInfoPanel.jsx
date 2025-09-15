@@ -52,10 +52,11 @@ export default function BioInfoPanel({ bio }) {
       {works.length > 0 && (
         <motion.ul
           variants={itemVariants}
-          className="flex flex-wrap justify-center gap-4 list-none p-0 text-gray-500"
+          className="flex flex-wrap justify-center list-none p-0 text-gray-500"
         >
           {works.map((work, idx) => (
-            <li key={idx}>
+            <li key={idx} className="flex items-center">
+              {idx > 0 && <span className="mx-2">&bull;</span>}
               {work.url ? (
                 <a
                   href={work.url}
