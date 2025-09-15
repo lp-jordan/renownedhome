@@ -53,7 +53,7 @@ export default function SplashScreen({ children }) {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.5 }}
-              className="mb-8"
+              className="mb-4 h-24 w-24"
             />
             <motion.p
               className="text-center"
