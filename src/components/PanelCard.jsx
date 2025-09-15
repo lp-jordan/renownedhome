@@ -45,7 +45,7 @@ export default function PanelCard({
           <motion.span
             layoutId={`panel-label-${label}`}
             transition={{ duration: 0.4 }}
-            className="relative z-10 text-black group-hover:text-white transition-colors duration-300 font-hero font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
+            className="relative z-10 text-white transition-transform duration-700 ease-out group-hover:scale-105 font-hero font-bold uppercase text-center text-[clamp(2rem,5vw,6rem)]"
           >
             {label}
           </motion.span>
