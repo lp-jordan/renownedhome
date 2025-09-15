@@ -47,7 +47,7 @@ export default function SplashScreen({
         src={logoSrc}
         initial={{ opacity: 0, top: "50%", left: "50%", x: "-50%", y: "-50%" }}
         animate=
-          isAtTop
+          isAtTop{
             ? {
                 opacity: 1,
                 top: "50%",
@@ -65,6 +65,7 @@ export default function SplashScreen({
                 y: 0,
                 scale: 0.5,
               }
+      }
         transition={{ duration: 0.5 }}
         className="absolute z-50 pointer-events-none"
       />
