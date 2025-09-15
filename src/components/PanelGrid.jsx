@@ -1,5 +1,5 @@
 import PanelCard from "./PanelCard";
-import { getPreviousPathname } from "../utils/navigation";
+import { getPreviousPathname, getFirstPathSegment } from "../utils/navigation";
 import read from "../../content/read.json";
 import buy from "../../content/buy.json";
 import meet from "../../content/meet.json";
@@ -33,8 +33,8 @@ const panels = [
 const TRANSFORM_DURATION = 0.4;
 
 export default function PanelGrid() {
-  const prevPath = getPreviousPathname();
-  const fromPanel = prevPath && prevPath !== "/" ? prevPath.slice(1).toUpperCase() : null;
+  const prevPath = getFirstPathSegment(getPreviousPathname());
+  const fromPanel = prevPath !== "/" ? prevPath.slice(1).toUpperCase() : null;
 
   return (
     <div className="h-full flex flex-col px-6 pt-10 pb-6">
