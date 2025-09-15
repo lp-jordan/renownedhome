@@ -7,7 +7,7 @@ import content from "../../content/meet.json";
 
 export default function BioDetail() {
   const { bioId } = useParams();
-  const bio = content.bios?.[Number(bioId)];
+  const bio = content.bios?.find((b) => String(b.id) === bioId);
 
   if (!bio) {
     return (
@@ -18,11 +18,11 @@ export default function BioDetail() {
   }
 
   return (
-    <Panel id={`bio-${bioId}`} centerChildren={false}>
+    <Panel id={`bio-${bio.id}`} centerChildren={false}>
       <div className="flex flex-col">
         {bio.image && (
           <motion.div
-            layoutId={`bio-image-${bioId}`}
+            layoutId={`bio-image-${bio.id}`}
             className="w-full h-[50vh] overflow-hidden"
           >
             <ImageWithFallback

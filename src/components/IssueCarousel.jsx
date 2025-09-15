@@ -11,13 +11,13 @@ export default function IssueCarousel({ issues = [] }) {
     <div className="w-full overflow-x-auto touch-pan-x">
       <div className="flex space-x-4 p-4">
         {issues.map((issue) => (
-          <Link key={issue.order} to={`/read/${issue.order}`} className="block">
+          <Link key={issue.id} to={`/read/${issue.id}`} className="block">
             <div
               className="flex-shrink-0 rounded border bg-[var(--background)] overflow-hidden w-[150px] sm:w-[200px] cursor-pointer"
               style={{ borderColor: "var(--border)" }}
             >
               <motion.div
-                layoutId={`issue-image-${issue.order}`}
+                layoutId={`issue-image-${issue.id}`}
                 className="w-full aspect-square"
               >
                 <ImageWithFallback
