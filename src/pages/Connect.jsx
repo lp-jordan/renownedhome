@@ -6,6 +6,7 @@ export default function Connect() {
   const {
     panel,
     hero: { heading, subtitle },
+    icons = [],
   } = content;
 
   return (
@@ -22,6 +23,28 @@ export default function Connect() {
           <p className={`${subtitle.className} ${subtitle.size}`}>
             {subtitle.text}
           </p>
+        )}
+        <div
+          data-supascribe-embed-id="478951807419"
+          data-supascribe-subscribe
+          className="mt-4"
+        />
+        {icons.length > 0 && (
+          <div className="flex gap-4 mt-8">
+            {icons.map((icon) => (
+              <a
+                key={icon.id}
+                href={icon.link || "#"}
+                className="w-24 h-24"
+              >
+                <img
+                  src={icon.image}
+                  alt={`icon-${icon.id}`}
+                  className="w-full h-full object-cover rounded-full"
+                />
+              </a>
+            ))}
+          </div>
         )}
       </div>
     </Panel>

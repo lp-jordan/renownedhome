@@ -16,5 +16,22 @@
       "className": "mt-2 text-center font-sans",
       "size": "text-8xl"
     }
-  }
+  },
+  "icons": [
+    {
+      "id": 1,
+      "link": "",
+      "image": "/uploads/placeholder.png"
+    },
+    {
+      "id": 2,
+      "link": "",
+      "image": "/uploads/placeholder.png"
+    },
+    {
+      "id": 3,
+      "link": "",
+      "image": "/uploads/placeholder.png"
+    }
+  ]
 }
