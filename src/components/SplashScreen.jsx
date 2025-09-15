@@ -42,33 +42,33 @@ export default function SplashScreen({
 
   return (
     <div className="relative h-full w-full">
-      <motion.img
-        key="logo"
-        src={logoSrc}
-        initial={{ opacity: 0, top: "50%", left: "50%", x: "-50%", y: "-50%" }}
-        animate=
-          isAtTop{
-            ? {
-                opacity: 1,
-                top: "50%",
-                left: "50%",
-                x: "-50%",
-                y: "-50%",
-                scale: 1,
-              }
-            : {
-                opacity: 1,
-                top: "1.5rem",
-                right: "1.5rem",
-                left: "auto",
-                x: 0,
-                y: 0,
-                scale: 0.5,
-              }
-      }
-        transition={{ duration: 0.5 }}
-        className="absolute z-50 pointer-events-none"
-      />
+     <motion.img
+  key="logo"
+  src={logoSrc}
+  initial={{ opacity: 0, top: "50%", left: "50%", x: "-50%", y: "-50%" }}
+  animate={
+    isAtTop
+      ? {
+          opacity: 1,
+          top: "50%",
+          left: "50%",
+          x: "-50%",
+          y: "-50%",
+          scale: 1,
+        }
+      : {
+          opacity: 1,
+          top: "1.5rem",
+          right: "1.5rem",
+          left: "auto",
+          x: 0,
+          y: 0,
+          scale: 0.5,
+        }
+  }
+  transition={{ duration: 0.5 }}
+  className="absolute z-50 pointer-events-none"
+/>
       <AnimatePresence>
         {isAtTop && (
           <motion.p
