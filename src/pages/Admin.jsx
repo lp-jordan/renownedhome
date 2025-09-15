@@ -2,6 +2,7 @@ import { useState } from "react";
 
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || "admin";
 const PAGES = [
+  { id: "splash", name: "Splash Screen" },
   { id: "read", name: "Read" },
   { id: "buy", name: "Buy" },
   { id: "meet", name: "Meet" },
