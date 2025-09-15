@@ -7,7 +7,7 @@ import content from "../../content/read.json";
 
 export default function IssueDetail() {
   const { issueId } = useParams();
-  const issue = content.issues?.find((i) => String(i.order) === issueId);
+  const issue = content.issues?.find((i) => String(i.id) === issueId);
 
   if (!issue) {
     return (
@@ -22,7 +22,7 @@ export default function IssueDetail() {
       <div className="flex flex-col">
         {issue.heroImage && (
           <motion.div
-            layoutId={`issue-image-${issue.order}`}
+            layoutId={`issue-image-${issue.id}`}
             className="w-full h-[50vh] overflow-hidden"
           >
             <ImageWithFallback
