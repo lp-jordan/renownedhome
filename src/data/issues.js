@@ -1,6 +1,6 @@
 const issues = [
   {
-    id: 1,
+    id: 'issue-1',
     title: "Issue 1",
     subtitle: "The Beginning",
     previewImage: "https://via.placeholder.com/300x400?text=Issue+1+Preview",
@@ -12,7 +12,7 @@ const issues = [
     colorist: "The MEET",
   },
   {
-    id: 2,
+    id: 'issue-2',
     title: "Issue 2",
     subtitle: "The Sequel",
     previewImage: "https://via.placeholder.com/300x400?text=Issue+2+Preview",
@@ -24,7 +24,7 @@ const issues = [
     colorist: "The MEET",
   },
   {
-    id: 3,
+    id: 'issue-3',
     title: "Issue 3",
     subtitle: "The Finale",
     previewImage: "https://via.placeholder.com/300x400?text=Issue+3+Preview",
