@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useEffect } from "react";
 import Panel from "../components/Panel";
 import content from "../../content/connect.json";
 
@@ -8,6 +9,17 @@ export default function Connect() {
     hero: { heading, subtitle },
     icons = [],
   } = content;
+
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src =
+      "https://js.supascribe.com/v1/loader/UYDe8qNPyae2C6ieNTAhY74Cmw82.js";
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
 
   return (
     <Panel id={panel.main.name}>
@@ -26,9 +38,9 @@ export default function Connect() {
         )}
         <div
           data-supascribe-embed-id="478951807419"
-          data-supascribe-subscribe
+          data-supascribe-subscribe=""
           className="mt-4"
-        />
+        ></div>
         {icons.length > 0 && (
           <div className="flex gap-4 mt-8">
             {icons.map((icon) => (
