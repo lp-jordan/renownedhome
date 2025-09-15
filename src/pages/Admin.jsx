@@ -163,6 +163,13 @@ export default function Admin() {
                   {typeof item === "object"
                     ? renderFields(item, [...fieldPath, idx])
                     : renderInput(`${key}[${idx}]`, item, [...fieldPath, idx])}
+                  <button
+                    type="button"
+                    onClick={() => removeArrayItem(fieldPath, idx)}
+                    className="mt-2 px-2 py-1 text-sm border rounded"
+                  >
+                    Delete
+                  </button>
                 </div>
               ))}
               <button
@@ -220,6 +227,23 @@ export default function Admin() {
         arr = arr[path[i]];
       }
       arr.push(getPlaceholder(path, arr.length));
+      return updated;
+    });
+  };
+
+  const removeArrayItem = (path, index) => {
+    setFormData((prev) => {
+      const updated = structuredClone(prev);
+      let arr = updated;
+      for (let i = 0; i < path.length; i += 1) {
+        arr = arr[path[i]];
+      }
+      arr.splice(index, 1);
+      if (path.join('.') === 'issues') {
+        arr.forEach((item, idx) => {
+          item.order = idx + 1;
+        });
+      }
       return updated;
     });
   };
