@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || "admin";
 const PAGES = [
@@ -36,6 +36,22 @@ export default function Admin() {
   const [defaultData, setDefaultData] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [bios, setBios] = useState([]);
+
+  useEffect(() => {
+    const loadBios = async () => {
+      try {
+        const res = await fetch('/api/pages/meet');
+        if (res.ok) {
+          const data = await res.json();
+          setBios(data.bios || []);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadBios();
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -202,9 +218,9 @@ export default function Admin() {
         title: 'title',
         subtitle: 'subtitle',
         description: 'description',
-        writer: 'writer',
-        artist: 'artist',
-        colorist: 'colorist',
+        writer: { text: 'Writer', bioId: '' },
+        artist: { text: 'Artist', bioId: '' },
+        colorist: { text: 'Colorist', bioId: '' },
         heroImage: '/uploads/placeholder.png',
         thumbnail: '/uploads/placeholder.png',
       };
@@ -269,6 +285,35 @@ export default function Admin() {
       }
       updateField(path, val);
     };
+
+    if (path[path.length - 1] === 'bioId') {
+      return (
+        <div key={name} className="flex flex-col gap-1">
+          <label className="font-medium">{displayLabel}</label>
+          <div className="flex items-center gap-2">
+            <select
+              value={String(value)}
+              onChange={handleChange}
+              className="border px-2 py-1 rounded"
+            >
+              <option value="">Select Bio</option>
+              {bios.map((bio) => (
+                <option key={bio.id} value={String(bio.id)}>
+                  {bio.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => resetField(path)}
+              className="p-1 border rounded-full"
+            >
+              ↺
+            </button>
+          </div>
+        </div>
+      );
+    }
 
     if (typeof value === 'string') {
       const isDate = !Number.isNaN(Date.parse(value)) && /\d{4}-\d{2}-\d{2}/.test(value);
