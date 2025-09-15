@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import content from "../../content/splash.json";
-import { getPreviousPathname } from "../utils/navigation";
+
+let hasShownSplash = false;
 
 export default function SplashScreen({ children }) {
   const { logoSrc, subtitle } = content;
-  const [dismissed, setDismissed] = useState(
-    () => getPreviousPathname() !== "/"
-  );
+  const [dismissed, setDismissed] = useState(() => hasShownSplash);
 
   useEffect(() => {
-    if (dismissed) return;
+    if (dismissed) {
+      hasShownSplash = true;
+      return;
+    }
     const handleDismiss = () => setDismissed(true);
     window.addEventListener("wheel", handleDismiss, { once: true });
     window.addEventListener("touchmove", handleDismiss, { once: true });
