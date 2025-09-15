@@ -30,7 +30,7 @@ export default function App() {
         scrollLocked ? "overflow-hidden" : "overflow-y-auto"
       }`}
     >
-      <header className="absolute top-6 left-6 right-6 z-10 flex items-center justify-between">
+      <header className="absolute top-3 left-6 right-6 z-10 flex items-center justify-between">
         <Breadcrumbs />
         <AnimatePresence>
           {logoVisible && (
