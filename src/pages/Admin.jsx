@@ -201,6 +201,14 @@ export default function Admin() {
         thumbnail: '/uploads/placeholder.png',
       };
     }
+    if (joined === 'bios') {
+      return {
+        name: 'Name',
+        image: '/uploads/placeholder.png',
+        biography: 'Biography',
+        works: 'Work 1, Work 2',
+      };
+    }
     return '';
   };
 

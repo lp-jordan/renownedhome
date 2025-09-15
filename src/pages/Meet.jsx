@@ -1,15 +1,17 @@
 import { motion } from "framer-motion";
 import Panel from "../components/Panel";
+import BioCarousel from "../components/BioCarousel";
 import content from "../../content/meet.json";
 
 export default function Meet() {
   const {
     panel,
     hero: { heading, subtitle },
+    bios = [],
   } = content;
 
   return (
-    <Panel id={panel.main.name}>
+    <Panel id={panel.main.name} centerChildren={false}>
       <div className="flex flex-col items-center">
         <motion.h1
           layoutId={`panel-label-${panel.main.name}`}
@@ -24,6 +26,7 @@ export default function Meet() {
           </p>
         )}
       </div>
+      {bios.length > 0 && <BioCarousel bios={bios} />}
     </Panel>
   );
 }

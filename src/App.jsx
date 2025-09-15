@@ -10,6 +10,7 @@ import Read from "./pages/Read";
 import IssueDetail from "./pages/IssueDetail";
 import Buy from "./pages/Buy";
 import Meet from "./pages/Meet";
+import BioDetail from "./pages/BioDetail";
 import Connect from "./pages/Connect";
 import Admin from "./pages/Admin";
 import Breadcrumbs from "./components/Breadcrumbs";
@@ -65,6 +66,7 @@ export default function App() {
               <Route path="/read/:issueId" element={<Page><IssueDetail /></Page>} />
               <Route path="/buy" element={<Page><Buy /></Page>} />
               <Route path="/meet" element={<Page><Meet /></Page>} />
+              <Route path="/meet/:bioId" element={<Page><BioDetail /></Page>} />
               <Route path="/connect" element={<Page><Connect /></Page>} />
               <Route path="/admin" element={<Page><Admin /></Page>} />
               <Route path="*" element={<Navigate to="/" replace />} />
