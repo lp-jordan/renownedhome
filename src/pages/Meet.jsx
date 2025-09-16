@@ -16,7 +16,7 @@ export default function Meet() {
         <PanelLabel
           id={panel.main.name}
           as="h1"
-          className={`${heading.className} ${heading.size} mb-2`}
+          className={`${heading.className} ${heading.size} mb-1`}
         >
           {heading.text}
         </PanelLabel>
