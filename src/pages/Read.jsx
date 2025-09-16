@@ -16,7 +16,7 @@ export default function Read() {
         <PanelLabel
           id={panel.main.name}
           as="h1"
-          className={`${heading.className} ${heading.size} mb-2 text-center`}
+          className={`${heading.className} ${heading.size} mb-1 text-center`}
         >
           {heading.text}
         </PanelLabel>

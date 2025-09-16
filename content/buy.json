@@ -13,7 +13,7 @@
     },
     "subtitle": {
       "text": "The best way to support Renowned is to back us on Kickstarter!",
-      "className": "mt-2 text-center font-sans",
+      "className": "mt-1 text-center font-sans",
       "size": "text-3xl"
     },
     "button": {
