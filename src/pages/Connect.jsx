@@ -1,6 +1,6 @@
-import { motion } from "framer-motion";
 import { useEffect } from "react";
 import Panel from "../components/Panel";
+import PanelLabel from "../components/PanelLabel";
 import content from "../../content/connect.json";
 
 export default function Connect() {
@@ -24,13 +24,13 @@ export default function Connect() {
   return (
     <Panel id={panel.main.name}>
       <div className="flex flex-col items-center">
-        <motion.h1
-          layoutId={`panel-label-${panel.main.name}`}
-          transition={{ duration: 0.4 }}
+        <PanelLabel
+          id={panel.main.name}
+          as="h1"
           className={`${heading.className} ${heading.size} mb-2`}
         >
           {heading.text}
-        </motion.h1>
+        </PanelLabel>
         {subtitle?.text && (
           <p className={`${subtitle.className} ${subtitle.size}`}>
             {subtitle.text}
