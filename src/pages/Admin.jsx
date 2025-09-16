@@ -147,6 +147,10 @@ export default function Admin() {
     if (!file) return;
     const form = new FormData();
     form.append('file', file);
+    const currentPath = formData ? getValueAtPath(formData, path) : null;
+    if (currentPath) {
+      form.append('oldPath', currentPath);
+    }
     try {
       console.log('Uploading image:', file.name);
       const res = await fetch('/api/upload', {
