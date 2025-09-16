@@ -23,14 +23,8 @@ export default function App() {
   useEffect(() => {
     updatePreviousPathname(location.pathname);
   }, [location.pathname]);
-  const scrollLocked = location.pathname === "/";
-
   return (
-    <div
-      className={`fixed inset-0 p-3 bg-[#fdfaf5] ${
-        scrollLocked ? "overflow-hidden" : "overflow-y-auto"
-      }`}
-    >
+    <div className="fixed inset-0 p-3 bg-[#fdfaf5] overflow-hidden">
       <header className="absolute top-3 left-6 right-6 z-10 flex items-center justify-between">
         <Breadcrumbs />
         <AnimatePresence>
