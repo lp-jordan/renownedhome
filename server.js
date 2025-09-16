@@ -7,8 +7,6 @@ import { logRequest, logSuccess, logError } from './src/utils/logger.js';
 import { cleanupUploads } from './scripts/cleanupUploads.js';
 
 const app = express();
-app.use(cors());
-app.use(express.json());
 
 const CONTENT_DIR = path.join(process.cwd(), 'content');
 const UPLOAD_DIR = path.join(process.cwd(), 'public/uploads');
@@ -18,6 +16,10 @@ logSuccess('Content directory ready', { path: CONTENT_DIR });
 await fs.mkdir(UPLOAD_DIR, { recursive: true });
 logSuccess('Upload directory ready', { path: UPLOAD_DIR });
 cleanupUploads().catch((err) => logError('Initial upload cleanup failed', err));
+
+app.use(cors());
+app.use(express.json());
+app.use('/uploads', express.static(UPLOAD_DIR));
 
 const PORT = process.env.PORT || 3001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
