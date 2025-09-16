@@ -1,5 +1,5 @@
-import { motion } from "framer-motion";
 import Panel from "../components/Panel";
+import PanelLabel from "../components/PanelLabel";
 import IssueCarousel from "../components/IssueCarousel";
 import content from "../../content/read.json";
 
@@ -13,13 +13,13 @@ export default function Read() {
   return (
     <Panel id={panel.main.name} centerChildren={false}>
       <div className="flex flex-col items-center w-full">
-        <motion.h1
-          layoutId={`panel-label-${panel.main.name}`}
-          transition={{ duration: 0.4 }}
+        <PanelLabel
+          id={panel.main.name}
+          as="h1"
           className={`${heading.className} ${heading.size} mb-2 text-center`}
         >
           {heading.text}
-        </motion.h1>
+        </PanelLabel>
         {subtitle?.text && (
           <p className={`${subtitle.className} ${subtitle.size}`}>
             {subtitle.text}
