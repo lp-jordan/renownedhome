@@ -20,10 +20,49 @@ export default function InlinePdfReader({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageCount, setPageCount] = useState(0);
   const [stageWidth, setStageWidth] = useState(compact ? 360 : 720);
+  const [pdfFile, setPdfFile] = useState(null);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     setCurrentPage(1);
     setPageCount(0);
+  }, [pdfUrl]);
+
+  useEffect(() => {
+    if (!pdfUrl) {
+      setPdfFile(null);
+      setLoadError("PDF file is unavailable.");
+      return undefined;
+    }
+
+    const controller = new AbortController();
+
+    async function loadPdfFile() {
+      try {
+        setLoadError("");
+        setPdfFile(null);
+        const response = await fetch(pdfUrl, {
+          credentials: "include",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to load PDF file.");
+        }
+
+        const buffer = await response.arrayBuffer();
+        setPdfFile({ data: new Uint8Array(buffer) });
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+        setLoadError(error.message || "Failed to load PDF file.");
+      }
+    }
+
+    loadPdfFile();
+
+    return () => controller.abort();
   }, [pdfUrl]);
 
   useEffect(() => {
@@ -54,15 +93,24 @@ export default function InlinePdfReader({
       className={`inline-pdf-reader ${compact ? "inline-pdf-reader--compact" : ""} ${className}`.trim()}
     >
       <div className="inline-pdf-reader__frame" ref={stageRef}>
-        <Suspense fallback={<ReaderLoading />}>
-          <ComicPdfPage
-            pdfUrl={pdfUrl}
-            currentPage={currentPage}
-            width={stageWidth}
-            loading={<ReaderLoading />}
-            onLoadSuccess={setPageCount}
-          />
-        </Suspense>
+        {loadError ? (
+          <div className="inline-pdf-reader__error">{loadError}</div>
+        ) : pdfFile ? (
+          <Suspense fallback={<ReaderLoading />}>
+            <ComicPdfPage
+              pdfFile={pdfFile}
+              currentPage={currentPage}
+              width={stageWidth}
+              loading={<ReaderLoading />}
+              onLoadSuccess={setPageCount}
+              onLoadError={(error) =>
+                setLoadError(error?.message || "Failed to load PDF file.")
+              }
+            />
+          </Suspense>
+        ) : (
+          <ReaderLoading />
+        )}
       </div>
       <div className="inline-pdf-reader__footer">
         <div className="inline-pdf-reader__meta">

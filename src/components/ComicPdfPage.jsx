@@ -6,17 +6,19 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 export default function ComicPdfPage({
-  pdfUrl,
+  pdfFile,
   currentPage,
   width,
   onLoadSuccess,
   loading,
+  onLoadError,
 }) {
   return (
     <Document
-      file={pdfUrl}
+      file={pdfFile}
       loading={loading}
       onLoadSuccess={({ numPages }) => onLoadSuccess(numPages)}
+      onLoadError={onLoadError}
       className="comic-reader__document"
     >
       <Page

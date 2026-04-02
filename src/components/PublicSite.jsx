@@ -657,7 +657,7 @@ function ComicReaderOverlay({ title, isOpen, onClose, initialPage = 1, pdfUrl, i
             {pdfUrl ? (
               <Suspense fallback={<ReaderLoading />}>
                 <ComicPdfPage
-                  pdfUrl={pdfUrl}
+                  pdfFile={pdfUrl}
                   currentPage={currentPage}
                   width={stageWidth}
                   loading={<ReaderLoading />}
