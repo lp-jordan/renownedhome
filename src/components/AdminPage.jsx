@@ -649,11 +649,11 @@ function AssetsEditor({ assets, onSave, onCreateUrl, onUpload, storage }) {
 }
 
 export default function AdminPage({ refreshBootstrap, session, refreshSession }) {
-  const [loginState, setLoginState] = useState({ username: "admin", password: "" });
+  const [loginState, setLoginState] = useState({ username: "", password: "" });
   const [loginError, setLoginError] = useState("");
   const [adminData, setAdminData] = useState(null);
   const [adminError, setAdminError] = useState("");
-  const [activeTab, setActiveTab] = useState("pages");
+  const [activeTab, setActiveTab] = useState("delivery");
 
   usePageSeo({
     seo: {
@@ -710,7 +710,7 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
       <main className="admin-auth">
         <div className="admin-auth__card">
           <h1>Admin Login</h1>
-          <p>Default local login: admin / renownedhome-dev</p>
+          <p>Sign in with your configured admin credentials.</p>
           <form onSubmit={handleLogin}>
             <Field label="Username" value={loginState.username} onChange={(value) => setLoginState((current) => ({ ...current, username: value }))} />
             <Field label="Password" value={loginState.password} onChange={(value) => setLoginState((current) => ({ ...current, password: value }))} />

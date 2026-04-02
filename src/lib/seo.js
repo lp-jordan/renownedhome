@@ -26,7 +26,13 @@ export function useSeo(title, description, canonicalUrl, noindex, ogImage) {
 
     setMetaTag("description", description);
     setMetaTag("robots", noindex ? "noindex,nofollow" : "index,follow");
+    setMetaTag("twitter:card", ogImage ? "summary_large_image" : "summary");
+    setMetaTag("twitter:title", title);
+    setMetaTag("twitter:description", description);
+    setMetaTag("twitter:image", ogImage);
     setMetaProperty("og:title", title);
+    setMetaProperty("og:type", "website");
+    setMetaProperty("og:url", canonicalUrl);
     setMetaProperty("og:description", description);
     setMetaProperty("og:image", ogImage);
 

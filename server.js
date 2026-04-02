@@ -1,13 +1,21 @@
 import cookieParser from "cookie-parser";
 import bcrypt from "bcryptjs";
 import express from "express";
+import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import multer from "multer";
 import pg from "pg";
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  DeleteObjectsCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import {
   cloneDefaultSiteData,
@@ -17,19 +25,108 @@ import {
   DeliveryPgStore,
   parseBackerCsv,
 } from "./src/lib/deliveryStore.js";
+import {
+  buildDeliveryEmail,
+  resendIsConfigured,
+  sendResendEmail,
+} from "./src/lib/resendEmail.js";
 
 const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+async function loadLocalEnvFile() {
+  const envPath = path.join(__dirname, ".env.local");
+  try {
+    const raw = await fs.readFile(envPath, "utf8");
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) {
+        continue;
+      }
+
+      const separatorIndex = trimmed.indexOf("=");
+      if (separatorIndex <= 0) {
+        continue;
+      }
+
+      const key = trimmed.slice(0, separatorIndex).trim();
+      let value = trimmed.slice(separatorIndex + 1).trim();
+      if (
+        (value.startsWith("\"") && value.endsWith("\"")) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+
+      if (!(key in process.env)) {
+        process.env[key] = value;
+      }
+    }
+  } catch {
+    // Local env file is optional in deployed environments.
+  }
+
+  if (!process.env.S3_SECRET_ACCESS_KEY && process.env.S3_ACCESS_SECREY_KEY) {
+    process.env.S3_SECRET_ACCESS_KEY = process.env.S3_ACCESS_SECREY_KEY;
+  }
+}
+
+await loadLocalEnvFile();
+
 const runtimeDir = path.join(__dirname, "runtime");
 const runtimeFile = path.join(runtimeDir, "content-store.json");
 const deliveryRuntimeFile = path.join(runtimeDir, "delivery-store.json");
+const uploadTempDir = path.join(runtimeDir, "uploads");
 const distDir = path.join(__dirname, "dist");
 const distIndexFile = path.join(distDir, "index.html");
-const upload = multer({ storage: multer.memoryStorage() });
+const uploadFileSizeLimitBytes =
+  (parsePositiveInteger(process.env.UPLOAD_MAX_FILE_SIZE_MB || "300") || 300) *
+  1024 *
+  1024;
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: async (_req, _file, callback) => {
+      try {
+        await fs.mkdir(uploadTempDir, { recursive: true });
+        callback(null, uploadTempDir);
+      } catch (error) {
+        callback(error, uploadTempDir);
+      }
+    },
+    filename: (_req, file, callback) => {
+      const extension = path.extname(file.originalname) || "";
+      const baseName = path
+        .basename(file.originalname, extension)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      callback(
+        null,
+        `${Date.now()}-${crypto.randomUUID()}-${baseName || "upload"}${extension}`
+      );
+    },
+  }),
+  limits: {
+    fileSize: uploadFileSizeLimitBytes,
+  },
+});
 const app = express();
 const sessions = new Map();
+const rateLimits = new Map();
 const isProduction = process.env.NODE_ENV === "production";
+const defaultPublicSiteOrigin = "https://renownedcomic.com";
+const allowedUploadMimeTypes = new Set([
+  "application/pdf",
+  "image/gif",
+  "image/jpeg",
+  "image/png",
+  "image/svg+xml",
+  "image/webp",
+]);
+
+app.disable("x-powered-by");
+app.set("trust proxy", isProduction ? 1 : false);
 
 app.use(express.json({ limit: "3mb" }));
 app.use(cookieParser());
@@ -41,6 +138,184 @@ function parsePositiveInteger(value) {
   }
 
   return Math.floor(parsed);
+}
+
+function getPublicSiteOrigin() {
+  const configuredOrigin = String(
+    process.env.PUBLIC_SITE_ORIGIN || defaultPublicSiteOrigin
+  ).trim();
+
+  try {
+    return new URL(configuredOrigin).origin;
+  } catch {
+    return defaultPublicSiteOrigin;
+  }
+}
+
+function getAllowedRequestOrigins() {
+  const origins = new Set([getPublicSiteOrigin()]);
+
+  if (!isProduction) {
+    origins.add("http://localhost:3001");
+    origins.add("http://localhost:5173");
+    origins.add("http://127.0.0.1:3001");
+    origins.add("http://127.0.0.1:5173");
+  }
+
+  return origins;
+}
+
+function buildContentSecurityPolicy() {
+  const directives = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "connect-src 'self'",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "img-src 'self' https: data: blob:",
+    "object-src 'none'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  ];
+
+  if (isProduction) {
+    directives.push("upgrade-insecure-requests");
+  }
+
+  return directives.join("; ");
+}
+
+function setSecurityHeaders(req, res, next) {
+  res.setHeader("Content-Security-Policy", buildContentSecurityPolicy());
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader(
+    "Permissions-Policy",
+    "camera=(), geolocation=(), microphone=()"
+  );
+  if (isProduction) {
+    res.setHeader(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains"
+    );
+  }
+
+  next();
+}
+
+function setCacheHeaders(req, res, next) {
+  if (req.path === "/api/bootstrap") {
+    res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+  } else if (req.path.startsWith("/api/assets/")) {
+    res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+  } else if (req.path.startsWith("/api/auth") || req.path.startsWith("/api/admin")) {
+    res.setHeader("Cache-Control", "no-store, private");
+  } else if (req.path === "/api/health") {
+    res.setHeader("Cache-Control", "no-store");
+  }
+
+  next();
+}
+
+function getClientIp(req) {
+  return (
+    req.ip ||
+    req.socket?.remoteAddress ||
+    req.connection?.remoteAddress ||
+    "unknown"
+  );
+}
+
+function createRateLimiter({ keyPrefix, windowMs, maxRequests, message }) {
+  return (req, res, next) => {
+    const now = Date.now();
+    const key = `${keyPrefix}:${getClientIp(req)}`;
+    const existing =
+      rateLimits.get(key) || {
+        count: 0,
+        resetAt: now + windowMs,
+      };
+
+    if (existing.resetAt <= now) {
+      existing.count = 0;
+      existing.resetAt = now + windowMs;
+    }
+
+    existing.count += 1;
+    rateLimits.set(key, existing);
+
+    res.setHeader(
+      "RateLimit",
+      `limit=${maxRequests}, remaining=${Math.max(
+        maxRequests - existing.count,
+        0
+      )}, reset=${Math.ceil((existing.resetAt - now) / 1000)}`
+    );
+
+    if (existing.count > maxRequests) {
+      res.setHeader("Retry-After", Math.ceil((existing.resetAt - now) / 1000));
+      res.status(429).json({ error: message });
+      return;
+    }
+
+    next();
+  };
+}
+
+function cleanupRateLimits() {
+  const now = Date.now();
+  for (const [key, entry] of rateLimits.entries()) {
+    if (entry.resetAt <= now) {
+      rateLimits.delete(key);
+    }
+  }
+}
+
+function requireTrustedOrigin(req, res, next) {
+  const allowedOrigins = getAllowedRequestOrigins();
+  const origin = req.get("origin");
+  const referer = req.get("referer");
+
+  if (origin) {
+    if (allowedOrigins.has(origin)) {
+      next();
+      return;
+    }
+
+    res.status(403).json({ error: "Untrusted request origin." });
+    return;
+  }
+
+  if (referer) {
+    try {
+      const refererOrigin = new URL(referer).origin;
+      if (allowedOrigins.has(refererOrigin)) {
+        next();
+        return;
+      }
+    } catch {
+      res.status(403).json({ error: "Untrusted request origin." });
+      return;
+    }
+  }
+
+  res.status(403).json({ error: "Origin header is required." });
+}
+
+async function removeTempUpload(filePath) {
+  if (!filePath) {
+    return;
+  }
+
+  try {
+    await fs.unlink(filePath);
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      console.error("Failed to remove temp upload", error);
+    }
+  }
 }
 
 async function buildBootstrapAdminUser() {
@@ -341,6 +616,24 @@ const deliveryStore = process.env.DATABASE_URL
   ? new DeliveryPgStore(process.env.DATABASE_URL)
   : new DeliveryFileStore(deliveryRuntimeFile);
 
+app.use(setSecurityHeaders);
+app.use(setCacheHeaders);
+
+const loginRateLimiter = createRateLimiter({
+  keyPrefix: "login",
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 10,
+  message: "Too many login attempts. Please try again later.",
+});
+const publicFormRateLimiter = createRateLimiter({
+  keyPrefix: "public-form",
+  windowMs: 10 * 60 * 1000,
+  maxRequests: 25,
+  message: "Too many submissions. Please wait and try again.",
+});
+
+setInterval(cleanupRateLimits, 5 * 60 * 1000).unref();
+
 function sanitizePublicData(data) {
   return {
     siteSettings: data.siteSettings,
@@ -398,6 +691,68 @@ function createStorageClient() {
   });
 }
 
+async function deleteStorageKeys(keys) {
+  const uniqueKeys = [...new Set((keys || []).filter(Boolean))];
+  if (!uniqueKeys.length || !storageIsConfigured()) {
+    return;
+  }
+
+  const client = createStorageClient();
+  const chunkSize = 1000;
+  for (let index = 0; index < uniqueKeys.length; index += chunkSize) {
+    const batch = uniqueKeys.slice(index, index + chunkSize);
+    if (batch.length === 1) {
+      await client.send(
+        new DeleteObjectCommand({
+          Bucket: process.env.S3_BUCKET,
+          Key: batch[0],
+        })
+      );
+      continue;
+    }
+
+    await client.send(
+      new DeleteObjectsCommand({
+        Bucket: process.env.S3_BUCKET,
+        Delete: {
+          Objects: batch.map((Key) => ({ Key })),
+          Quiet: true,
+        },
+      })
+    );
+  }
+}
+
+async function listStorageKeysByPrefix(prefix) {
+  if (!prefix || !storageIsConfigured()) {
+    return [];
+  }
+
+  const client = createStorageClient();
+  const keys = [];
+  let continuationToken = undefined;
+
+  do {
+    const response = await client.send(
+      new ListObjectsV2Command({
+        Bucket: process.env.S3_BUCKET,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      })
+    );
+    keys.push(...(response.Contents || []).map((entry) => entry.Key).filter(Boolean));
+    continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+  } while (continuationToken);
+
+  return keys;
+}
+
+async function deleteStoragePrefix(prefix) {
+  const keys = await listStorageKeysByPrefix(prefix);
+  await deleteStorageKeys(keys);
+  return keys;
+}
+
 function getAssetUrl(assetId) {
   return `/api/assets/${encodeURIComponent(assetId)}`;
 }
@@ -409,6 +764,28 @@ function getAssetUrlTtlSeconds() {
   }
 
   return Math.min(Math.floor(configured), 60 * 60 * 24);
+}
+
+async function createSignedStorageUrl({
+  key,
+  contentType,
+  disposition,
+  filename,
+}) {
+  const client = createStorageClient();
+  return getSignedUrl(
+    client,
+    new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: key,
+      ResponseContentType: contentType || undefined,
+      ResponseContentDisposition:
+        disposition && filename
+          ? `${disposition}; filename="${filename.replace(/"/g, "")}"`
+          : undefined,
+    }),
+    { expiresIn: getAssetUrlTtlSeconds() }
+  );
 }
 
 function getSessionTtlMs() {
@@ -478,6 +855,11 @@ async function requireAdmin(req, res, next) {
     return;
   }
 
+  if (session.user?.role !== "admin") {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
   req.session = session;
   next();
 }
@@ -534,7 +916,7 @@ app.get("/api/auth/session", async (req, res) => {
   });
 });
 
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", requireTrustedOrigin, loginRateLimiter, async (req, res) => {
   const { username, password } = req.body ?? {};
   const data = await repository.getAllData();
   const user = data.users.find((entry) => entry.username === username);
@@ -550,6 +932,11 @@ app.post("/api/auth/login", async (req, res) => {
     return;
   }
 
+  if (user.role !== "admin") {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
   const safeUser = {
     id: user.id,
     username: user.username,
@@ -558,17 +945,23 @@ app.post("/api/auth/login", async (req, res) => {
   const session = await createSession(safeUser);
   res.cookie("rh_session", session.token, {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "strict",
     secure: isProduction,
     maxAge: getSessionTtlMs(),
+    path: "/",
   });
   res.json({ ok: true, user: safeUser });
 });
 
-app.post("/api/auth/logout", async (req, res) => {
+app.post("/api/auth/logout", requireTrustedOrigin, async (req, res) => {
   const token = req.cookies.rh_session;
   await destroySession(token);
-  res.clearCookie("rh_session");
+  res.clearCookie("rh_session", {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: isProduction,
+    path: "/",
+  });
   res.json({ ok: true });
 });
 
@@ -584,7 +977,7 @@ app.get("/api/health", async (_req, res) => {
   });
 });
 
-app.post("/api/public/letters", async (req, res) => {
+app.post("/api/public/letters", publicFormRateLimiter, async (req, res) => {
   const { name, email, issueSlug, message } = req.body ?? {};
 
   if (!name || !issueSlug || !message) {
@@ -628,7 +1021,7 @@ app.get("/api/admin/data", requireAdmin, async (_req, res) => {
   res.json(sanitizeAdminData(data));
 });
 
-app.put("/api/admin/site-settings", requireAdmin, async (req, res) => {
+app.put("/api/admin/site-settings", requireTrustedOrigin, requireAdmin, async (req, res) => {
   const payload = req.body?.siteSettings;
   if (!payload) {
     res.status(400).json({ error: "siteSettings payload is required" });
@@ -642,7 +1035,7 @@ app.put("/api/admin/site-settings", requireAdmin, async (req, res) => {
   res.json(sanitizeAdminData(next));
 });
 
-app.put("/api/admin/pages/:id", requireAdmin, async (req, res) => {
+app.put("/api/admin/pages/:id", requireTrustedOrigin, requireAdmin, async (req, res) => {
   const payload = req.body?.page;
   if (!payload) {
     res.status(400).json({ error: "page payload is required" });
@@ -660,7 +1053,7 @@ app.put("/api/admin/pages/:id", requireAdmin, async (req, res) => {
   res.json(sanitizeAdminData(next));
 });
 
-app.put("/api/admin/issues/:id", requireAdmin, async (req, res) => {
+app.put("/api/admin/issues/:id", requireTrustedOrigin, requireAdmin, async (req, res) => {
   const payload = req.body?.issue;
   if (!payload) {
     res.status(400).json({ error: "issue payload is required" });
@@ -678,7 +1071,7 @@ app.put("/api/admin/issues/:id", requireAdmin, async (req, res) => {
   res.json(sanitizeAdminData(next));
 });
 
-app.put("/api/admin/team-members/:id", requireAdmin, async (req, res) => {
+app.put("/api/admin/team-members/:id", requireTrustedOrigin, requireAdmin, async (req, res) => {
   const payload = req.body?.teamMember;
   if (!payload) {
     res.status(400).json({ error: "teamMember payload is required" });
@@ -692,7 +1085,7 @@ app.put("/api/admin/team-members/:id", requireAdmin, async (req, res) => {
   res.json(sanitizeAdminData(next));
 });
 
-app.put("/api/admin/social-links/:id", requireAdmin, async (req, res) => {
+app.put("/api/admin/social-links/:id", requireTrustedOrigin, requireAdmin, async (req, res) => {
   const payload = req.body?.socialLink;
   if (!payload) {
     res.status(400).json({ error: "socialLink payload is required" });
@@ -706,7 +1099,7 @@ app.put("/api/admin/social-links/:id", requireAdmin, async (req, res) => {
   res.json(sanitizeAdminData(next));
 });
 
-app.put("/api/admin/redirects/:id", requireAdmin, async (req, res) => {
+app.put("/api/admin/redirects/:id", requireTrustedOrigin, requireAdmin, async (req, res) => {
   const payload = req.body?.redirect;
   if (!payload) {
     res.status(400).json({ error: "redirect payload is required" });
@@ -720,7 +1113,7 @@ app.put("/api/admin/redirects/:id", requireAdmin, async (req, res) => {
   res.json(sanitizeAdminData(next));
 });
 
-app.put("/api/admin/letters/:id", requireAdmin, async (req, res) => {
+app.put("/api/admin/letters/:id", requireTrustedOrigin, requireAdmin, async (req, res) => {
   const payload = req.body?.letter;
   if (!payload) {
     res.status(400).json({ error: "letter payload is required" });
@@ -734,7 +1127,7 @@ app.put("/api/admin/letters/:id", requireAdmin, async (req, res) => {
   res.json(sanitizeAdminData(next));
 });
 
-app.put("/api/admin/assets/:id", requireAdmin, async (req, res) => {
+app.put("/api/admin/assets/:id", requireTrustedOrigin, requireAdmin, async (req, res) => {
   const payload = req.body?.asset;
   if (!payload) {
     res.status(400).json({ error: "asset payload is required" });
@@ -748,7 +1141,7 @@ app.put("/api/admin/assets/:id", requireAdmin, async (req, res) => {
   res.json(sanitizeAdminData(next));
 });
 
-app.post("/api/admin/assets/url", requireAdmin, async (req, res) => {
+app.post("/api/admin/assets/url", requireTrustedOrigin, requireAdmin, async (req, res) => {
   const { label, url, category } = req.body ?? {};
   if (!label || !url) {
     res.status(400).json({ error: "label and url are required" });
@@ -772,9 +1165,11 @@ app.post("/api/admin/assets/url", requireAdmin, async (req, res) => {
 
 app.post(
   "/api/admin/assets/upload",
+  requireTrustedOrigin,
   requireAdmin,
   upload.single("file"),
   async (req, res) => {
+    let tempFilePath = null;
     if (!storageIsConfigured()) {
       res.status(501).json({
         error:
@@ -788,6 +1183,16 @@ app.post(
       return;
     }
 
+    tempFilePath = req.file.path;
+
+    if (!allowedUploadMimeTypes.has(req.file.mimetype)) {
+      await removeTempUpload(tempFilePath);
+      res.status(400).json({
+        error: "Unsupported file type. Upload a PDF, PNG, JPG, WEBP, GIF, or SVG.",
+      });
+      return;
+    }
+
     const extension = path.extname(req.file.originalname) || "";
     const safeBase = path
       .basename(req.file.originalname, extension)
@@ -798,34 +1203,38 @@ app.post(
     const client = createStorageClient();
     const assetId = crypto.randomUUID();
 
-    await client.send(
-      new PutObjectCommand({
-        Bucket: process.env.S3_BUCKET,
-        Key: key,
-        Body: req.file.buffer,
-        ContentType: req.file.mimetype,
-      })
-    );
+    try {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: process.env.S3_BUCKET,
+          Key: key,
+          Body: createReadStream(tempFilePath),
+          ContentType: req.file.mimetype,
+        })
+      );
 
-    const asset = {
-      id: assetId,
-      label: req.body.label || req.file.originalname,
-      url: getAssetUrl(assetId),
-      storageType: "s3-bucket",
-      metadata: {
-        category: req.body.category || "upload",
-        objectKey: key,
-        contentType: req.file.mimetype,
-        fileName: req.file.originalname,
-        size: req.file.size,
-      },
-    };
+      const asset = {
+        id: assetId,
+        label: req.body.label || req.file.originalname,
+        url: getAssetUrl(assetId),
+        storageType: "s3-bucket",
+        metadata: {
+          category: req.body.category || "upload",
+          objectKey: key,
+          contentType: req.file.mimetype,
+          fileName: req.file.originalname,
+          size: req.file.size,
+        },
+      };
 
-    const next = await withData((data) => ({
-      ...data,
-      assets: [asset, ...data.assets],
-    }));
-    res.json(sanitizeAdminData(next));
+      const next = await withData((data) => ({
+        ...data,
+        assets: [asset, ...data.assets],
+      }));
+      res.json(sanitizeAdminData(next));
+    } finally {
+      await removeTempUpload(tempFilePath);
+    }
   }
 );
 
@@ -892,7 +1301,80 @@ app.get("/api/admin/delivery/projects", requireAdmin, async (req, res) => {
   res.json({ projects });
 });
 
-app.post("/api/admin/delivery/projects", requireAdmin, async (req, res) => {
+app.get("/api/admin/delivery/projects/:id", requireAdmin, async (req, res) => {
+  const detail = await deliveryStore.getProject(req.session.user.id, req.params.id);
+  if (!detail) {
+    res.status(404).json({ error: "Delivery project not found." });
+    return;
+  }
+
+  res.json(detail);
+});
+
+app.delete(
+  "/api/admin/delivery/projects/:id",
+  requireTrustedOrigin,
+  requireAdmin,
+  async (req, res) => {
+    const detail = await deliveryStore.getProject(req.session.user.id, req.params.id);
+    if (!detail) {
+      res.status(404).json({ error: "Delivery project not found." });
+      return;
+    }
+
+    const knownKeys = detail.files.map((file) => file.storageKey).filter(Boolean);
+    const prefix = `delivery/projects/${req.params.id}/`;
+
+    try {
+      await deleteStorageKeys(knownKeys);
+      await deleteStoragePrefix(prefix);
+      const result = await deliveryStore.deleteProject(req.session.user.id, req.params.id);
+      res.json({
+        deleted: true,
+        projectId: req.params.id,
+        deletedFiles: knownKeys.length,
+        project: result,
+      });
+    } catch (error) {
+      console.error("Project deletion failed", error);
+      res.status(500).json({ error: "Project deletion failed. Bucket cleanup was not completed." });
+    }
+  }
+);
+
+app.delete(
+  "/api/admin/delivery/projects/:id/files/:fileId",
+  requireTrustedOrigin,
+  requireAdmin,
+  async (req, res) => {
+    const detail = await deliveryStore.getProject(req.session.user.id, req.params.id);
+    if (!detail) {
+      res.status(404).json({ error: "Delivery project not found." });
+      return;
+    }
+
+    const file = detail.files.find((entry) => entry.id === req.params.fileId);
+    if (!file) {
+      res.status(404).json({ error: "Delivery file not found." });
+      return;
+    }
+
+    try {
+      await deleteStorageKeys([file.storageKey]);
+      const result = await deliveryStore.deleteFile(
+        req.session.user.id,
+        req.params.id,
+        req.params.fileId
+      );
+      res.json({ deleted: true, file: result?.deletedFile || file, projectId: req.params.id });
+    } catch (error) {
+      console.error("Delivery file deletion failed", error);
+      res.status(500).json({ error: "File deletion failed. Bucket cleanup was not completed." });
+    }
+  }
+);
+
+app.post("/api/admin/delivery/projects", requireTrustedOrigin, requireAdmin, async (req, res) => {
   const { title, creatorName, description, shortMessage, slug } = req.body ?? {};
 
   if (!String(title || "").trim() || !String(creatorName || "").trim()) {
@@ -911,10 +1393,343 @@ app.post("/api/admin/delivery/projects", requireAdmin, async (req, res) => {
   res.status(201).json({ project });
 });
 
-app.post("/api/admin/delivery/import-preview", requireAdmin, async (req, res) => {
+app.post("/api/admin/delivery/import-preview", requireTrustedOrigin, requireAdmin, async (req, res) => {
   const { csvText } = req.body ?? {};
   const preview = parseBackerCsv(csvText);
   res.json(preview);
+});
+
+app.post(
+  "/api/admin/delivery/projects/:id/upload-cover",
+  requireTrustedOrigin,
+  requireAdmin,
+  upload.single("file"),
+  async (req, res) => {
+    let tempFilePath = null;
+    let previousCover = null;
+    if (!storageIsConfigured()) {
+      res.status(501).json({
+        error:
+          "Bucket storage is not configured. Set the required S3_* variables before using uploads.",
+      });
+      return;
+    }
+
+    if (!req.file) {
+      res.status(400).json({ error: "file is required" });
+      return;
+    }
+
+    tempFilePath = req.file.path;
+    previousCover = (await deliveryStore.getProject(req.session.user.id, req.params.id))?.currentCover || null;
+    const extension = path.extname(req.file.originalname) || "";
+    const objectId = crypto.randomUUID();
+    const key = `delivery/projects/${req.params.id}/covers/${objectId}${extension}`;
+    const client = createStorageClient();
+
+    try {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: process.env.S3_BUCKET,
+          Key: key,
+          Body: createReadStream(tempFilePath),
+          ContentType: req.file.mimetype,
+        })
+      );
+
+      const file = await deliveryStore.attachFile(req.session.user.id, req.params.id, {
+        kind: "cover",
+        storageKey: key,
+        originalFilename: req.file.originalname,
+        mimeType: req.file.mimetype,
+        fileSizeBytes: req.file.size,
+      });
+
+      if (!file) {
+        res.status(404).json({ error: "Delivery project not found." });
+        return;
+      }
+
+      if (previousCover?.id) {
+        try {
+          await deleteStorageKeys([previousCover.storageKey]);
+          await deliveryStore.deleteFile(req.session.user.id, req.params.id, previousCover.id);
+        } catch (cleanupError) {
+          console.error("Previous cover cleanup failed", cleanupError);
+        }
+      }
+
+      res.status(201).json({ file });
+    } finally {
+      await removeTempUpload(tempFilePath);
+    }
+  }
+);
+
+app.post(
+  "/api/admin/delivery/projects/:id/upload-pdf",
+  requireTrustedOrigin,
+  requireAdmin,
+  upload.single("file"),
+  async (req, res) => {
+    let tempFilePath = null;
+    if (!storageIsConfigured()) {
+      res.status(501).json({
+        error:
+          "Bucket storage is not configured. Set the required S3_* variables before using uploads.",
+      });
+      return;
+    }
+
+    if (!req.file) {
+      res.status(400).json({ error: "file is required" });
+      return;
+    }
+
+    const looksLikePdf =
+      req.file.mimetype === "application/pdf" ||
+      path.extname(req.file.originalname).toLowerCase() === ".pdf";
+
+    if (!looksLikePdf) {
+      res.status(400).json({ error: "Only PDF files are allowed here." });
+      return;
+    }
+
+    tempFilePath = req.file.path;
+    const objectId = crypto.randomUUID();
+    const key = `delivery/projects/${req.params.id}/pdfs/${objectId}.pdf`;
+    const client = createStorageClient();
+
+    try {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: process.env.S3_BUCKET,
+          Key: key,
+          Body: createReadStream(tempFilePath),
+          ContentType: "application/pdf",
+          ContentLength: req.file.size,
+        })
+      );
+
+      const file = await deliveryStore.attachFile(req.session.user.id, req.params.id, {
+        kind: "pdf",
+        storageKey: key,
+        originalFilename: req.file.originalname,
+        mimeType: "application/pdf",
+        fileSizeBytes: req.file.size,
+      });
+
+      if (!file) {
+        res.status(404).json({ error: "Delivery project not found." });
+        return;
+      }
+
+      res.status(201).json({ file });
+    } catch (error) {
+      console.error("Delivery PDF upload failed", error);
+      res.status(500).json({ error: "PDF upload failed. Check the server log for details." });
+    } finally {
+      await removeTempUpload(tempFilePath);
+    }
+  }
+);
+
+app.post(
+  "/api/admin/delivery/projects/:id/import-backers",
+  requireTrustedOrigin,
+  requireAdmin,
+  async (req, res) => {
+    const { csvText } = req.body ?? {};
+    const result = await deliveryStore.importBackers(
+      req.session.user.id,
+      req.params.id,
+      csvText
+    );
+
+    if (!result) {
+      res.status(404).json({ error: "Delivery project not found." });
+      return;
+    }
+
+    res.json(result);
+  }
+);
+
+app.post(
+  "/api/admin/delivery/projects/:id/send-emails",
+  requireTrustedOrigin,
+  requireAdmin,
+  async (req, res) => {
+    if (!resendIsConfigured()) {
+      res.status(501).json({
+        error:
+          "Resend is not configured. Set RESEND_API_KEY and RESEND_FROM_EMAIL before sending emails.",
+      });
+      return;
+    }
+
+    const detail = await deliveryStore.getProject(req.session.user.id, req.params.id);
+    if (!detail) {
+      res.status(404).json({ error: "Delivery project not found." });
+      return;
+    }
+
+    if (!detail.currentPdf) {
+      res.status(400).json({ error: "Upload a PDF before sending delivery emails." });
+      return;
+    }
+
+    if (!detail.backers.length) {
+      res.status(400).json({ error: "Import at least one backer before sending emails." });
+      return;
+    }
+
+    const siteOrigin = getPublicSiteOrigin();
+    const coverImageUrl = detail.currentCover
+      ? `${siteOrigin}/api/delivery/files/${encodeURIComponent(detail.currentCover.id)}`
+      : "";
+    const sentBackerIds = [];
+    const failures = [];
+
+    for (const backer of detail.backers) {
+      const accessUrl = `${siteOrigin}/a/${backer.accessToken}`;
+      const email = buildDeliveryEmail({
+        projectTitle: detail.project.title,
+        creatorName: detail.project.creatorName,
+        shortMessage: detail.project.shortMessage,
+        accessUrl,
+        coverImageUrl,
+      });
+
+      try {
+        await sendResendEmail({
+          to: backer.email,
+          subject: email.subject,
+          html: email.html,
+          text: email.text,
+        });
+        sentBackerIds.push(backer.id);
+      } catch (error) {
+        failures.push({
+          email: backer.email,
+          message: error.message || "Send failed",
+        });
+      }
+    }
+
+    if (sentBackerIds.length) {
+      await deliveryStore.markBackersEmailed(
+        req.session.user.id,
+        req.params.id,
+        sentBackerIds
+      );
+    }
+
+    res.json({
+      ok: failures.length === 0,
+      sentCount: sentBackerIds.length,
+      failedCount: failures.length,
+      failures,
+    });
+  }
+);
+
+app.get("/api/delivery/files/:id", async (req, res) => {
+  const file = await deliveryStore.getFile(req.params.id);
+  if (!file) {
+    res.status(404).json({ error: "File not found." });
+    return;
+  }
+
+  if (!storageIsConfigured() || !file.storageKey) {
+    res.status(404).json({ error: "File is unavailable." });
+    return;
+  }
+
+  const signedUrl = await createSignedStorageUrl({
+    key: file.storageKey,
+    contentType: file.mimeType,
+    disposition: "inline",
+    filename: file.originalFilename,
+  });
+  res.redirect(302, signedUrl);
+});
+
+app.get("/api/delivery/access/:token", async (req, res) => {
+  const access = await deliveryStore.getAccessByToken(req.params.token);
+  if (!access) {
+    res.status(404).json({ error: "This delivery link is invalid or unavailable." });
+    return;
+  }
+
+  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "access_page_view");
+  res.json({
+    project: access.project,
+    backer: {
+      email: access.backer.email,
+    },
+    assets: {
+      coverUrl: access.currentCover
+        ? `/api/delivery/files/${encodeURIComponent(access.currentCover.id)}`
+        : "",
+    },
+    file: access.currentPdf
+      ? {
+          id: access.currentPdf.id,
+          originalFilename: access.currentPdf.originalFilename,
+          versionNumber: access.currentPdf.versionNumber,
+          fileSizeBytes: access.currentPdf.fileSizeBytes,
+        }
+      : null,
+    actions: {
+      downloadUrl: `/api/delivery/access/${encodeURIComponent(req.params.token)}/download`,
+      readUrl: `/api/delivery/access/${encodeURIComponent(req.params.token)}/read`,
+    },
+  });
+});
+
+app.get("/api/delivery/access/:token/download", async (req, res) => {
+  const access = await deliveryStore.getAccessByToken(req.params.token);
+  if (!access?.currentPdf) {
+    res.status(404).json({ error: "This file is unavailable." });
+    return;
+  }
+
+  if (!storageIsConfigured() || !access.currentPdf.storageKey) {
+    res.status(404).json({ error: "This file is unavailable." });
+    return;
+  }
+
+  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "file_download");
+  const signedUrl = await createSignedStorageUrl({
+    key: access.currentPdf.storageKey,
+    contentType: access.currentPdf.mimeType,
+    disposition: "attachment",
+    filename: access.currentPdf.originalFilename,
+  });
+  res.redirect(302, signedUrl);
+});
+
+app.get("/api/delivery/access/:token/read", async (req, res) => {
+  const access = await deliveryStore.getAccessByToken(req.params.token);
+  if (!access?.currentPdf) {
+    res.status(404).json({ error: "This file is unavailable." });
+    return;
+  }
+
+  if (!storageIsConfigured() || !access.currentPdf.storageKey) {
+    res.status(404).json({ error: "This file is unavailable." });
+    return;
+  }
+
+  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline");
+  const signedUrl = await createSignedStorageUrl({
+    key: access.currentPdf.storageKey,
+    contentType: access.currentPdf.mimeType,
+    disposition: "inline",
+    filename: access.currentPdf.originalFilename,
+  });
+  res.redirect(302, signedUrl);
 });
 
 app.use(async (req, res, next) => {
@@ -945,17 +1760,48 @@ try {
 }
 
 if (hasBuildOutput) {
-  app.use(express.static(distDir));
+  app.use(
+    express.static(distDir, {
+      setHeaders(res, filePath) {
+        const relativePath = path.relative(distDir, filePath).replace(/\\/g, "/");
+        if (relativePath === "index.html") {
+          res.setHeader("Cache-Control", "no-cache");
+          return;
+        }
+
+        if (/^assets\/.+-[A-Za-z0-9_-]+\.(css|js|mjs)$/.test(relativePath)) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+          return;
+        }
+
+        res.setHeader("Cache-Control", "public, max-age=3600");
+      },
+    })
+  );
 
   app.get("/{*path}", async (req, res) => {
     try {
       await fs.access(distIndexFile);
+      res.setHeader("Cache-Control", "no-cache");
       res.sendFile(distIndexFile);
     } catch {
       res.status(500).send("Build output not found. Run npm run build first.");
     }
   });
 }
+
+app.use((error, _req, res, next) => {
+  if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+    res.status(413).json({
+      error: `Upload is too large. Max file size is ${Math.round(
+        uploadFileSizeLimitBytes / (1024 * 1024)
+      )} MB.`,
+    });
+    return;
+  }
+
+  next(error);
+});
 
 await repository.init();
 await deliveryStore.init();

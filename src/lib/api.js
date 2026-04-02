@@ -122,16 +122,85 @@ export const api = {
   getDeliveryProjects() {
     return request("/api/admin/delivery/projects");
   },
+  getDeliveryProject(projectId) {
+    return request(`/api/admin/delivery/projects/${encodeURIComponent(projectId)}`);
+  },
   createDeliveryProject(payload) {
     return request("/api/admin/delivery/projects", {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
+  deleteDeliveryProject(projectId) {
+    return request(`/api/admin/delivery/projects/${encodeURIComponent(projectId)}`, {
+      method: "DELETE",
+      body: JSON.stringify({}),
+    });
+  },
   previewDeliveryImport(csvText) {
     return request("/api/admin/delivery/import-preview", {
       method: "POST",
       body: JSON.stringify({ csvText }),
+    });
+  },
+  importDeliveryBackers(projectId, csvText) {
+    return request(`/api/admin/delivery/projects/${encodeURIComponent(projectId)}/import-backers`, {
+      method: "POST",
+      body: JSON.stringify({ csvText }),
+    });
+  },
+  sendDeliveryEmails(projectId) {
+    return request(`/api/admin/delivery/projects/${encodeURIComponent(projectId)}/send-emails`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  },
+  async uploadDeliveryCover(projectId, file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await fetch(
+      `/api/admin/delivery/projects/${encodeURIComponent(projectId)}/upload-cover`,
+      {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      }
+    );
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || "Cover upload failed");
+    }
+    return response.json();
+  },
+  async uploadDeliveryPdf(projectId, file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await fetch(
+      `/api/admin/delivery/projects/${encodeURIComponent(projectId)}/upload-pdf`,
+      {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      }
+    );
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || "PDF upload failed");
+    }
+    return response.json();
+  },
+  deleteDeliveryFile(projectId, fileId) {
+    return request(
+      `/api/admin/delivery/projects/${encodeURIComponent(projectId)}/files/${encodeURIComponent(fileId)}`,
+      {
+        method: "DELETE",
+        body: JSON.stringify({}),
+      }
+    );
+  },
+  getDeliveryAccess(token) {
+    return request(`/api/delivery/access/${encodeURIComponent(token)}`, {
+      headers: {},
     });
   },
   async uploadAsset({ file, label, category }) {
