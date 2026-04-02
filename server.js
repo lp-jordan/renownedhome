@@ -74,6 +74,32 @@ async function loadLocalEnvFile() {
 
 await loadLocalEnvFile();
 
+function getStorageEnv() {
+  return {
+    bucket:
+      process.env.S3_BUCKET ||
+      process.env.AWS_S3_BUCKET_NAME ||
+      "",
+    region:
+      process.env.S3_REGION ||
+      process.env.AWS_DEFAULT_REGION ||
+      "",
+    accessKeyId:
+      process.env.S3_ACCESS_KEY_ID ||
+      process.env.AWS_ACCESS_KEY_ID ||
+      "",
+    secretAccessKey:
+      process.env.S3_SECRET_ACCESS_KEY ||
+      process.env.AWS_SECRET_ACCESS_KEY ||
+      "",
+    endpoint:
+      process.env.S3_ENDPOINT ||
+      process.env.AWS_ENDPOINT_URL ||
+      "",
+    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true",
+  };
+}
+
 const runtimeDir = path.join(__dirname, "runtime");
 const runtimeFile = path.join(runtimeDir, "content-store.json");
 const deliveryRuntimeFile = path.join(runtimeDir, "delivery-store.json");
@@ -667,13 +693,14 @@ function sanitizeAdminData(data) {
 }
 
 function getRuntimeDiagnostics() {
+  const storageEnv = getStorageEnv();
   const bucketVars = {
-    S3_BUCKET: Boolean(process.env.S3_BUCKET),
-    S3_REGION: Boolean(process.env.S3_REGION),
-    S3_ACCESS_KEY_ID: Boolean(process.env.S3_ACCESS_KEY_ID),
-    S3_SECRET_ACCESS_KEY: Boolean(process.env.S3_SECRET_ACCESS_KEY),
-    S3_ENDPOINT: Boolean(process.env.S3_ENDPOINT),
-    S3_FORCE_PATH_STYLE: process.env.S3_FORCE_PATH_STYLE === "true",
+    S3_BUCKET: Boolean(storageEnv.bucket),
+    S3_REGION: Boolean(storageEnv.region),
+    S3_ACCESS_KEY_ID: Boolean(storageEnv.accessKeyId),
+    S3_SECRET_ACCESS_KEY: Boolean(storageEnv.secretAccessKey),
+    S3_ENDPOINT: Boolean(storageEnv.endpoint),
+    S3_FORCE_PATH_STYLE: storageEnv.forcePathStyle,
   };
 
   const resendVars = {
@@ -694,27 +721,30 @@ function getRuntimeDiagnostics() {
 }
 
 function storageIsConfigured() {
+  const storageEnv = getStorageEnv();
   return Boolean(
-    process.env.S3_BUCKET &&
-      process.env.S3_REGION &&
-      process.env.S3_ACCESS_KEY_ID &&
-      process.env.S3_SECRET_ACCESS_KEY
+    storageEnv.bucket &&
+      storageEnv.region &&
+      storageEnv.accessKeyId &&
+      storageEnv.secretAccessKey
   );
 }
 
 function createStorageClient() {
+  const storageEnv = getStorageEnv();
   return new S3Client({
-    region: process.env.S3_REGION,
-    endpoint: process.env.S3_ENDPOINT || undefined,
-    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true",
+    region: storageEnv.region,
+    endpoint: storageEnv.endpoint || undefined,
+    forcePathStyle: storageEnv.forcePathStyle,
     credentials: {
-      accessKeyId: process.env.S3_ACCESS_KEY_ID,
-      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+      accessKeyId: storageEnv.accessKeyId,
+      secretAccessKey: storageEnv.secretAccessKey,
     },
   });
 }
 
 async function deleteStorageKeys(keys) {
+  const storageEnv = getStorageEnv();
   const uniqueKeys = [...new Set((keys || []).filter(Boolean))];
   if (!uniqueKeys.length || !storageIsConfigured()) {
     return;
@@ -727,7 +757,7 @@ async function deleteStorageKeys(keys) {
     if (batch.length === 1) {
       await client.send(
         new DeleteObjectCommand({
-          Bucket: process.env.S3_BUCKET,
+          Bucket: storageEnv.bucket,
           Key: batch[0],
         })
       );
@@ -736,7 +766,7 @@ async function deleteStorageKeys(keys) {
 
     await client.send(
       new DeleteObjectsCommand({
-        Bucket: process.env.S3_BUCKET,
+        Bucket: storageEnv.bucket,
         Delete: {
           Objects: batch.map((Key) => ({ Key })),
           Quiet: true,
@@ -747,6 +777,7 @@ async function deleteStorageKeys(keys) {
 }
 
 async function listStorageKeysByPrefix(prefix) {
+  const storageEnv = getStorageEnv();
   if (!prefix || !storageIsConfigured()) {
     return [];
   }
@@ -758,7 +789,7 @@ async function listStorageKeysByPrefix(prefix) {
   do {
     const response = await client.send(
       new ListObjectsV2Command({
-        Bucket: process.env.S3_BUCKET,
+        Bucket: storageEnv.bucket,
         Prefix: prefix,
         ContinuationToken: continuationToken,
       })
@@ -795,11 +826,12 @@ async function createSignedStorageUrl({
   disposition,
   filename,
 }) {
+  const storageEnv = getStorageEnv();
   const client = createStorageClient();
   return getSignedUrl(
     client,
     new GetObjectCommand({
-      Bucket: process.env.S3_BUCKET,
+      Bucket: storageEnv.bucket,
       Key: key,
       ResponseContentType: contentType || undefined,
       ResponseContentDisposition:
@@ -1238,7 +1270,7 @@ app.post(
 
         await client.send(
           new PutObjectCommand({
-            Bucket: process.env.S3_BUCKET,
+            Bucket: getStorageEnv().bucket,
             Key: key,
             Body: createReadStream(file.path),
             ContentType: file.mimetype,
@@ -1298,7 +1330,7 @@ app.get("/api/assets/:id", async (req, res) => {
   const signedUrl = await getSignedUrl(
     client,
     new GetObjectCommand({
-      Bucket: process.env.S3_BUCKET,
+      Bucket: getStorageEnv().bucket,
       Key: objectKey,
       ResponseContentType: asset.metadata?.contentType || undefined,
     }),
@@ -1466,7 +1498,7 @@ app.post(
     try {
       await client.send(
         new PutObjectCommand({
-          Bucket: process.env.S3_BUCKET,
+          Bucket: getStorageEnv().bucket,
           Key: key,
           Body: createReadStream(tempFilePath),
           ContentType: req.file.mimetype,
@@ -1539,7 +1571,7 @@ app.post(
     try {
       await client.send(
         new PutObjectCommand({
-          Bucket: process.env.S3_BUCKET,
+          Bucket: getStorageEnv().bucket,
           Key: key,
           Body: createReadStream(tempFilePath),
           ContentType: "application/pdf",
