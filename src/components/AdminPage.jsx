@@ -29,6 +29,146 @@ function Field({ label, value, onChange, multiline = false }) {
   );
 }
 
+function isImageAsset(asset) {
+  const contentType = asset?.metadata?.contentType || "";
+  if (contentType.startsWith("image/")) {
+    return true;
+  }
+
+  return /\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(asset?.url || "");
+}
+
+function AssetField({
+  label,
+  value,
+  onChange,
+  assets,
+  helperText = "Paste a URL or choose from the asset library.",
+}) {
+  const imageAssets = assets.filter(isImageAsset);
+
+  return (
+    <div className="asset-field">
+      <Field label={label} value={value} onChange={onChange} />
+      <label className="asset-field__picker">
+        <span>{label} from library</span>
+        <select
+          value=""
+          onChange={(event) => {
+            if (event.target.value) {
+              onChange(event.target.value);
+            }
+            event.target.value = "";
+          }}
+        >
+          <option value="">Choose an existing image...</option>
+          {imageAssets.map((asset) => (
+            <option key={asset.id} value={asset.url}>
+              {asset.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {helperText ? <p className="field-help">{helperText}</p> : null}
+      {value ? <img className="asset-field__preview" src={value} alt={label} /> : null}
+    </div>
+  );
+}
+
+function AssetListField({ label, values, onChange, assets, helperText }) {
+  const imageAssets = assets.filter(isImageAsset);
+
+  function updateItem(index, nextValue) {
+    onChange(
+      values.map((value, currentIndex) => (currentIndex === index ? nextValue : value)).filter(Boolean)
+    );
+  }
+
+  function removeItem(index) {
+    onChange(values.filter((_, currentIndex) => currentIndex !== index));
+  }
+
+  function addItem(value) {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return;
+    }
+    onChange([...values, trimmed]);
+  }
+
+  return (
+    <div className="asset-list-field">
+      <div className="asset-list-field__header">
+        <h3>{label}</h3>
+        <span>{values.length} selected</span>
+      </div>
+      <div className="asset-list-field__items">
+        {values.map((value, index) => (
+          <div key={`${value}-${index}`} className="asset-list-field__item">
+            <Field
+              label={`${label} ${index + 1}`}
+              value={value}
+              onChange={(nextValue) => updateItem(index, nextValue)}
+            />
+            <label className="asset-field__picker">
+              <span>Replace from library</span>
+              <select
+                value=""
+                onChange={(event) => {
+                  if (event.target.value) {
+                    updateItem(index, event.target.value);
+                  }
+                  event.target.value = "";
+                }}
+              >
+                <option value="">Choose an existing image...</option>
+                {imageAssets.map((asset) => (
+                  <option key={asset.id} value={asset.url}>
+                    {asset.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="asset-list-field__actions">
+              <button className="button-secondary" type="button" onClick={() => removeItem(index)}>
+                Remove
+              </button>
+            </div>
+            {value ? <img className="asset-list-field__preview" src={value} alt={`${label} ${index + 1}`} /> : null}
+          </div>
+        ))}
+      </div>
+      <div className="asset-list-field__add">
+        <label className="asset-field__picker">
+          <span>Add from library</span>
+          <select
+            value=""
+            onChange={(event) => {
+              addItem(event.target.value);
+              event.target.value = "";
+            }}
+          >
+            <option value="">Choose an existing image...</option>
+            {imageAssets.map((asset) => (
+              <option key={asset.id} value={asset.url}>
+                {asset.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          className="button-secondary"
+          type="button"
+          onClick={() => onChange([...values, ""])}
+        >
+          Add manual URL
+        </button>
+      </div>
+      {helperText ? <p className="field-help">{helperText}</p> : null}
+    </div>
+  );
+}
+
 function EditorHeader({ title, subtitle, status, onSave }) {
   return (
     <div className="editor-header">
@@ -49,7 +189,7 @@ function EditorHeader({ title, subtitle, status, onSave }) {
   );
 }
 
-function PageEditor({ pages, onSave }) {
+function PageEditor({ pages, assets, onSave }) {
   const [selectedId, setSelectedId] = useState(pages[0]?.id || "");
   const selectedPage = pages.find((page) => page.id === selectedId) || pages[0];
   const [draft, setDraft] = useState(selectedPage);
@@ -128,9 +268,10 @@ function PageEditor({ pages, onSave }) {
             value={draft.seo.canonicalUrl}
             onChange={(value) => update(["seo", "canonicalUrl"], value)}
           />
-          <Field
+          <AssetField
             label="OG image"
             value={draft.seo.ogImage}
+            assets={assets}
             onChange={(value) => update(["seo", "ogImage"], value)}
           />
         </div>
@@ -158,14 +299,16 @@ function PageEditor({ pages, onSave }) {
             multiline
             onChange={(value) => update(["hero", "intro"], value)}
           />
-          <Field
+          <AssetField
             label="Background image"
             value={draft.hero.backgroundImage || ""}
+            assets={assets}
             onChange={(value) => update(["hero", "backgroundImage"], value)}
           />
-          <Field
+          <AssetField
             label="Title image"
             value={draft.hero.titleImage || ""}
+            assets={assets}
             onChange={(value) => update(["hero", "titleImage"], value)}
           />
           <Field
@@ -201,17 +344,13 @@ function PageEditor({ pages, onSave }) {
   );
 }
 
-function IssueEditor({ issues, onSave }) {
+function IssueEditor({ issues, assets, onSave }) {
   const [selectedId, setSelectedId] = useState(issues[0]?.id || "");
   const selectedIssue = issues.find((issue) => issue.id === selectedId) || issues[0];
   const [draft, setDraft] = useState(selectedIssue);
-  const [heroAssetsText, setHeroAssetsText] = useState((selectedIssue?.heroAssets || []).join("\n"));
-  const [readerImagesText, setReaderImagesText] = useState((selectedIssue?.readerImages || []).join("\n"));
 
   useEffect(() => {
     setDraft(selectedIssue);
-    setHeroAssetsText((selectedIssue?.heroAssets || []).join("\n"));
-    setReaderImagesText((selectedIssue?.readerImages || []).join("\n"));
   }, [selectedIssue]);
 
   const autosave = useAutosave({
@@ -278,46 +417,35 @@ function IssueEditor({ issues, onSave }) {
           <Field label="Preview URL" value={draft.previewUrl || ""} onChange={(value) => update(["previewUrl"], value)} />
           <Field label="Reader label" value={draft.readerLabel || ""} onChange={(value) => update(["readerLabel"], value)} />
           <Field label="Reader PDF URL" value={draft.readerPdfUrl || ""} onChange={(value) => update(["readerPdfUrl"], value)} />
+          <AssetField label="Cover image" value={draft.coverImage || ""} assets={assets} onChange={(value) => update(["coverImage"], value)} />
         </div>
         <div className="editor-card">
           <h3>SEO</h3>
           <Field label="SEO Title" value={draft.seo.title} onChange={(value) => update(["seo", "title"], value)} />
           <Field label="Description" value={draft.seo.description} multiline onChange={(value) => update(["seo", "description"], value)} />
           <Field label="Canonical" value={draft.seo.canonicalUrl} onChange={(value) => update(["seo", "canonicalUrl"], value)} />
-          <Field label="OG image" value={draft.seo.ogImage} onChange={(value) => update(["seo", "ogImage"], value)} />
+          <AssetField label="OG image" value={draft.seo.ogImage} assets={assets} onChange={(value) => update(["seo", "ogImage"], value)} />
         </div>
         <div className="editor-card editor-card--full">
           <h3>Description</h3>
           <textarea rows={10} value={draft.description} onChange={(event) => update(["description"], event.target.value)} />
         </div>
         <div className="editor-card editor-card--full">
-          <h3>Hero assets</h3>
-          <textarea
-            rows={8}
-            value={heroAssetsText}
-            onChange={(event) => {
-              const value = event.target.value;
-              setHeroAssetsText(value);
-              update(
-                ["heroAssets"],
-                value.split("\n").map((item) => item.trim()).filter(Boolean)
-              );
-            }}
+          <AssetListField
+            label="Hero assets"
+            values={draft.heroAssets || []}
+            assets={assets}
+            onChange={(value) => update(["heroAssets"], value)}
+            helperText="Set the issue carousel images from the existing asset library or add a manual URL."
           />
         </div>
         <div className="editor-card editor-card--full">
-          <h3>Reader page images</h3>
-          <textarea
-            rows={8}
-            value={readerImagesText}
-            onChange={(event) => {
-              const value = event.target.value;
-              setReaderImagesText(value);
-              update(
-                ["readerImages"],
-                value.split("\n").map((item) => item.trim()).filter(Boolean)
-              );
-            }}
+          <AssetListField
+            label="Reader page images"
+            values={draft.readerImages || []}
+            assets={assets}
+            onChange={(value) => update(["readerImages"], value)}
+            helperText="Use this when you want the public reader to render image pages from stored assets."
           />
         </div>
       </div>
@@ -412,7 +540,7 @@ function LettersAdmin({ issues, letters, onSave }) {
   );
 }
 
-function SimpleCollectionEditor({ title, subtitle, items, onSave, fields, itemLabel }) {
+function SimpleCollectionEditor({ title, subtitle, items, assets, onSave, fields, itemLabel }) {
   const [selectedId, setSelectedId] = useState(items[0]?.id || "");
   const selected = items.find((entry) => entry.id === selectedId) || items[0];
   const [draft, setDraft] = useState(selected);
@@ -459,6 +587,19 @@ function SimpleCollectionEditor({ title, subtitle, items, onSave, fields, itemLa
                 />
                 <span>{field.label}</span>
               </label>
+            ) : field.type === "image" ? (
+              <AssetField
+                key={field.key}
+                label={field.label}
+                value={String(draft[field.key] ?? "")}
+                assets={assets}
+                onChange={(value) =>
+                  setDraft((current) => ({
+                    ...current,
+                    [field.key]: value,
+                  }))
+                }
+              />
             ) : (
               <Field
                 key={field.key}
@@ -480,7 +621,7 @@ function SimpleCollectionEditor({ title, subtitle, items, onSave, fields, itemLa
   );
 }
 
-function SettingsEditor({ siteSettings, onSave }) {
+function SettingsEditor({ siteSettings, assets, onSave }) {
   const [draft, setDraft] = useState(siteSettings);
   const [navText, setNavText] = useState(JSON.stringify(siteSettings.nav, null, 2));
 
@@ -498,11 +639,11 @@ function SettingsEditor({ siteSettings, onSave }) {
         <div className="editor-card">
           <Field label="Brand name" value={draft.brandName} onChange={(value) => setDraft((current) => ({ ...current, brandName: value }))} />
           <Field label="Site title suffix" value={draft.siteTitleSuffix} onChange={(value) => setDraft((current) => ({ ...current, siteTitleSuffix: value }))} />
-          <Field label="Default OG image" value={draft.defaultOgImage} onChange={(value) => setDraft((current) => ({ ...current, defaultOgImage: value }))} />
+          <AssetField label="Default OG image" value={draft.defaultOgImage} assets={assets} onChange={(value) => setDraft((current) => ({ ...current, defaultOgImage: value }))} />
         </div>
         <div className="editor-card">
           <h3>Home splash</h3>
-          <Field label="Logo URL" value={draft.homeSplash.logoUrl} onChange={(value) => setDraft((current) => ({ ...current, homeSplash: { ...current.homeSplash, logoUrl: value } }))} />
+          <AssetField label="Logo URL" value={draft.homeSplash.logoUrl} assets={assets} onChange={(value) => setDraft((current) => ({ ...current, homeSplash: { ...current.homeSplash, logoUrl: value } }))} />
           <Field label="Subtitle" value={draft.homeSplash.subtitle} onChange={(value) => setDraft((current) => ({ ...current, homeSplash: { ...current.homeSplash, subtitle: value } }))} />
           <label className="checkbox-row">
             <input
@@ -577,20 +718,22 @@ function AssetsEditor({ assets, onSave, onCreateUrl, onUpload, storage }) {
   async function handleUpload(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const file = form.get("file");
-    if (!(file instanceof File) || !file.size) {
-      setUploadStatus("Choose a file first.");
+    const files = form
+      .getAll("files")
+      .filter((file) => file instanceof File && file.size);
+    if (!files.length) {
+      setUploadStatus("Choose at least one file first.");
       return;
     }
-    setUploadStatus("Uploading...");
+    setUploadStatus(`Uploading ${files.length} file${files.length === 1 ? "" : "s"}...`);
     try {
       await onUpload({
-        file,
-        label: String(form.get("label") || file.name),
+        files,
+        label: String(form.get("label") || ""),
         category: String(form.get("category") || "upload"),
       });
       event.currentTarget.reset();
-      setUploadStatus("Upload complete.");
+      setUploadStatus(`Uploaded ${files.length} file${files.length === 1 ? "" : "s"}.`);
     } catch (error) {
       setUploadStatus(error.message || "Upload failed.");
     }
@@ -613,10 +756,10 @@ function AssetsEditor({ assets, onSave, onCreateUrl, onUpload, storage }) {
           <h3>Upload to bucket</h3>
           <p className="status-line">{storage.bucketConfigured ? "Bucket storage is configured." : "Bucket storage is not configured yet. External URL mode is active."}</p>
           <form onSubmit={handleUpload}>
-            <label><span>Label</span><input name="label" /></label>
+            <label><span>Label override (single upload only)</span><input name="label" /></label>
             <label><span>Category</span><input name="category" defaultValue="upload" /></label>
-            <label><span>File</span><input name="file" type="file" /></label>
-            <button className="button-primary" type="submit">Upload</button>
+            <label><span>Files</span><input name="files" type="file" multiple /></label>
+            <button className="button-primary" type="submit">Upload selected files</button>
           </form>
           {uploadStatus ? <p className="status-line">{uploadStatus}</p> : null}
         </div>
@@ -639,7 +782,7 @@ function AssetsEditor({ assets, onSave, onCreateUrl, onUpload, storage }) {
             </div>
             <div className="editor-card">
               <h3>Asset preview</h3>
-              <img className="asset-preview" src={draft.url} alt={draft.label} />
+              {isImageAsset(draft) ? <img className="asset-preview" src={draft.url} alt={draft.label} /> : <p className="field-help">Preview is shown for image assets. Current asset URL: {draft.url}</p>}
             </div>
           </>
         ) : null}
@@ -756,14 +899,14 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
       </aside>
       <section className="admin-main">
         {activeTab === "delivery" ? <DeliveryAdmin /> : null}
-        {activeTab === "pages" ? <PageEditor pages={adminData.pages} onSave={async (page) => syncAfterSave(await api.savePage(page))} /> : null}
-        {activeTab === "issues" ? <IssueEditor issues={adminData.issues} onSave={async (issue) => syncAfterSave(await api.saveIssue(issue))} /> : null}
+        {activeTab === "pages" ? <PageEditor pages={adminData.pages} assets={adminData.assets} onSave={async (page) => syncAfterSave(await api.savePage(page))} /> : null}
+        {activeTab === "issues" ? <IssueEditor issues={adminData.issues} assets={adminData.assets} onSave={async (issue) => syncAfterSave(await api.saveIssue(issue))} /> : null}
         {activeTab === "letters" ? <LettersAdmin issues={adminData.issues} letters={adminData.lettersSubmissions} onSave={async (letter) => syncAfterSave(await api.saveLetter(letter))} /> : null}
-        {activeTab === "redirects" ? <SimpleCollectionEditor title="Redirects" subtitle="Preserve legacy and external URLs." items={adminData.redirects} onSave={async (redirect) => syncAfterSave(await api.saveRedirect(redirect))} itemLabel="Redirect" fields={[{ key: "sourcePath", label: "Source path" }, { key: "destination", label: "Destination" }, { key: "type", label: "Redirect type" }, { key: "active", label: "Active", type: "checkbox" }]} /> : null}
-        {activeTab === "team" ? <SimpleCollectionEditor title="Team" subtitle="Manage the Meet page profiles." items={adminData.teamMembers} onSave={async (teamMember) => syncAfterSave(await api.saveTeamMember(teamMember))} itemLabel="Team member" fields={[{ key: "name", label: "Name" }, { key: "role", label: "Role" }, { key: "image", label: "Image URL" }, { key: "bio", label: "Bio", multiline: true }, { key: "sortOrder", label: "Sort order", numeric: true }]} /> : null}
-        {activeTab === "socials" ? <SimpleCollectionEditor title="Socials" subtitle="Manage social links and icons." items={adminData.socialLinks} onSave={async (socialLink) => syncAfterSave(await api.saveSocialLink(socialLink))} itemLabel="Social link" fields={[{ key: "personName", label: "Person" }, { key: "label", label: "Label" }, { key: "url", label: "URL" }, { key: "iconUrl", label: "Icon URL" }, { key: "sortOrder", label: "Sort order", numeric: true }]} /> : null}
-        {activeTab === "settings" ? <SettingsEditor siteSettings={adminData.siteSettings} onSave={async (siteSettings) => syncAfterSave(await api.saveSiteSettings(siteSettings))} /> : null}
-        {activeTab === "assets" ? <AssetsEditor assets={adminData.assets} onSave={async (asset) => syncAfterSave(await api.saveAsset(asset))} onCreateUrl={async (payload) => syncAfterSave(await api.registerAssetUrl(payload))} onUpload={async (payload) => syncAfterSave(await api.uploadAsset(payload))} storage={adminData.storage} /> : null}
+        {activeTab === "redirects" ? <SimpleCollectionEditor title="Redirects" subtitle="Preserve legacy and external URLs." items={adminData.redirects} assets={adminData.assets} onSave={async (redirect) => syncAfterSave(await api.saveRedirect(redirect))} itemLabel="Redirect" fields={[{ key: "sourcePath", label: "Source path" }, { key: "destination", label: "Destination" }, { key: "type", label: "Redirect type" }, { key: "active", label: "Active", type: "checkbox" }]} /> : null}
+        {activeTab === "team" ? <SimpleCollectionEditor title="Team" subtitle="Manage the Meet page profiles." items={adminData.teamMembers} assets={adminData.assets} onSave={async (teamMember) => syncAfterSave(await api.saveTeamMember(teamMember))} itemLabel="Team member" fields={[{ key: "name", label: "Name" }, { key: "role", label: "Role" }, { key: "image", label: "Image URL", type: "image" }, { key: "bio", label: "Bio", multiline: true }, { key: "sortOrder", label: "Sort order", numeric: true }]} /> : null}
+        {activeTab === "socials" ? <SimpleCollectionEditor title="Socials" subtitle="Manage social links and icons." items={adminData.socialLinks} assets={adminData.assets} onSave={async (socialLink) => syncAfterSave(await api.saveSocialLink(socialLink))} itemLabel="Social link" fields={[{ key: "personName", label: "Person" }, { key: "label", label: "Label" }, { key: "url", label: "URL" }, { key: "iconUrl", label: "Icon URL", type: "image" }, { key: "sortOrder", label: "Sort order", numeric: true }]} /> : null}
+        {activeTab === "settings" ? <SettingsEditor siteSettings={adminData.siteSettings} assets={adminData.assets} onSave={async (siteSettings) => syncAfterSave(await api.saveSiteSettings(siteSettings))} /> : null}
+        {activeTab === "assets" ? <AssetsEditor assets={adminData.assets} onSave={async (asset) => syncAfterSave(await api.saveAsset(asset))} onCreateUrl={async (payload) => syncAfterSave(await api.registerAssetUrl(payload))} onUpload={async (payload) => syncAfterSave(await api.uploadAssets(payload))} storage={adminData.storage} /> : null}
       </section>
     </main>
   );

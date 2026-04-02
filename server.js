@@ -882,13 +882,17 @@ function getIssueLabel(issueSlug, issues) {
   return issue?.title || issueSlug;
 }
 
+function isEqualDataSnapshot(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 async function withData(mutator) {
   const data = await repository.getAllData();
   const nextData = await mutator(data);
-  if (nextData) {
+  if (nextData && !isEqualDataSnapshot(nextData, data)) {
     await repository.writeAllData(nextData);
   }
-  return nextData;
+  return nextData || data;
 }
 
 async function getRedirectForPath(pathname) {
@@ -1167,9 +1171,8 @@ app.post(
   "/api/admin/assets/upload",
   requireTrustedOrigin,
   requireAdmin,
-  upload.single("file"),
+  upload.array("files"),
   async (req, res) => {
-    let tempFilePath = null;
     if (!storageIsConfigured()) {
       res.status(501).json({
         error:
@@ -1178,62 +1181,72 @@ app.post(
       return;
     }
 
-    if (!req.file) {
-      res.status(400).json({ error: "file is required" });
+    const files = Array.isArray(req.files) ? req.files : [];
+    if (!files.length) {
+      res.status(400).json({ error: "At least one file is required" });
       return;
     }
 
-    tempFilePath = req.file.path;
-
-    if (!allowedUploadMimeTypes.has(req.file.mimetype)) {
-      await removeTempUpload(tempFilePath);
+    const invalidFile = files.find((file) => !allowedUploadMimeTypes.has(file.mimetype));
+    if (invalidFile) {
+      await Promise.allSettled(
+        files.map((file) => removeTempUpload(file.path))
+      );
       res.status(400).json({
         error: "Unsupported file type. Upload a PDF, PNG, JPG, WEBP, GIF, or SVG.",
       });
       return;
     }
 
-    const extension = path.extname(req.file.originalname) || "";
-    const safeBase = path
-      .basename(req.file.originalname, extension)
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
-    const key = `uploads/${Date.now()}-${safeBase || "asset"}${extension}`;
     const client = createStorageClient();
-    const assetId = crypto.randomUUID();
 
     try {
-      await client.send(
-        new PutObjectCommand({
-          Bucket: process.env.S3_BUCKET,
-          Key: key,
-          Body: createReadStream(tempFilePath),
-          ContentType: req.file.mimetype,
-        })
-      );
+      const assets = [];
 
-      const asset = {
-        id: assetId,
-        label: req.body.label || req.file.originalname,
-        url: getAssetUrl(assetId),
-        storageType: "s3-bucket",
-        metadata: {
-          category: req.body.category || "upload",
-          objectKey: key,
-          contentType: req.file.mimetype,
-          fileName: req.file.originalname,
-          size: req.file.size,
-        },
-      };
+      for (const file of files) {
+        const extension = path.extname(file.originalname) || "";
+        const safeBase = path
+          .basename(file.originalname, extension)
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
+        const key = `uploads/${Date.now()}-${safeBase || "asset"}${extension}`;
+        const assetId = crypto.randomUUID();
+
+        await client.send(
+          new PutObjectCommand({
+            Bucket: process.env.S3_BUCKET,
+            Key: key,
+            Body: createReadStream(file.path),
+            ContentType: file.mimetype,
+          })
+        );
+
+        assets.push({
+          id: assetId,
+          label:
+            files.length === 1 && req.body.label
+              ? req.body.label
+              : file.originalname,
+          url: getAssetUrl(assetId),
+          storageType: "s3-bucket",
+          metadata: {
+            category: req.body.category || "upload",
+            objectKey: key,
+            contentType: file.mimetype,
+            fileName: file.originalname,
+            size: file.size,
+          },
+        });
+      }
 
       const next = await withData((data) => ({
         ...data,
-        assets: [asset, ...data.assets],
+        assets: [...assets.reverse(), ...data.assets],
       }));
       res.json(sanitizeAdminData(next));
     } finally {
-      await removeTempUpload(tempFilePath);
+      await Promise.allSettled(files.map((file) => removeTempUpload(file.path)));
     }
   }
 );

@@ -203,10 +203,14 @@ export const api = {
       headers: {},
     });
   },
-  async uploadAsset({ file, label, category }) {
+  async uploadAssets({ files, label, category }) {
     const formData = new FormData();
-    formData.append("file", file);
-    formData.append("label", label);
+    files.forEach((file) => {
+      formData.append("files", file);
+    });
+    if (label) {
+      formData.append("label", label);
+    }
     formData.append("category", category);
 
     const response = await fetch("/api/admin/assets/upload", {
@@ -221,5 +225,12 @@ export const api = {
     }
 
     return response.json();
+  },
+  async uploadAsset(payload) {
+    return api.uploadAssets({
+      files: [payload.file],
+      label: payload.label,
+      category: payload.category,
+    });
   },
 };
