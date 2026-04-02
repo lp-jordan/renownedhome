@@ -691,50 +691,6 @@ textarea {
   box-shadow: var(--shadow);
 }
 
-.delivery-card--access {
-  width: min(100%, 1340px);
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0fr);
-  align-items: stretch;
-  overflow: hidden;
-}
-
-.delivery-card--reader-open {
-  grid-template-columns: minmax(320px, 0.72fr) minmax(560px, 1.28fr);
-}
-
-.delivery-card__main {
-  display: grid;
-  grid-template-columns: minmax(260px, 380px) minmax(0, 1fr);
-  gap: 1.5rem;
-  min-width: 0;
-  transition: transform 320ms ease, opacity 240ms ease;
-}
-
-.delivery-card--reader-open .delivery-card__main {
-  transform: translateX(-0.35rem);
-}
-
-.delivery-card__reader {
-  min-width: 0;
-  max-width: 0;
-  opacity: 0;
-  transform: translateX(2rem);
-  overflow: hidden;
-  transition:
-    max-width 320ms ease,
-    opacity 240ms ease,
-    transform 320ms ease,
-    padding-left 320ms ease;
-}
-
-.delivery-card__reader.is-open {
-  max-width: 1000px;
-  opacity: 1;
-  transform: translateX(0);
-  padding-left: 0.75rem;
-  align-self: stretch;
-}
-
 .delivery-card--centered {
   grid-template-columns: 1fr;
   width: min(100%, 680px);
@@ -762,8 +718,7 @@ textarea {
 .delivery-card__content {
   display: grid;
   align-content: center;
-  gap: 0.85rem;
-  min-width: 0;
+  gap: 1rem;
 }
 
 .delivery-access__eyebrow,
@@ -786,10 +741,6 @@ textarea {
   font-size: clamp(2.2rem, 5vw, 4.6rem);
   line-height: 0.95;
   text-transform: uppercase;
-}
-
-.delivery-card__title--reader-open {
-  font-size: clamp(1.85rem, 4vw, 3.6rem);
 }
 
 .delivery-card__byline,
@@ -822,7 +773,7 @@ textarea {
 
 .delivery-card__meta {
   display: flex;
-  gap: 0.85rem;
+  gap: 1rem;
   flex-wrap: wrap;
   color: var(--text-dim);
   font-size: 0.78rem;
@@ -2779,10 +2730,6 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .delivery-card__main {
-    grid-template-columns: 1fr;
-  }
-
   .delivery-header,
   .delivery-project-summary,
   .delivery-data-grid,
@@ -2807,23 +2754,6 @@ textarea {
   .delivery-upload-grid,
   .delivery-progress {
     grid-template-columns: 1fr;
-  }
-
-  .delivery-card--access,
-  .delivery-card--reader-open {
-    grid-template-columns: 1fr;
-  }
-
-  .delivery-card__reader {
-    max-width: 0;
-    opacity: 0;
-    transform: none;
-    padding-left: 0;
-  }
-
-  .delivery-card__reader.is-open {
-    max-width: none;
-    opacity: 1;
   }
 
   .panel-card--wide,
