@@ -28,21 +28,43 @@ export function buildDeliveryEmail({
     subject: `${projectTitle} is ready`,
     html: `
       <div style="margin:0;padding:32px 16px;background:#0b0f16;color:#f2f4f8;font-family:Arial,sans-serif;">
-        <div style="max-width:640px;margin:0 auto;padding:28px;border:1px solid rgba(255,255,255,0.12);border-radius:24px;background:#101621;">
-          <p style="margin:0 0 12px;color:#c7ccd6;font-size:12px;letter-spacing:2px;text-transform:uppercase;">Digital Delivery</p>
-          <h1 style="margin:0 0 10px;font-size:36px;line-height:1.05;">${safeProjectTitle}</h1>
-          <p style="margin:0 0 18px;color:#c7ccd6;">from ${safeCreatorName}</p>
+        <div style="max-width:640px;margin:0 auto;padding:28px;border:1px solid rgba(255,255,255,0.1);border-radius:24px;background:#101621;box-shadow:0 24px 60px rgba(0,0,0,0.32);">
+          <p style="margin:0 0 16px;color:#b6becc;font-size:11px;letter-spacing:0.24em;text-transform:uppercase;">Digital Delivery</p>
+          <h1 style="margin:0 0 8px;font-size:40px;line-height:1.05;font-weight:700;color:#ffffff;">${safeProjectTitle}</h1>
+          <p style="margin:0 0 24px;color:#c7ccd6;font-size:15px;line-height:1.6;">Delivered by ${safeCreatorName}</p>
           ${
             safeCoverImageUrl
-              ? `<img src="${safeCoverImageUrl}" alt="${safeProjectTitle} cover" style="display:block;width:100%;max-width:260px;margin:0 0 20px;border-radius:18px;" />`
+              ? `
+                <div style="margin:0 0 24px;">
+                  <div style="width:260px;max-width:100%;overflow:hidden;border-radius:18px;border:1px solid rgba(255,255,255,0.08);background:#1a2230;box-shadow:0 18px 40px rgba(0,0,0,0.28);">
+                    <img
+                      src="${safeCoverImageUrl}"
+                      alt="${safeProjectTitle} cover"
+                      style="display:block;width:100%;height:auto;"
+                    />
+                  </div>
+                </div>
+              `
               : ""
           }
-          <p style="margin:0 0 22px;font-size:16px;line-height:1.6;">${safeShortMessage}</p>
-          <p style="margin:0 0 22px;">
-            <a href="${safeAccessUrl}" style="display:inline-block;padding:14px 18px;border-radius:14px;background:#ffffff;color:#0b0f16;text-decoration:none;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Access Your Comic</a>
-          </p>
-          <p style="margin:0 0 8px;color:#c7ccd6;font-size:14px;">If the button above does not work, use this link:</p>
-          <p style="margin:0;font-size:14px;word-break:break-word;"><a href="${safeAccessUrl}" style="color:#f2f4f8;">${safeAccessUrl}</a></p>
+          <div style="margin:0 0 28px;">
+            <p style="margin:0 0 8px;color:#b6becc;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;">A note from the creator</p>
+            <p style="margin:0;font-size:16px;line-height:1.75;color:#f2f4f8;">${safeShortMessage}</p>
+          </div>
+          <div style="margin:0 0 28px;">
+            <a
+              href="${safeAccessUrl}"
+              style="display:inline-block;padding:14px 24px;border-radius:12px;background:#ffffff;color:#0b0f16;text-decoration:none;font-size:15px;font-weight:700;box-shadow:0 8px 30px rgba(255,255,255,0.08);"
+            >
+              Open Your Copy
+            </a>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:16px;">
+            <p style="margin:0 0 8px;color:#b6becc;font-size:13px;line-height:1.5;">If the button doesn&apos;t work, use this direct link:</p>
+            <p style="margin:0;font-size:13px;line-height:1.6;word-break:break-word;">
+              <a href="${safeAccessUrl}" style="color:#f2f4f8;text-decoration:underline;text-underline-offset:2px;">${safeAccessUrl}</a>
+            </p>
+          </div>
         </div>
       </div>
     `,

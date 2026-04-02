@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { useSeo } from "../lib/seo";
+import InlinePdfReader from "./InlinePdfReader";
 
 function formatFileSize(bytes) {
   const value = Number(bytes || 0);
@@ -28,6 +29,7 @@ export default function DeliveryAccessPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [access, setAccess] = useState(null);
+  const [isReaderOpen, setIsReaderOpen] = useState(false);
 
   useSeo(
     access ? `${access.project.title} - Delivery` : "Comic Delivery",
@@ -54,6 +56,10 @@ export default function DeliveryAccessPage() {
     load();
   }, [token]);
 
+  useEffect(() => {
+    setIsReaderOpen(false);
+  }, [token]);
+
   if (loading) {
     return <div className="state-shell">Loading your delivery...</div>;
   }
@@ -72,43 +78,54 @@ export default function DeliveryAccessPage() {
 
   return (
     <main className="delivery-access">
-      <section className="delivery-card">
-        <div className="delivery-card__media">
-          {access.assets.coverUrl ? (
-            <img src={access.assets.coverUrl} alt={`${access.project.title} cover`} />
-          ) : (
-            <div className="delivery-card__placeholder">Cover</div>
-          )}
-        </div>
-        <div className="delivery-card__content">
-          <p className="delivery-access__eyebrow">Your Digital Copy Is Ready</p>
-          <h1>{access.project.title}</h1>
-          <p className="delivery-card__byline">from {access.project.creatorName}</p>
-          {access.project.shortMessage ? (
-            <p className="delivery-card__message">{access.project.shortMessage}</p>
-          ) : null}
-          {access.project.description ? (
-            <p className="delivery-card__description">{access.project.description}</p>
-          ) : null}
-          <div className="delivery-card__actions">
-            <a className="button-primary" href={access.actions.downloadUrl}>
-              Download PDF
-            </a>
-            <a className="button-secondary" href={access.actions.readUrl} target="_blank" rel="noreferrer">
-              Read In Browser
-            </a>
+      <section className={`delivery-card delivery-card--access ${isReaderOpen ? "delivery-card--reader-open" : ""}`}>
+        <div className="delivery-card__main">
+          <div className="delivery-card__media">
+            {access.assets.coverUrl ? (
+              <img src={access.assets.coverUrl} alt={`${access.project.title} cover`} />
+            ) : (
+              <div className="delivery-card__placeholder">Cover</div>
+            )}
           </div>
-          {access.file ? (
-            <div className="delivery-card__meta">
-              <span>{access.file.originalFilename}</span>
-              <span>Version {access.file.versionNumber}</span>
-              <span>{formatFileSize(access.file.fileSizeBytes)}</span>
+          <div className="delivery-card__content">
+            <p className="delivery-access__eyebrow">Your Digital Copy Is Ready</p>
+            <h1>{access.project.title}</h1>
+            <p className="delivery-card__byline">from {access.project.creatorName}</p>
+            {access.project.shortMessage ? (
+              <p className="delivery-card__message">{access.project.shortMessage}</p>
+            ) : null}
+            {access.project.description ? (
+              <p className="delivery-card__description">{access.project.description}</p>
+            ) : null}
+            <div className="delivery-card__actions">
+              <a className="button-primary" href={access.actions.downloadUrl}>
+                Download PDF
+              </a>
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={() => setIsReaderOpen((current) => !current)}
+              >
+                {isReaderOpen ? "Close Reader" : "Read In Browser"}
+              </button>
             </div>
+            {access.file ? (
+              <div className="delivery-card__meta">
+                <span>{access.file.originalFilename}</span>
+                <span>Version {access.file.versionNumber}</span>
+                <span>{formatFileSize(access.file.fileSizeBytes)}</span>
+              </div>
+            ) : null}
+            <p className="delivery-card__footnote">
+              This link is tied to {access.backer.email}. Save the email if you want easy access
+              later.
+            </p>
+          </div>
+        </div>
+        <div className={`delivery-card__reader ${isReaderOpen ? "is-open" : ""}`} aria-hidden={!isReaderOpen}>
+          {access.actions.readerUrl ? (
+            <InlinePdfReader title={access.project.title} pdfUrl={access.actions.readerUrl} />
           ) : null}
-          <p className="delivery-card__footnote">
-            This link is tied to {access.backer.email}. Save the email if you want easy access
-            later.
-          </p>
         </div>
       </section>
     </main>

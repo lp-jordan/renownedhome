@@ -59,6 +59,7 @@ function getIssueReaderImages(issue) {
 
 export default function PublicSite({ bootstrap, refreshBootstrap }) {
   const location = useLocation();
+  const hideBreadcrumbs = location.pathname.startsWith("/a/");
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -66,7 +67,7 @@ export default function PublicSite({ bootstrap, refreshBootstrap }) {
 
   return (
     <div className="site-shell">
-      <BreadcrumbBar />
+      {hideBreadcrumbs ? null : <BreadcrumbBar />}
       <div className="site-shell__content">
         <Routes>
           <Route path="/" element={<HomePage bootstrap={bootstrap} />} />

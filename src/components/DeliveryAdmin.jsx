@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import InlinePdfReader from "./InlinePdfReader";
 
 function emptyProjectForm() {
   return {
@@ -59,8 +60,8 @@ function getWorkflowState(detail) {
 function SummaryRow({ label, value }) {
   return (
     <div className="delivery-summary-card__row">
-      <span>{label}</span>
-      <strong>{value}</strong>
+      <span className="delivery-summary-card__row-label">{label}</span>
+      <strong className="delivery-summary-card__row-value">{value}</strong>
     </div>
   );
 }
@@ -301,6 +302,9 @@ export default function DeliveryAdmin() {
   const summaryStatus = workflow.isReady ? "Ready" : "Needs Setup";
   const coverUrl = detail?.currentCover ? fileRoute(detail.currentCover.id) : "";
   const pdfUrl = detail?.currentPdf ? fileRoute(detail.currentPdf.id) : "";
+  const pdfReaderUrl = detail?.currentPdf
+    ? `/api/delivery/files/${encodeURIComponent(detail.currentPdf.id)}/content`
+    : "";
 
   return (
     <section className="editor-shell delivery-workspace delivery-workspace--streamlined">
@@ -437,7 +441,7 @@ export default function DeliveryAdmin() {
                   )}
                   <form onSubmit={(event) => handleUpload("cover", event)}>
                     <label className="button-secondary button-compact delivery-upload-button">
-                      <span>Replace Image</span>
+                      <span>{coverUrl ? "Replace Image" : "Upload Image"}</span>
                       <input
                         className="delivery-upload-input"
                         name="file"
@@ -458,7 +462,11 @@ export default function DeliveryAdmin() {
                   {pdfUrl ? (
                     <>
                       <div className="delivery-pdf-frame">
-                        <iframe title="PDF preview" src={pdfUrl} />
+                        <InlinePdfReader
+                          title={detail.currentPdf.originalFilename}
+                          pdfUrl={pdfReaderUrl}
+                          compact
+                        />
                       </div>
                       <p className="delivery-upload-card__meta">
                         {detail.currentPdf.originalFilename} · {formatFileSize(detail.currentPdf.fileSizeBytes)}
@@ -469,7 +477,7 @@ export default function DeliveryAdmin() {
                   )}
                   <form onSubmit={(event) => handleUpload("pdf", event)}>
                     <label className="button-primary button-compact delivery-upload-button">
-                      <span>Replace PDF</span>
+                      <span>{pdfUrl ? "Replace PDF" : "Upload PDF"}</span>
                       <input
                         className="delivery-upload-input"
                         name="file"
@@ -566,7 +574,7 @@ export default function DeliveryAdmin() {
                 <h2>Project Summary</h2>
               </div>
               <p className="delivery-summary-card__title">{selectedProject?.title || detail.project.title}</p>
-              <p className="delivery-summary-card__status">Status: {summaryStatus}</p>
+              <SummaryRow label="Status" value={summaryStatus} />
               <SummaryRow label="Backers" value={detail.backers.length} />
               <SummaryRow label="Files" value={`${detail.files.length} uploaded`} />
               <SummaryRow label="Creator" value={detail.project.creatorName} />

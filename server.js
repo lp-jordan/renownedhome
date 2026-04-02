@@ -843,6 +843,34 @@ async function createSignedStorageUrl({
   );
 }
 
+async function streamStorageFile(res, { key, contentType, disposition, filename }) {
+  const client = createStorageClient();
+  const response = await client.send(
+    new GetObjectCommand({
+      Bucket: getStorageEnv().bucket,
+      Key: key,
+    })
+  );
+
+  if (contentType) {
+    res.setHeader("Content-Type", contentType);
+  }
+
+  if (disposition && filename) {
+    res.setHeader(
+      "Content-Disposition",
+      `${disposition}; filename="${String(filename).replace(/"/g, "")}"`
+    );
+  }
+
+  if (response.ContentLength) {
+    res.setHeader("Content-Length", String(response.ContentLength));
+  }
+
+  res.setHeader("Cache-Control", "private, max-age=300");
+  response.Body?.pipe(res);
+}
+
 function getSessionTtlMs() {
   const configuredSeconds = parsePositiveInteger(
     process.env.SESSION_TTL_SECONDS || "604800"
@@ -1723,6 +1751,31 @@ app.get("/api/delivery/files/:id", async (req, res) => {
   res.redirect(302, signedUrl);
 });
 
+app.get("/api/delivery/files/:id/content", async (req, res) => {
+  const file = await deliveryStore.getFile(req.params.id);
+  if (!file) {
+    res.status(404).json({ error: "File not found." });
+    return;
+  }
+
+  if (!storageIsConfigured() || !file.storageKey) {
+    res.status(404).json({ error: "File is unavailable." });
+    return;
+  }
+
+  try {
+    await streamStorageFile(res, {
+      key: file.storageKey,
+      contentType: file.mimeType,
+      disposition: "inline",
+      filename: file.originalFilename,
+    });
+  } catch (error) {
+    console.error("Delivery file stream failed", error);
+    res.status(500).json({ error: "File is unavailable." });
+  }
+});
+
 app.get("/api/delivery/access/:token", async (req, res) => {
   const access = await deliveryStore.getAccessByToken(req.params.token);
   if (!access) {
@@ -1752,6 +1805,7 @@ app.get("/api/delivery/access/:token", async (req, res) => {
     actions: {
       downloadUrl: `/api/delivery/access/${encodeURIComponent(req.params.token)}/download`,
       readUrl: `/api/delivery/access/${encodeURIComponent(req.params.token)}/read`,
+      readerUrl: `/api/delivery/access/${encodeURIComponent(req.params.token)}/read/content`,
     },
   });
 });
@@ -1798,6 +1852,33 @@ app.get("/api/delivery/access/:token/read", async (req, res) => {
     filename: access.currentPdf.originalFilename,
   });
   res.redirect(302, signedUrl);
+});
+
+app.get("/api/delivery/access/:token/read/content", async (req, res) => {
+  const access = await deliveryStore.getAccessByToken(req.params.token);
+  if (!access?.currentPdf) {
+    res.status(404).json({ error: "This file is unavailable." });
+    return;
+  }
+
+  if (!storageIsConfigured() || !access.currentPdf.storageKey) {
+    res.status(404).json({ error: "This file is unavailable." });
+    return;
+  }
+
+  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline");
+
+  try {
+    await streamStorageFile(res, {
+      key: access.currentPdf.storageKey,
+      contentType: access.currentPdf.mimeType,
+      disposition: "inline",
+      filename: access.currentPdf.originalFilename,
+    });
+  } catch (error) {
+    console.error("Delivery read stream failed", error);
+    res.status(500).json({ error: "This file is unavailable." });
+  }
 });
 
 app.use(async (req, res, next) => {
