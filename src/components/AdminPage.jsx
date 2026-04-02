@@ -322,6 +322,42 @@ function PageEditor({ pages, assets, onSave }) {
             onChange={(value) => update(["hero", "ctaUrl"], value)}
           />
         </div>
+        {draft.slug === "/connect" ? (
+          <div className="editor-card">
+            <h3>Headlines section</h3>
+            <Field
+              label="Newsletter heading"
+              value={draft.content.newsletterHeading || ""}
+              onChange={(value) => update(["content", "newsletterHeading"], value)}
+            />
+            <Field
+              label="Newsletter subtitle"
+              value={draft.content.newsletterSubtitle || ""}
+              multiline
+              onChange={(value) => update(["content", "newsletterSubtitle"], value)}
+            />
+            <Field
+              label="Card eyebrow"
+              value={draft.content.newsletterCardEyebrow || ""}
+              onChange={(value) => update(["content", "newsletterCardEyebrow"], value)}
+            />
+            <Field
+              label="Card title"
+              value={draft.content.newsletterCardTitle || ""}
+              onChange={(value) => update(["content", "newsletterCardTitle"], value)}
+            />
+            <Field
+              label="Button label"
+              value={draft.content.newsletterCtaLabel || ""}
+              onChange={(value) => update(["content", "newsletterCtaLabel"], value)}
+            />
+            <Field
+              label="Button URL"
+              value={draft.content.newsletterCtaUrl || ""}
+              onChange={(value) => update(["content", "newsletterCtaUrl"], value)}
+            />
+          </div>
+        ) : null}
         <div className="editor-card editor-card--full">
           <h3>Structured content JSON</h3>
           <textarea

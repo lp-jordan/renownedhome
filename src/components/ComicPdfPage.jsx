@@ -10,6 +10,7 @@ export default function ComicPdfPage({
   onLoadSuccess,
   loading,
   onLoadError,
+  preloadPageNumbers = [],
 }) {
   return (
     <Document
@@ -20,12 +21,31 @@ export default function ComicPdfPage({
       className="comic-reader__document"
     >
       <Page
+        key={currentPage}
         pageNumber={currentPage}
         width={width}
+        devicePixelRatio={1}
+        renderMode="canvas"
         renderAnnotationLayer={false}
         renderTextLayer={false}
         loading={loading}
       />
+      {preloadPageNumbers.length ? (
+        <div className="comic-reader__preload" aria-hidden="true">
+          {preloadPageNumbers.map((pageNumber) => (
+            <Page
+              key={`preload-${pageNumber}`}
+              pageNumber={pageNumber}
+              width={Math.min(width, 280)}
+              devicePixelRatio={1}
+              renderMode="canvas"
+              renderAnnotationLayer={false}
+              renderTextLayer={false}
+              loading={null}
+            />
+          ))}
+        </div>
+      ) : null}
     </Document>
   );
 }

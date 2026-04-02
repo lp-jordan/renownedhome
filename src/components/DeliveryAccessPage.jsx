@@ -89,7 +89,9 @@ export default function DeliveryAccessPage() {
           </div>
           <div className="delivery-card__content">
             <p className="delivery-access__eyebrow">Your Digital Copy Is Ready</p>
-            <h1>{access.project.title}</h1>
+            <h1 className={`delivery-card__title ${isReaderOpen ? "delivery-card__title--reader-open" : ""}`}>
+              {access.project.title}
+            </h1>
             <p className="delivery-card__byline">from {access.project.creatorName}</p>
             {access.project.shortMessage ? (
               <p className="delivery-card__message">{access.project.shortMessage}</p>
@@ -124,7 +126,7 @@ export default function DeliveryAccessPage() {
         </div>
         <div className={`delivery-card__reader ${isReaderOpen ? "is-open" : ""}`} aria-hidden={!isReaderOpen}>
           {access.actions.readerUrl ? (
-            <InlinePdfReader title={access.project.title} pdfUrl={access.actions.readerUrl} />
+            <InlinePdfReader pdfUrl={access.actions.readerUrl} />
           ) : null}
         </div>
       </section>

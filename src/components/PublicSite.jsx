@@ -323,19 +323,26 @@ function TeamPage({ bootstrap, routeSlug }) {
           ))}
         </div>
       </section>
-      <section id="headlines" className="section-shell section-shell--narrow section-shell--subpage">
-        <SectionHeading kicker="Newsletter" title={connectPage.content.newsletterHeading} />
-        <p className="body-copy body-copy--centered">{connectPage.content.newsletterSubtitle}</p>
-        <div className="newsletter-card newsletter-card--headlines">
-          <p className="newsletter-card__eyebrow">The Headlines</p>
-          <h3>Subscribe on Substack</h3>
-          <p>
-            {connectPage.content.newsletterEmbedLabel}. Drop your Substack subscribe embed or signup form
-            here and keep this section focused on the newsletter.
-          </p>
-          <p className="newsletter-card__note">This section is ready for the Substack embed or signup form.</p>
-        </div>
-      </section>
+        <section id="headlines" className="section-shell section-shell--narrow section-shell--subpage">
+          <SectionHeading kicker="Newsletter" title={connectPage.content.newsletterHeading} />
+          <p className="body-copy body-copy--centered">{connectPage.content.newsletterSubtitle}</p>
+          <div className="newsletter-card newsletter-card--headlines">
+            <p className="newsletter-card__eyebrow">
+              {connectPage.content.newsletterCardEyebrow || "The Headlines"}
+            </p>
+            <h3>{connectPage.content.newsletterCardTitle || "Subscribe on Substack"}</h3>
+            {connectPage.content.newsletterCtaUrl ? (
+              <a
+                className="button-primary"
+                href={connectPage.content.newsletterCtaUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {connectPage.content.newsletterCtaLabel || "Read The Headlines"}
+              </a>
+            ) : null}
+          </div>
+        </section>
     </main>
   );
 }
@@ -616,6 +623,7 @@ function ComicReaderOverlay({ title, isOpen, onClose, initialPage = 1, pdfUrl, i
   }
 
   const canGoNext = currentPage < (pageCount || currentPage);
+  const preloadPageNumbers = pageCount && currentPage < pageCount ? [currentPage + 1] : [];
 
   return (
     <div className={`comic-reader ${showChrome ? "comic-reader--chrome-visible" : ""}`}>
@@ -662,6 +670,7 @@ function ComicReaderOverlay({ title, isOpen, onClose, initialPage = 1, pdfUrl, i
                   width={stageWidth}
                   loading={<ReaderLoading />}
                   onLoadSuccess={setPageCount}
+                  preloadPageNumbers={preloadPageNumbers}
                 />
               </Suspense>
             ) : imagePages[currentPage - 1] ? (

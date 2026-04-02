@@ -11,7 +11,6 @@ function ReaderLoading() {
 }
 
 export default function InlinePdfReader({
-  title,
   pdfUrl,
   className = "",
   compact = false,
@@ -88,6 +87,8 @@ export default function InlinePdfReader({
     setCurrentPage((page) => Math.min(page + 1, pageCount || page + 1));
   }
 
+  const preloadPageNumbers = pageCount && currentPage < pageCount ? [currentPage + 1] : [];
+
   return (
     <div
       className={`inline-pdf-reader ${compact ? "inline-pdf-reader--compact" : ""} ${className}`.trim()}
@@ -106,6 +107,7 @@ export default function InlinePdfReader({
               onLoadError={(error) =>
                 setLoadError(error?.message || "Failed to load PDF file.")
               }
+              preloadPageNumbers={preloadPageNumbers}
             />
           </Suspense>
         ) : (
@@ -113,8 +115,15 @@ export default function InlinePdfReader({
         )}
       </div>
       <div className="inline-pdf-reader__footer">
-        <div className="inline-pdf-reader__meta">
-          <span>{title}</span>
+        <button
+          type="button"
+          className="inline-pdf-reader__nav-button"
+          onClick={goToPrevious}
+          disabled={currentPage <= 1}
+        >
+          Prev
+        </button>
+        <div className="inline-pdf-reader__meta" aria-live="polite">
           <span>
             Page {currentPage}
             {pageCount ? ` of ${pageCount}` : ""}
@@ -123,15 +132,7 @@ export default function InlinePdfReader({
         <div className="inline-pdf-reader__controls">
           <button
             type="button"
-            className="button-secondary button-compact"
-            onClick={goToPrevious}
-            disabled={currentPage <= 1}
-          >
-            Prev
-          </button>
-          <button
-            type="button"
-            className="button-secondary button-compact"
+            className="inline-pdf-reader__nav-button"
             onClick={goToNext}
             disabled={pageCount ? currentPage >= pageCount : false}
           >

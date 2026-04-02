@@ -868,7 +868,34 @@ async function streamStorageFile(res, { key, contentType, disposition, filename 
   }
 
   res.setHeader("Cache-Control", "private, max-age=300");
-  response.Body?.pipe(res);
+  if (response.Body?.pipe) {
+    response.Body.pipe(res);
+    return;
+  }
+
+  if (response.Body?.transformToByteArray) {
+    const bytes = await response.Body.transformToByteArray();
+    res.end(Buffer.from(bytes));
+    return;
+  }
+
+  if (response.Body?.transformToWebStream) {
+    const webStream = response.Body.transformToWebStream();
+    const reader = webStream.getReader();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      res.write(Buffer.from(value));
+    }
+
+    res.end();
+    return;
+  }
+
+  throw new Error("Storage response body could not be streamed.");
 }
 
 function getSessionTtlMs() {

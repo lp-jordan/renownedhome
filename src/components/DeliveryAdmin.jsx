@@ -463,7 +463,6 @@ export default function DeliveryAdmin() {
                     <>
                       <div className="delivery-pdf-frame">
                         <InlinePdfReader
-                          title={detail.currentPdf.originalFilename}
                           pdfUrl={pdfReaderUrl}
                           compact
                         />

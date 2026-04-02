@@ -145,7 +145,10 @@ export const defaultSiteData = {
         newsletterHeading: "The Headlines",
         newsletterSubtitle:
           "A semi-sometimes newsletter about Renowned, writing, comic craft, and the overall creative collaborative process.",
-        newsletterEmbedLabel: "Newsletter embed placeholder",
+        newsletterCardEyebrow: "The Headlines",
+        newsletterCardTitle: "Subscribe on Substack",
+        newsletterCtaLabel: "Read The Headlines",
+        newsletterCtaUrl: "https://substack.com",
         feedHeading: "Latest from The Headlines",
         feedItems: [
           "A new update from the studio will appear here once your newsletter feed is wired in.",

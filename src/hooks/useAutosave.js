@@ -13,7 +13,7 @@ export function useAutosave({ draft, enabled, resetKey, save }) {
     firstRunRef.current = true;
     lastSavedSerializedRef.current = serialized;
     setStatus("Saved");
-  }, [resetKey, serialized]);
+  }, [resetKey]);
 
   useEffect(() => {
     if (!enabled) {
