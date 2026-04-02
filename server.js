@@ -662,11 +662,34 @@ function sanitizeAdminData(data) {
       username: user.username,
       role: user.role,
     })),
-    storage: {
-      database: process.env.DATABASE_URL ? "postgres" : "runtime-json",
-      bucketConfigured: storageIsConfigured(),
-      assetDeliveryMode: storageIsConfigured() ? "signed-app-route" : "external-url",
-    },
+    storage: getRuntimeDiagnostics(),
+  };
+}
+
+function getRuntimeDiagnostics() {
+  const bucketVars = {
+    S3_BUCKET: Boolean(process.env.S3_BUCKET),
+    S3_REGION: Boolean(process.env.S3_REGION),
+    S3_ACCESS_KEY_ID: Boolean(process.env.S3_ACCESS_KEY_ID),
+    S3_SECRET_ACCESS_KEY: Boolean(process.env.S3_SECRET_ACCESS_KEY),
+    S3_ENDPOINT: Boolean(process.env.S3_ENDPOINT),
+    S3_FORCE_PATH_STYLE: process.env.S3_FORCE_PATH_STYLE === "true",
+  };
+
+  const resendVars = {
+    RESEND_API_KEY: Boolean(process.env.RESEND_API_KEY),
+    RESEND_FROM_EMAIL: Boolean(process.env.RESEND_FROM_EMAIL),
+    RESEND_REPLY_TO: Boolean(process.env.RESEND_REPLY_TO),
+  };
+
+  return {
+    database: process.env.DATABASE_URL ? "postgres" : "runtime-json",
+    bucketConfigured: storageIsConfigured(),
+    assetDeliveryMode: storageIsConfigured() ? "signed-app-route" : "external-url",
+    publicSiteOrigin: getPublicSiteOrigin(),
+    resendConfigured: resendIsConfigured(),
+    bucketVars,
+    resendVars,
   };
 }
 
@@ -1302,7 +1325,7 @@ app.get("/api/admin/delivery/summary", requireAdmin, async (req, res) => {
   res.json({
     summary,
     storage: {
-      database: process.env.DATABASE_URL ? "postgres" : "runtime-json",
+      ...getRuntimeDiagnostics(),
       uploadsConfigured: storageIsConfigured(),
       deliveryMode: "app-owned-links",
     },

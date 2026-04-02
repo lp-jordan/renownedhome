@@ -889,6 +889,17 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
           Storage: {adminData.storage.database}
           <br />
           Uploads: {adminData.storage.bucketConfigured ? "bucket ready" : "URL mode"}
+          <br />
+          Public origin: {adminData.storage.publicSiteOrigin}
+          <br />
+          S3 core: {adminData.storage.bucketVars?.S3_BUCKET ? "bucket " : "no-bucket "}
+          {adminData.storage.bucketVars?.S3_REGION ? "region " : "no-region "}
+          {adminData.storage.bucketVars?.S3_ACCESS_KEY_ID ? "key " : "no-key "}
+          {adminData.storage.bucketVars?.S3_SECRET_ACCESS_KEY ? "secret" : "no-secret"}
+          <br />
+          S3 endpoint: {adminData.storage.bucketVars?.S3_ENDPOINT ? "present" : "missing"}
+          <br />
+          Resend: {adminData.storage.resendConfigured ? "ready" : "not ready"}
         </p>
         {tabs.map(([key, label]) => (
           <button key={key} className={`admin-tab ${activeTab === key ? "is-active" : ""}`} onClick={() => setActiveTab(key)} type="button">
