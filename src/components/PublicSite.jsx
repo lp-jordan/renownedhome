@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Link,
   Route,
@@ -128,7 +128,7 @@ function HomePage({ bootstrap }) {
   ].filter(Boolean);
   usePageSeo(page);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!settings.homeSplash.enabled || hasShownHomeSplashThisVisit) {
       return;
     }
