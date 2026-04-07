@@ -1,24 +1,80 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import DeliveryAdmin from "./DeliveryAdmin";
 import { usePageSeo } from "../lib/seo";
 import { useAutosave } from "../hooks/useAutosave";
 
-function formatMonth(dateString) {
+function formatDateTime(dateString) {
   if (!dateString) {
     return "";
   }
 
   return new Intl.DateTimeFormat("en-US", {
-    month: "long",
+    month: "short",
+    day: "numeric",
     year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   }).format(new Date(dateString));
+}
+
+function formatLetterPreview(message) {
+  const normalized = (message || "").replace(/\s+/g, " ").trim();
+
+  if (!normalized) {
+    return "No message provided.";
+  }
+
+  return normalized.length > 120 ? `${normalized.slice(0, 117)}...` : normalized;
+}
+
+function formatRelativeTime(dateString) {
+  if (!dateString) {
+    return "";
+  }
+
+  const date = new Date(dateString);
+  const diffMs = date.getTime() - Date.now();
+  const diffMinutes = Math.round(diffMs / (1000 * 60));
+  const formatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+  const ranges = [
+    { limit: 60, value: diffMinutes, unit: "minute" },
+    { limit: 1440, value: Math.round(diffMinutes / 60), unit: "hour" },
+    { limit: 43200, value: Math.round(diffMinutes / 1440), unit: "day" },
+    { limit: 525600, value: Math.round(diffMinutes / 43200), unit: "month" },
+  ];
+  const match = ranges.find((range) => Math.abs(diffMinutes) < range.limit);
+
+  if (match) {
+    return formatter.format(match.value, match.unit);
+  }
+
+  return formatter.format(Math.round(diffMinutes / 525600), "year");
+}
+
+function formatAssetMeta(asset) {
+  const parts = [];
+  const fileName = asset.metadata?.fileName || asset.metadata?.category || "Uploaded asset";
+  const width = asset.metadata?.width;
+  const height = asset.metadata?.height;
+
+  parts.push(fileName);
+
+  if (width && height) {
+    parts.push(`${width}x${height}`);
+  }
+
+  if (asset.metadata?.normalized) {
+    parts.push("optimized");
+  }
+
+  return parts.join(" | ");
 }
 
 function Field({ label, value, onChange, multiline = false }) {
   return (
-    <label>
+    <label className={`field ${multiline ? "field--multiline" : ""}`}>
       <span>{label}</span>
       {multiline ? (
         <textarea rows={4} value={value} onChange={(event) => onChange(event.target.value)} />
@@ -38,45 +94,119 @@ function isImageAsset(asset) {
   return /\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(asset?.url || "");
 }
 
+function AssetPickerModal({ title, assets, isOpen, onClose, onPick }) {
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSearch("");
+    }
+  }, [isOpen]);
+
+  if (!isOpen) {
+    return null;
+  }
+
+  const filteredAssets = assets.filter((asset) =>
+    [asset.label, asset.url, asset.metadata?.fileName, asset.metadata?.category]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(search.trim().toLowerCase())
+  );
+
+  return (
+    <div className="asset-gallery-modal" role="dialog" aria-modal="true">
+      <div className="asset-gallery-modal__backdrop" onClick={onClose} />
+      <div className="asset-gallery-modal__panel">
+        <div className="asset-gallery-modal__header">
+          <div>
+            <p className="editor-header__eyebrow">Asset library</p>
+            <h3>{title}</h3>
+            <p className="field-help">Choose any uploaded image from the media library.</p>
+          </div>
+          <button className="button-secondary" type="button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+        <label className="asset-picker__search">
+          <span>Search images</span>
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search asset library"
+          />
+        </label>
+        <div className="asset-gallery-grid">
+          {filteredAssets.map((asset) => (
+            <button
+              key={asset.id}
+              className="asset-gallery-card"
+              type="button"
+              onClick={() => {
+                onPick(asset.url);
+                onClose();
+              }}
+            >
+              <img src={asset.url} alt={asset.label} className="asset-gallery-card__image" />
+              <span className="asset-gallery-card__title">{asset.label}</span>
+              <span className="asset-gallery-card__meta">
+                {formatAssetMeta(asset)}
+              </span>
+            </button>
+          ))}
+        </div>
+        {!filteredAssets.length ? (
+          <p className="field-help">No images match that search right now.</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function AssetField({
   label,
   value,
   onChange,
   assets,
-  helperText = "Paste a URL or choose from the asset library.",
+  helperText = "",
 }) {
   const imageAssets = assets.filter(isImageAsset);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   return (
     <div className="asset-field">
-      <Field label={label} value={value} onChange={onChange} />
-      <label className="asset-field__picker">
-        <span>{label} from library</span>
-        <select
-          value=""
-          onChange={(event) => {
-            if (event.target.value) {
-              onChange(event.target.value);
-            }
-            event.target.value = "";
-          }}
+      <div className="asset-media-row">
+        <div className="asset-media-row__header">
+          <span>{label}</span>
+        </div>
+        <button
+          className={`asset-field__preview-button asset-media-row__thumb ${value ? "" : "is-empty"}`}
+          type="button"
+          onClick={() => setPickerOpen(true)}
         >
-          <option value="">Choose an existing image...</option>
-          {imageAssets.map((asset) => (
-            <option key={asset.id} value={asset.url}>
-              {asset.label}
-            </option>
-          ))}
-        </select>
-      </label>
+          {value ? (
+            <img className="asset-field__preview" src={value} alt={label} />
+          ) : (
+            <span className="asset-field__empty">Click to choose from library</span>
+          )}
+        </button>
+      </div>
       {helperText ? <p className="field-help">{helperText}</p> : null}
-      {value ? <img className="asset-field__preview" src={value} alt={label} /> : null}
+      <AssetPickerModal
+        title={`Choose ${label}`}
+        assets={imageAssets}
+        isOpen={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onPick={onChange}
+      />
     </div>
   );
 }
 
 function AssetListField({ label, values, onChange, assets, helperText }) {
   const imageAssets = assets.filter(isImageAsset);
+  const [pickerState, setPickerState] = useState({ open: false, index: -1, mode: "replace" });
 
   function updateItem(index, nextValue) {
     onChange(
@@ -105,66 +235,165 @@ function AssetListField({ label, values, onChange, assets, helperText }) {
       <div className="asset-list-field__items">
         {values.map((value, index) => (
           <div key={`${value}-${index}`} className="asset-list-field__item">
-            <Field
-              label={`${label} ${index + 1}`}
-              value={value}
-              onChange={(nextValue) => updateItem(index, nextValue)}
-            />
-            <label className="asset-field__picker">
-              <span>Replace from library</span>
-              <select
-                value=""
-                onChange={(event) => {
-                  if (event.target.value) {
-                    updateItem(index, event.target.value);
-                  }
-                  event.target.value = "";
-                }}
+            <div className="asset-media-row">
+              <div className="asset-media-row__header">
+                <span>{label} {index + 1}</span>
+              </div>
+              <button
+                className={`asset-field__preview-button asset-media-row__thumb ${value ? "" : "is-empty"}`}
+                type="button"
+                onClick={() => setPickerState({ open: true, index, mode: "replace" })}
               >
-                <option value="">Choose an existing image...</option>
-                {imageAssets.map((asset) => (
-                  <option key={asset.id} value={asset.url}>
-                    {asset.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="asset-list-field__actions">
-              <button className="button-secondary" type="button" onClick={() => removeItem(index)}>
-                Remove
+                {value ? (
+                  <img className="asset-list-field__preview" src={value} alt={`${label} ${index + 1}`} />
+                ) : (
+                  <span className="asset-field__empty">Click to choose from library</span>
+                )}
               </button>
+              <div className="asset-media-row__inline-actions">
+                <button className="asset-media-row__link" type="button" onClick={() => removeItem(index)}>
+                  Remove item
+                </button>
+              </div>
             </div>
-            {value ? <img className="asset-list-field__preview" src={value} alt={`${label} ${index + 1}`} /> : null}
           </div>
         ))}
       </div>
       <div className="asset-list-field__add">
-        <label className="asset-field__picker">
-          <span>Add from library</span>
-          <select
-            value=""
-            onChange={(event) => {
-              addItem(event.target.value);
-              event.target.value = "";
-            }}
-          >
-            <option value="">Choose an existing image...</option>
-            {imageAssets.map((asset) => (
-              <option key={asset.id} value={asset.url}>
-                {asset.label}
-              </option>
-            ))}
-          </select>
-        </label>
         <button
           className="button-secondary"
           type="button"
-          onClick={() => onChange([...values, ""])}
+          onClick={() => setPickerState({ open: true, index: -1, mode: "add" })}
         >
-          Add manual URL
+          Add from library
         </button>
       </div>
       {helperText ? <p className="field-help">{helperText}</p> : null}
+      <AssetPickerModal
+        title={pickerState.mode === "add" ? `Add ${label}` : `Choose ${label}`}
+        assets={imageAssets}
+        isOpen={pickerState.open}
+        onClose={() => setPickerState({ open: false, index: -1, mode: "replace" })}
+        onPick={(nextValue) => {
+          if (pickerState.mode === "add") {
+            addItem(nextValue);
+            return;
+          }
+          if (pickerState.index >= 0) {
+            updateItem(pickerState.index, nextValue);
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+function ImageReplaceRow({ label, value, assets, onReplace, buttonLabel = "Replace" }) {
+  const imageAssets = assets.filter(isImageAsset);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  return (
+    <div className="workspace-image-row">
+      <div className="workspace-image-row__copy">
+        <h3>{label}</h3>
+        {value ? (
+          <img className="workspace-image-row__preview" src={value} alt={label} />
+        ) : (
+          <div className="workspace-image-row__empty">No image assigned</div>
+        )}
+      </div>
+      <button className="button-primary workspace-image-row__button" type="button" onClick={() => setPickerOpen(true)}>
+        {buttonLabel}
+      </button>
+      <AssetPickerModal
+        title={`Choose ${label}`}
+        assets={imageAssets}
+        isOpen={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onPick={(nextValue) => {
+          onReplace(nextValue);
+          setPickerOpen(false);
+        }}
+      />
+    </div>
+  );
+}
+
+function IssueGalleryManager({
+  featuredImage,
+  galleryImages,
+  assets,
+  onChangeFeatured,
+  onChangeGallery,
+}) {
+  const imageAssets = assets.filter(isImageAsset);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const managedImages = uniqueItems([featuredImage, ...galleryImages]);
+
+  function addGalleryImage(value) {
+    onChangeGallery(uniqueItems([...managedImages, value]));
+  }
+
+  function removeGalleryImage(value) {
+    onChangeGallery(managedImages.filter((image) => image !== value));
+    if (featuredImage === value) {
+      onChangeFeatured("");
+    }
+  }
+
+  return (
+    <div className="workspace-gallery-manager">
+      <div className="workspace-gallery-manager__header">
+        <div>
+          <h3>Issue Images</h3>
+          <p className="field-help">These images power both the bottom gallery and the reader. Mark one as featured to use it at the top of the issue page.</p>
+        </div>
+        <button className="button-secondary" type="button" onClick={() => setPickerOpen(true)}>
+          Add image
+        </button>
+      </div>
+      <div className="workspace-gallery-manager__items">
+        {managedImages.map((image, index) => (
+          <div key={`${image}-${index}`} className="workspace-gallery-item">
+            <div className="workspace-gallery-item__media">
+              <img className="workspace-gallery-item__preview" src={image} alt={`Gallery image ${index + 1}`} />
+              <div className="workspace-gallery-item__overlay">
+                <button
+                  className={`workspace-gallery-item__pill ${featuredImage === image ? "is-active" : ""}`}
+                  type="button"
+                  onClick={() => onChangeFeatured(featuredImage === image ? "" : image)}
+                  aria-label={featuredImage === image ? "Remove featured image" : "Make featured image"}
+                  title={featuredImage === image ? "Featured image" : "Make featured"}
+                >
+                  {featuredImage === image ? "Featured" : "Feature"}
+                </button>
+                <button
+                  className="workspace-gallery-item__pill"
+                  type="button"
+                  onClick={() => removeGalleryImage(image)}
+                  aria-label="Remove image"
+                  title="Remove image"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {!managedImages.length ? (
+          <p className="workspace-empty-state">No issue images yet. Add one from the library to populate the issue page and reader.</p>
+        ) : null}
+      </div>
+      <AssetPickerModal
+        title="Add issue image"
+        assets={imageAssets}
+        isOpen={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onPick={(nextValue) => {
+          addGalleryImage(nextValue);
+          setPickerOpen(false);
+        }}
+      />
     </div>
   );
 }
@@ -175,7 +404,7 @@ function EditorHeader({ title, subtitle, status, onSave }) {
       <div>
         <p className="editor-header__eyebrow">Admin</p>
         <h1>{title}</h1>
-        <p>{subtitle}</p>
+        {subtitle ? <p>{subtitle}</p> : null}
       </div>
       <div className="editor-header__actions">
         <span className={`status-pill ${status.includes("Error") ? "status-pill--error" : ""}`}>
@@ -189,223 +418,213 @@ function EditorHeader({ title, subtitle, status, onSave }) {
   );
 }
 
-function PageEditor({ pages, assets, onSave }) {
-  const [selectedId, setSelectedId] = useState(pages[0]?.id || "");
-  const selectedPage = pages.find((page) => page.id === selectedId) || pages[0];
-  const [draft, setDraft] = useState(selectedPage);
-  const [contentText, setContentText] = useState(
-    JSON.stringify(selectedPage?.content || {}, null, 2)
+function AccordionSection({ title, summary, defaultOpen = false, children, helperText }) {
+  return (
+    <details className="editor-section" open={defaultOpen}>
+      <summary className="editor-section__summary">
+        <span className="editor-section__title-wrap">
+          <span className="editor-section__title">{title}</span>
+          {summary ? <span className="editor-section__summary-text">{summary}</span> : null}
+        </span>
+      </summary>
+      <div className="editor-section__body">
+        {helperText ? <p className="field-help">{helperText}</p> : null}
+        {children}
+      </div>
+    </details>
   );
+}
+
+const HOME_PANEL_ORDER = ["/read", "/meet", "/letters", "/buy"];
+const HOME_PANEL_DEFAULTS = {
+  "/read": { label: "Read", href: "/read", size: "wide" },
+  "/meet": { label: "Meet", href: "/meet", size: "wide-half" },
+  "/letters": { label: "Letters", href: "/letters", size: "standard" },
+  "/buy": { label: "Buy", href: "/buy", size: "standard" },
+};
+
+function getHomePanels(page) {
+  const existingPanels = Array.isArray(page?.content?.panels) ? page.content.panels : [];
+
+  return HOME_PANEL_ORDER.map((href) => {
+    const existing = existingPanels.find((panel) => panel.href === href);
+    return {
+      ...HOME_PANEL_DEFAULTS[href],
+      ...existing,
+    };
+  });
+}
+
+function uniqueItems(items) {
+  return [...new Set(items.filter(Boolean))];
+}
+
+function PageEditor({ pages, assets, onSave, title = "Pages" }) {
+  const selectedPage = pages[0];
+  const [draft, setDraft] = useState(selectedPage);
+  const [saveStatus, setSaveStatus] = useState("");
 
   useEffect(() => {
     setDraft(selectedPage);
-    setContentText(JSON.stringify(selectedPage?.content || {}, null, 2));
+    setSaveStatus("");
   }, [selectedPage]);
 
-  const autosave = useAutosave({
-    draft,
-    enabled: Boolean(draft),
-    resetKey: selectedId,
-    save: onSave,
-  });
+  async function saveNextDraft(nextDraft, statusLabel = "Image updated.") {
+    setDraft(nextDraft);
+    setSaveStatus("Updating image...");
+    try {
+      await onSave(nextDraft);
+      setSaveStatus(statusLabel);
+    } catch (error) {
+      setSaveStatus(error.message || "Unable to update image.");
+    }
+  }
 
-  function update(path, value) {
-    setDraft((current) => {
-      const next = structuredClone(current);
-      let cursor = next;
-      for (let i = 0; i < path.length - 1; i += 1) {
-        cursor = cursor[path[i]];
-      }
-      cursor[path[path.length - 1]] = value;
-      return next;
-    });
+  function buildDraft(path, value) {
+    const next = structuredClone(draft);
+    let cursor = next;
+    for (let index = 0; index < path.length - 1; index += 1) {
+      cursor = cursor[path[index]];
+    }
+    cursor[path[path.length - 1]] = value;
+    return next;
+  }
+
+  async function update(path, value, statusLabel) {
+    if (!draft) {
+      return;
+    }
+
+    await saveNextDraft(buildDraft(path, value), statusLabel);
+  }
+
+  async function updateHomePanelImage(panelHref, image) {
+    if (!draft) {
+      return;
+    }
+
+    const nextDraft = structuredClone(draft);
+    const panels = Array.isArray(nextDraft.content?.panels) ? nextDraft.content.panels : [];
+    const existingIndex = panels.findIndex((panel) => panel.href === panelHref);
+
+    if (existingIndex >= 0) {
+      panels[existingIndex] = {
+        ...panels[existingIndex],
+        ...HOME_PANEL_DEFAULTS[panelHref],
+        image,
+      };
+    } else {
+      panels.push({
+        ...HOME_PANEL_DEFAULTS[panelHref],
+        image,
+      });
+    }
+
+    nextDraft.content.panels = panels;
+    await saveNextDraft(nextDraft, `${HOME_PANEL_DEFAULTS[panelHref].label} image updated.`);
   }
 
   if (!draft) {
     return null;
   }
 
+  const homePanels = draft.slug === "/" ? getHomePanels(draft) : [];
+
   return (
-    <section className="editor-shell">
-      <EditorHeader
-        title="Pages"
-        subtitle="Edit public page content, hero fields, and SEO."
-        status={autosave.status}
-        onSave={autosave.saveNow}
-      />
-      <label className="control-row">
-        <span>Current page</span>
-        <select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
-          {pages.map((page) => (
-            <option key={page.id} value={page.id}>
-              {page.title}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="editor-grid">
-        <div className="editor-card">
-          <h3>Basics</h3>
-          <Field label="Title" value={draft.title} onChange={(value) => update(["title"], value)} />
-          <Field label="Slug" value={draft.slug} onChange={(value) => update(["slug"], value)} />
-          <Field label="Status" value={draft.status} onChange={(value) => update(["status"], value)} />
+    <section className="workspace-detail">
+      <header className="workspace-detail__header">
+        <div className="workspace-detail__heading">
+          <h1>{draft.title || title}</h1>
+          <p>
+            <span>{draft.slug || "/"}</span>
+            <span className="workspace-detail__meta-sep">
+              {draft.status === "published" ? "Published" : "Draft"}
+            </span>
+          </p>
         </div>
-        <div className="editor-card">
-          <h3>SEO</h3>
-          <Field
-            label="SEO Title"
-            value={draft.seo.title}
-            onChange={(value) => update(["seo", "title"], value)}
-          />
-          <Field
-            label="Description"
-            value={draft.seo.description}
-            multiline
-            onChange={(value) => update(["seo", "description"], value)}
-          />
-          <Field
-            label="Canonical"
-            value={draft.seo.canonicalUrl}
-            onChange={(value) => update(["seo", "canonicalUrl"], value)}
-          />
-          <AssetField
-            label="OG image"
-            value={draft.seo.ogImage}
-            assets={assets}
-            onChange={(value) => update(["seo", "ogImage"], value)}
-          />
-        </div>
-        <div className="editor-card">
-          <h3>Hero</h3>
-          <Field
-            label="Title"
-            value={draft.hero.title || ""}
-            onChange={(value) => update(["hero", "title"], value)}
-          />
-          <Field
-            label="Subtitle"
-            value={draft.hero.subtitle || ""}
-            multiline
-            onChange={(value) => update(["hero", "subtitle"], value)}
-          />
-          <Field
-            label="Kicker"
-            value={draft.hero.kicker || ""}
-            onChange={(value) => update(["hero", "kicker"], value)}
-          />
-          <Field
-            label="Intro"
-            value={draft.hero.intro || ""}
-            multiline
-            onChange={(value) => update(["hero", "intro"], value)}
-          />
-          <AssetField
-            label="Background image"
-            value={draft.hero.backgroundImage || ""}
-            assets={assets}
-            onChange={(value) => update(["hero", "backgroundImage"], value)}
-          />
-          <AssetField
-            label="Title image"
-            value={draft.hero.titleImage || ""}
-            assets={assets}
-            onChange={(value) => update(["hero", "titleImage"], value)}
-          />
-          <Field
-            label="CTA label"
-            value={draft.hero.ctaLabel || ""}
-            onChange={(value) => update(["hero", "ctaLabel"], value)}
-          />
-          <Field
-            label="CTA URL"
-            value={draft.hero.ctaUrl || ""}
-            onChange={(value) => update(["hero", "ctaUrl"], value)}
-          />
-        </div>
-        {draft.slug === "/connect" ? (
-          <div className="editor-card">
-            <h3>Headlines section</h3>
-            <Field
-              label="Newsletter heading"
-              value={draft.content.newsletterHeading || ""}
-              onChange={(value) => update(["content", "newsletterHeading"], value)}
-            />
-            <Field
-              label="Newsletter subtitle"
-              value={draft.content.newsletterSubtitle || ""}
-              multiline
-              onChange={(value) => update(["content", "newsletterSubtitle"], value)}
-            />
-            <Field
-              label="Card eyebrow"
-              value={draft.content.newsletterCardEyebrow || ""}
-              onChange={(value) => update(["content", "newsletterCardEyebrow"], value)}
-            />
-            <Field
-              label="Card title"
-              value={draft.content.newsletterCardTitle || ""}
-              onChange={(value) => update(["content", "newsletterCardTitle"], value)}
-            />
-            <Field
-              label="Button label"
-              value={draft.content.newsletterCtaLabel || ""}
-              onChange={(value) => update(["content", "newsletterCtaLabel"], value)}
-            />
-            <Field
-              label="Button URL"
-              value={draft.content.newsletterCtaUrl || ""}
-              onChange={(value) => update(["content", "newsletterCtaUrl"], value)}
-            />
+      </header>
+
+      <p className="workspace-inline-note">
+        This page is managed in code. Only images can be updated here.
+      </p>
+      {saveStatus ? <p className="workspace-inline-note">{saveStatus}</p> : null}
+
+      <div className="workspace-read-view">
+        <section className="workspace-read-section">
+          <h2>Hero</h2>
+          <div className="workspace-read-copy">
+            <p className="workspace-read-copy__title">{draft.hero?.title || draft.title}</p>
+            {draft.hero?.subtitle ? <p>{draft.hero.subtitle}</p> : null}
+            {draft.hero?.intro ? <p>{draft.hero.intro}</p> : null}
           </div>
-        ) : null}
-        <div className="editor-card editor-card--full">
-          <h3>Structured content JSON</h3>
-          <textarea
-            rows={18}
-            value={contentText}
-            onChange={(event) => {
-              const value = event.target.value;
-              setContentText(value);
-              try {
-                update(["content"], JSON.parse(value));
-                autosave.setStatus("Saving...");
-              } catch {
-                autosave.setStatus("Invalid JSON");
-              }
-            }}
-          />
-        </div>
+        </section>
+
+        <section className="workspace-read-section">
+          <h2>Images</h2>
+          <div className="workspace-image-list">
+            <ImageReplaceRow
+              label="Background Image"
+              value={draft.hero?.backgroundImage || ""}
+              assets={assets}
+              onReplace={(value) => update(["hero", "backgroundImage"], value, "Background image updated.")}
+            />
+            {draft.hero?.titleImage ? (
+              <ImageReplaceRow
+                label="Title Image"
+                value={draft.hero.titleImage}
+                assets={assets}
+                onReplace={(value) => update(["hero", "titleImage"], value, "Title image updated.")}
+              />
+            ) : null}
+            {homePanels.map((panel) => (
+              <ImageReplaceRow
+                key={panel.href}
+                label={`${panel.label} Image`}
+                value={panel.image || ""}
+                assets={assets}
+                onReplace={(value) => updateHomePanelImage(panel.href, value)}
+              />
+            ))}
+          </div>
+        </section>
       </div>
     </section>
   );
 }
 
-function IssueEditor({ issues, assets, onSave }) {
-  const [selectedId, setSelectedId] = useState(issues[0]?.id || "");
-  const selectedIssue = issues.find((issue) => issue.id === selectedId) || issues[0];
+function IssueEditor({ issues, assets, onSave, title = "Issues" }) {
+  const selectedIssue = issues[0];
   const [draft, setDraft] = useState(selectedIssue);
+  const [saveStatus, setSaveStatus] = useState("");
 
   useEffect(() => {
     setDraft(selectedIssue);
+    setSaveStatus("");
   }, [selectedIssue]);
 
-  const autosave = useAutosave({
-    draft,
-    enabled: Boolean(draft),
-    resetKey: selectedId,
-    save: onSave,
-  });
+  async function saveNextDraft(nextDraft, statusLabel) {
+    setDraft(nextDraft);
+    setSaveStatus("Updating image...");
+    try {
+      await onSave(nextDraft);
+      setSaveStatus(statusLabel);
+    } catch (error) {
+      setSaveStatus(error.message || "Unable to update image.");
+    }
+  }
 
-  function update(path, value) {
-    setDraft((current) => {
-      const next = structuredClone(current);
-      let cursor = next;
-      for (let i = 0; i < path.length - 1; i += 1) {
-        cursor = cursor[path[i]];
-      }
-      cursor[path[path.length - 1]] = value;
-      return next;
-    });
+  async function update(path, value, statusLabel) {
+    if (!draft) {
+      return;
+    }
+
+    const nextDraft = structuredClone(draft);
+    let cursor = nextDraft;
+    for (let index = 0; index < path.length - 1; index += 1) {
+      cursor = cursor[path[index]];
+    }
+    cursor[path[path.length - 1]] = value;
+    await saveNextDraft(nextDraft, statusLabel);
   }
 
   if (!draft) {
@@ -413,175 +632,377 @@ function IssueEditor({ issues, assets, onSave }) {
   }
 
   return (
-    <section className="editor-shell">
-      <EditorHeader
-        title="Issues"
-        subtitle="Shared issue and one-shot page model."
-        status={autosave.status}
-        onSave={autosave.saveNow}
-      />
-      <label className="control-row">
-        <span>Current issue</span>
-        <select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
-          {issues.map((issue) => (
-            <option key={issue.id} value={issue.id}>
-              {issue.title}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="editor-grid">
-        <div className="editor-card">
-          <h3>Basics</h3>
-          <Field label="Title" value={draft.title} onChange={(value) => update(["title"], value)} />
-          <Field label="Slug" value={draft.slug} onChange={(value) => update(["slug"], value)} />
-          <Field label="Type" value={draft.type} onChange={(value) => update(["type"], value)} />
-          <Field label="Status" value={draft.status} onChange={(value) => update(["status"], value)} />
-          <Field
-            label="Sort order"
-            value={String(draft.sortOrder)}
-            onChange={(value) => update(["sortOrder"], Number(value) || 0)}
-          />
+    <section className="workspace-detail">
+      <header className="workspace-detail__header">
+        <div className="workspace-detail__heading">
+          <h1>{draft.title || title}</h1>
+          <p>
+            <span>{draft.slug || "/"}</span>
+            <span className="workspace-detail__meta-sep">
+              {draft.status === "published" ? "Published" : "Draft"}
+            </span>
+          </p>
         </div>
-        <div className="editor-card">
-          <h3>Meta</h3>
-          <Field label="Release date" value={draft.releaseDate || ""} onChange={(value) => update(["releaseDate"], value)} />
-          <Field label="Writer" value={draft.writer} onChange={(value) => update(["writer"], value)} />
-          <Field label="Artist" value={draft.artist} onChange={(value) => update(["artist"], value)} />
-          <Field label="Colorist" value={draft.colorist} onChange={(value) => update(["colorist"], value)} />
-          <Field label="Preview label" value={draft.previewLabel || ""} onChange={(value) => update(["previewLabel"], value)} />
-          <Field label="Preview URL" value={draft.previewUrl || ""} onChange={(value) => update(["previewUrl"], value)} />
-          <Field label="Reader label" value={draft.readerLabel || ""} onChange={(value) => update(["readerLabel"], value)} />
-          <Field label="Reader PDF URL" value={draft.readerPdfUrl || ""} onChange={(value) => update(["readerPdfUrl"], value)} />
-          <AssetField label="Cover image" value={draft.coverImage || ""} assets={assets} onChange={(value) => update(["coverImage"], value)} />
-        </div>
-        <div className="editor-card">
-          <h3>SEO</h3>
-          <Field label="SEO Title" value={draft.seo.title} onChange={(value) => update(["seo", "title"], value)} />
-          <Field label="Description" value={draft.seo.description} multiline onChange={(value) => update(["seo", "description"], value)} />
-          <Field label="Canonical" value={draft.seo.canonicalUrl} onChange={(value) => update(["seo", "canonicalUrl"], value)} />
-          <AssetField label="OG image" value={draft.seo.ogImage} assets={assets} onChange={(value) => update(["seo", "ogImage"], value)} />
-        </div>
-        <div className="editor-card editor-card--full">
-          <h3>Description</h3>
-          <textarea rows={10} value={draft.description} onChange={(event) => update(["description"], event.target.value)} />
-        </div>
-        <div className="editor-card editor-card--full">
-          <AssetListField
-            label="Hero assets"
-            values={draft.heroAssets || []}
-            assets={assets}
-            onChange={(value) => update(["heroAssets"], value)}
-            helperText="Set the issue carousel images from the existing asset library or add a manual URL."
-          />
-        </div>
-        <div className="editor-card editor-card--full">
-          <AssetListField
-            label="Reader page images"
-            values={draft.readerImages || []}
-            assets={assets}
-            onChange={(value) => update(["readerImages"], value)}
-            helperText="Use this when you want the public reader to render image pages from stored assets."
-          />
-        </div>
+      </header>
+
+      <p className="workspace-inline-note">
+        This page is managed in code. Only images can be updated here.
+      </p>
+      {saveStatus ? <p className="workspace-inline-note">{saveStatus}</p> : null}
+
+      <div className="workspace-read-view">
+        <section className="workspace-read-section">
+          <h2>Images</h2>
+          <div className="workspace-image-list">
+            <IssueGalleryManager
+              featuredImage={draft.featuredImage || draft.coverImage || ""}
+              galleryImages={draft.heroAssets || []}
+              assets={assets}
+              onChangeFeatured={(value) => update(["featuredImage"], value, "Featured image updated.")}
+              onChangeGallery={(value) => update(["heroAssets"], value, "Issue images updated.")}
+            />
+          </div>
+        </section>
       </div>
     </section>
   );
 }
 
-function LettersAdmin({ issues, letters, onSave }) {
-  const [selectedId, setSelectedId] = useState(letters[0]?.id || "");
-  const selected = letters.find((letter) => letter.id === selectedId) || letters[0];
+function LettersAdmin({ letters, onSave }) {
+  const activeLetters = letters
+    .filter((letter) => letter.status !== "archived")
+    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
+  const archivedLetters = letters
+    .filter((letter) => letter.status === "archived")
+    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
+  const pendingLetters = activeLetters.filter((letter) => letter.status !== "approved" && letter.status !== "rejected");
+  const defaultLetter = activeLetters[0] || letters[0];
+  const [selectedId, setSelectedId] = useState(defaultLetter?.id || "");
+  const [showArchived, setShowArchived] = useState(false);
+  const selected =
+    activeLetters.find((letter) => letter.id === selectedId) ||
+    archivedLetters.find((letter) => letter.id === selectedId) ||
+    activeLetters[0] ||
+    archivedLetters[0] ||
+    letters[0];
   const [draft, setDraft] = useState(selected);
+  const [search, setSearch] = useState("");
+  const [replyText, setReplyText] = useState(selected?.editorReply || "");
+  const [moderatedView, setModeratedView] = useState("approved");
+  const replyRef = useRef(null);
+
+  useEffect(() => {
+    if (!letters.length) {
+      if (selectedId) {
+        setSelectedId("");
+      }
+      return;
+    }
+
+    const letterStillExists =
+      activeLetters.some((letter) => letter.id === selectedId) ||
+      archivedLetters.some((letter) => letter.id === selectedId);
+
+    if (!selected || !letterStillExists) {
+      setSelectedId(defaultLetter?.id || activeLetters[0]?.id || archivedLetters[0]?.id || letters[0]?.id || "");
+    }
+  }, [activeLetters, archivedLetters, defaultLetter, letters, selected, selectedId]);
 
   useEffect(() => {
     setDraft(selected);
+    setReplyText(selected?.editorReply || "");
   }, [selected]);
 
   const autosave = useAutosave({
     draft,
-    enabled: Boolean(draft),
+    enabled: false,
     resetKey: selectedId,
     save: onSave,
   });
+
+  async function persistDraft(nextDraft) {
+    setDraft(nextDraft);
+    autosave.setStatus("Saving...");
+
+    try {
+      await onSave(nextDraft);
+      autosave.setStatus("Saved");
+    } catch (error) {
+      autosave.setStatus(error.message || "Error");
+    }
+  }
 
   if (!draft) {
     return null;
   }
 
+  const filteredLetters = activeLetters.filter((letter) =>
+    [letter.name, letter.email, letter.message, letter.issueLabel]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(search.trim().toLowerCase())
+  );
+  const filteredPendingLetters = filteredLetters.filter(
+    (letter) => letter.status !== "approved" && letter.status !== "rejected"
+  );
+  const filteredModeratedLetters = filteredLetters.filter((letter) => letter.status === moderatedView);
+  const filteredArchivedLetters = archivedLetters.filter((letter) =>
+    [letter.name, letter.email, letter.message, letter.issueLabel]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(search.trim().toLowerCase())
+  );
+
+  async function handleReplySend() {
+    await persistDraft({
+      ...draft,
+      editorReply: replyText,
+    });
+  }
+
+  async function handleStatusChange(status) {
+    await persistDraft({
+      ...draft,
+      status,
+      featured: status === "approved" ? draft.featured : false,
+      publishedAt:
+        status === "approved" ? draft.publishedAt || new Date().toISOString() : draft.publishedAt,
+    });
+  }
+
+  async function handleFeatureChange(featured) {
+    await persistDraft({
+      ...draft,
+      status: "approved",
+      featured,
+      publishedAt: draft.publishedAt || new Date().toISOString(),
+    });
+  }
+
+  async function handleArchive() {
+    setShowArchived(true);
+    await persistDraft({
+      ...draft,
+      status: "archived",
+    });
+  }
+
   return (
-    <section className="editor-shell">
-      <EditorHeader title="Letters" subtitle="Moderate and feature reader submissions." status={autosave.status} onSave={autosave.saveNow} />
-      <label className="control-row">
-        <span>Submission</span>
-        <select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
-          {letters.map((letter) => (
-            <option key={letter.id} value={letter.id}>
-              {letter.name} - {formatMonth(letter.createdAt)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="editor-grid">
-        <div className="editor-card">
-          <Field label="Name" value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} />
-          <Field label="Email" value={draft.email || ""} onChange={(value) => setDraft((current) => ({ ...current, email: value }))} />
-          <label>
-            <span>Issue</span>
-            <select value={draft.issueSlug} onChange={(event) => setDraft((current) => ({ ...current, issueSlug: event.target.value }))}>
-              {issues.map((issue) => (
-                <option key={issue.id} value={issue.slug}>
-                  {issue.title}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>Status</span>
-            <select
-              value={draft.status}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  status: event.target.value,
-                  publishedAt:
-                    event.target.value === "approved" && !current.publishedAt
-                      ? new Date().toISOString()
-                      : current.publishedAt,
-                }))
-              }
+    <section className="workspace-grid">
+      <aside className="workspace-list">
+        <label className="workspace-search">
+          <span>Search</span>
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search letters"
+          />
+        </label>
+        <div className="workspace-list__items workspace-list__items--letters">
+          {filteredPendingLetters.map((letter) => (
+            <button
+              key={letter.id}
+              type="button"
+              className={`workspace-list__item workspace-list__item--letter ${selectedId === letter.id ? "is-active" : ""}`}
+              onClick={() => setSelectedId(letter.id)}
             >
-              <option value="pending">pending</option>
-              <option value="approved">approved</option>
-              <option value="rejected">rejected</option>
-            </select>
-          </label>
-          <label className="checkbox-row">
-            <input
-              type="checkbox"
-              checked={draft.featured}
-              onChange={(event) => setDraft((current) => ({ ...current, featured: event.target.checked }))}
+              <div className="workspace-list__item-row">
+                <strong>{letter.name || "Anonymous"}</strong>
+                <span>{formatRelativeTime(letter.createdAt)}</span>
+              </div>
+              <p>{formatLetterPreview(letter.message)}</p>
+            </button>
+          ))}
+          <div className="workspace-list__divider">
+            <div className="workspace-list__divider-line" />
+            <div className="workspace-list__toggle">
+              <button
+                type="button"
+                className={moderatedView === "approved" ? "is-active" : ""}
+                onClick={() => setModeratedView("approved")}
+              >
+                Approved
+              </button>
+              <button
+                type="button"
+                className={moderatedView === "rejected" ? "is-active" : ""}
+                onClick={() => setModeratedView("rejected")}
+              >
+                Denied
+              </button>
+            </div>
+          </div>
+          {filteredModeratedLetters.map((letter) => (
+            <button
+              key={letter.id}
+              type="button"
+              className={`workspace-list__item workspace-list__item--letter ${selectedId === letter.id ? "is-active" : ""}`}
+              onClick={() => setSelectedId(letter.id)}
+            >
+              <div className="workspace-list__item-row">
+                <strong>{letter.name || "Anonymous"}</strong>
+                <span>{formatRelativeTime(letter.createdAt)}</span>
+              </div>
+              <p>{formatLetterPreview(letter.message)}</p>
+            </button>
+          ))}
+          {showArchived ? (
+            <>
+              <div className="workspace-list__divider workspace-list__divider--archived">
+                <div className="workspace-list__divider-line" />
+                <div className="workspace-list__section-label">Archived</div>
+              </div>
+              {filteredArchivedLetters.map((letter) => (
+                <button
+                  key={letter.id}
+                  type="button"
+                  className={`workspace-list__item workspace-list__item--letter ${selectedId === letter.id ? "is-active" : ""}`}
+                  onClick={() => setSelectedId(letter.id)}
+                >
+                  <div className="workspace-list__item-row">
+                    <strong>{letter.name || "Anonymous"}</strong>
+                    <span>{formatRelativeTime(letter.createdAt)}</span>
+                  </div>
+                  <p>{formatLetterPreview(letter.message)}</p>
+                </button>
+              ))}
+            </>
+          ) : null}
+          {!filteredPendingLetters.length && !filteredModeratedLetters.length ? (
+            <p className="workspace-empty-state">No letters match that search.</p>
+          ) : null}
+        </div>
+        <div className="workspace-list__footer">
+          <button
+            className="workspace-list__archived-button"
+            type="button"
+            onClick={() => setShowArchived((current) => !current)}
+          >
+            {showArchived ? "Hide archived" : "Archived"}
+          </button>
+        </div>
+      </aside>
+
+      <section className="workspace-detail">
+        <header className="workspace-detail__header">
+          <div className="workspace-detail__heading">
+            <h1>{draft.name || "Anonymous"}</h1>
+            {draft.location ? <p>{draft.location}</p> : null}
+          </div>
+          <div className="workspace-detail__actions">
+            <button className="button-primary" type="button" onClick={() => replyRef.current?.focus()}>
+              Reply
+            </button>
+            <button className="button-secondary" type="button" onClick={handleArchive}>
+              Archive
+            </button>
+          </div>
+        </header>
+
+        <div className="workspace-read-view">
+          <article className="workspace-letter-body">
+            {draft.message
+              ?.split(/\n{2,}/)
+              .filter(Boolean)
+              .map((paragraph, index) => <p key={`${draft.id}-paragraph-${index}`}>{paragraph}</p>)}
+          </article>
+
+          <div className="workspace-divider" />
+
+          <section className="workspace-reply">
+            <div className="workspace-reply__header">
+              <h2>Reply</h2>
+              {autosave.status ? <span>{autosave.status}</span> : null}
+            </div>
+            <textarea
+              ref={replyRef}
+              value={replyText}
+              onChange={(event) => setReplyText(event.target.value)}
+              onKeyDown={(event) => {
+                if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                  event.preventDefault();
+                  void handleReplySend();
+                }
+              }}
+              placeholder="Write a reply..."
             />
-            <span>Featured</span>
-          </label>
+            <div className="workspace-reply__actions">
+              <button className="button-primary" type="button" onClick={handleReplySend}>
+                Send
+              </button>
+            </div>
+          </section>
+
+          <section className="workspace-moderation">
+            <div className="workspace-moderation__actions">
+              <button
+                className={`button-secondary ${draft.status === "approved" ? "is-selected" : ""}`}
+                type="button"
+                onClick={() => handleStatusChange("approved")}
+              >
+                Approve
+              </button>
+              <button
+                className={`button-secondary ${draft.status === "rejected" ? "is-selected" : ""}`}
+                type="button"
+                onClick={() => handleStatusChange("rejected")}
+              >
+                Deny
+              </button>
+              <div className="workspace-moderation__status">
+                <span className={`workspace-badge workspace-badge--${draft.status || "pending"}`}>
+                  {draft.status || "pending"}
+                </span>
+              </div>
+            </div>
+            <label className={`workspace-toggle ${draft.status === "approved" ? "" : "is-disabled"}`}>
+              <input
+                type="checkbox"
+                checked={Boolean(draft.featured)}
+                disabled={draft.status !== "approved"}
+                onChange={(event) => handleFeatureChange(event.target.checked)}
+              />
+              <span>Feature on letters page</span>
+            </label>
+          </section>
         </div>
-        <div className="editor-card editor-card--full">
-          <Field label="Letter" value={draft.message} multiline onChange={(value) => setDraft((current) => ({ ...current, message: value }))} />
-        </div>
-        <div className="editor-card editor-card--full">
-          <Field label="Editor reply" value={draft.editorReply || ""} multiline onChange={(value) => setDraft((current) => ({ ...current, editorReply: value }))} />
-        </div>
-      </div>
+      </section>
     </section>
   );
 }
-
-function SimpleCollectionEditor({ title, subtitle, items, assets, onSave, fields, itemLabel }) {
+function SimpleCollectionEditor({
+  title,
+  subtitle,
+  items,
+  assets,
+  onSave,
+  onDelete,
+  fields,
+  itemLabel,
+  showSelector = true,
+  showHeader = true,
+  createItem,
+  createLabel,
+  deleteLabel,
+}) {
   const [selectedId, setSelectedId] = useState(items[0]?.id || "");
   const selected = items.find((entry) => entry.id === selectedId) || items[0];
   const [draft, setDraft] = useState(selected);
 
   useEffect(() => {
+    if (!items.length) {
+      setSelectedId("");
+      return;
+    }
+
+    if (!items.some((entry) => entry.id === selectedId)) {
+      setSelectedId(items[0].id);
+    }
+  }, [items, selectedId]);
+
+  useEffect(() => {
     setDraft(selected);
   }, [selected]);
 
@@ -592,23 +1013,66 @@ function SimpleCollectionEditor({ title, subtitle, items, assets, onSave, fields
     save: onSave,
   });
 
-  if (!draft) {
-    return null;
+  async function handleCreate() {
+    if (!createItem) {
+      return;
+    }
+
+    const nextItem = createItem();
+    setSelectedId(nextItem.id);
+    await onSave(nextItem);
+  }
+
+  async function handleDelete() {
+    if (!draft || !onDelete) {
+      return;
+    }
+
+    const fallback = items.find((entry) => entry.id !== draft.id);
+    setSelectedId(fallback?.id || "");
+    await onDelete(draft.id);
   }
 
   return (
     <section className="editor-shell">
-      <EditorHeader title={title} subtitle={subtitle} status={autosave.status} onSave={autosave.saveNow} />
-      <label className="control-row">
-        <span>{itemLabel}</span>
-        <select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
-          {items.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name || item.label || item.sourcePath}
-            </option>
-          ))}
-        </select>
-      </label>
+      {showHeader ? (
+        <EditorHeader title={title} subtitle={subtitle} status={autosave.status} onSave={autosave.saveNow} />
+      ) : (
+        <div className="editor-card editor-card--full">
+          <h3>{title}</h3>
+          <p className="field-help">Status: {autosave.status}</p>
+        </div>
+      )}
+      {createItem ? (
+        <div className="page-surface__actions">
+          <button className="button-secondary" type="button" onClick={handleCreate}>
+            {createLabel || `Add ${itemLabel}`}
+          </button>
+          {draft && onDelete ? (
+            <button className="button-secondary" type="button" onClick={handleDelete}>
+              {deleteLabel || `Delete ${itemLabel}`}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {showSelector ? (
+        <label className="control-row">
+          <span>{itemLabel}</span>
+          <select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
+            {items.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name || item.label || item.sourcePath}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {!draft ? (
+        <div className="editor-card editor-card--full">
+          <p className="field-help">No {title.toLowerCase()} yet. Use the add button to create the first one.</p>
+        </div>
+      ) : null}
+      {draft ? (
       <div className="editor-grid">
         <div className="editor-card">
           {fields.map((field) =>
@@ -653,11 +1117,18 @@ function SimpleCollectionEditor({ title, subtitle, items, assets, onSave, fields
           )}
         </div>
       </div>
+      ) : null}
     </section>
   );
 }
 
-function SettingsEditor({ siteSettings, assets, onSave }) {
+function SettingsEditor({
+  siteSettings,
+  assets,
+  onSave,
+  title = "Settings",
+  subtitle = "",
+}) {
   const [draft, setDraft] = useState(siteSettings);
   const [navText, setNavText] = useState(JSON.stringify(siteSettings.nav, null, 2));
 
@@ -670,16 +1141,16 @@ function SettingsEditor({ siteSettings, assets, onSave }) {
 
   return (
     <section className="editor-shell">
-      <EditorHeader title="Settings" subtitle="Shared brand and announcement configuration." status={autosave.status} onSave={autosave.saveNow} />
+      <EditorHeader title={title} subtitle={subtitle} status={autosave.status} onSave={autosave.saveNow} />
       <div className="editor-grid">
         <div className="editor-card">
           <Field label="Brand name" value={draft.brandName} onChange={(value) => setDraft((current) => ({ ...current, brandName: value }))} />
           <Field label="Site title suffix" value={draft.siteTitleSuffix} onChange={(value) => setDraft((current) => ({ ...current, siteTitleSuffix: value }))} />
-          <AssetField label="Default OG image" value={draft.defaultOgImage} assets={assets} onChange={(value) => setDraft((current) => ({ ...current, defaultOgImage: value }))} />
+          <AssetField label="Default share image" value={draft.defaultOgImage} assets={assets} onChange={(value) => setDraft((current) => ({ ...current, defaultOgImage: value }))} />
         </div>
         <div className="editor-card">
           <h3>Home splash</h3>
-          <AssetField label="Logo URL" value={draft.homeSplash.logoUrl} assets={assets} onChange={(value) => setDraft((current) => ({ ...current, homeSplash: { ...current.homeSplash, logoUrl: value } }))} />
+          <AssetField label="Logo image" value={draft.homeSplash.logoUrl} assets={assets} onChange={(value) => setDraft((current) => ({ ...current, homeSplash: { ...current.homeSplash, logoUrl: value } }))} />
           <Field label="Subtitle" value={draft.homeSplash.subtitle} onChange={(value) => setDraft((current) => ({ ...current, homeSplash: { ...current.homeSplash, subtitle: value } }))} />
           <label className="checkbox-row">
             <input
@@ -726,113 +1197,211 @@ function SettingsEditor({ siteSettings, assets, onSave }) {
   );
 }
 
-function AssetsEditor({ assets, onSave, onCreateUrl, onUpload, storage }) {
-  const [selectedId, setSelectedId] = useState(assets[0]?.id || "");
-  const selected = assets.find((asset) => asset.id === selectedId) || assets[0];
-  const [draft, setDraft] = useState(selected);
-  const [urlForm, setUrlForm] = useState({ label: "", url: "", category: "general" });
+function AssetsEditor({
+  assets,
+  onUpload,
+  onDelete,
+  storage,
+}) {
   const [uploadStatus, setUploadStatus] = useState("");
+  const [dragActive, setDragActive] = useState(false);
+  const imageAssets = assets.filter(isImageAsset);
 
-  useEffect(() => {
-    setDraft(selected);
-  }, [selected]);
-
-  const autosave = useAutosave({ draft, enabled: Boolean(draft), resetKey: selectedId, save: onSave });
-
-  async function handleRegisterUrl(event) {
-    event.preventDefault();
-    setUploadStatus("Saving asset URL...");
-    try {
-      await onCreateUrl(urlForm);
-      setUrlForm({ label: "", url: "", category: "general" });
-      setUploadStatus("Asset URL saved.");
-    } catch (error) {
-      setUploadStatus(error.message || "Unable to save URL.");
-    }
-  }
-
-  async function handleUpload(event) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const files = form
-      .getAll("files")
-      .filter((file) => file instanceof File && file.size);
+  async function uploadFiles(fileList) {
+    const files = Array.from(fileList || []).filter((file) => file instanceof File && file.size);
     if (!files.length) {
       setUploadStatus("Choose at least one file first.");
       return;
     }
+
     setUploadStatus(`Uploading ${files.length} file${files.length === 1 ? "" : "s"}...`);
     try {
-      await onUpload({
-        files,
-        label: String(form.get("label") || ""),
-        category: String(form.get("category") || "upload"),
-      });
-      event.currentTarget.reset();
+      await onUpload({ files });
       setUploadStatus(`Uploaded ${files.length} file${files.length === 1 ? "" : "s"}.`);
     } catch (error) {
       setUploadStatus(error.message || "Upload failed.");
     }
   }
 
+  async function handleInputChange(event) {
+    await uploadFiles(event.target.files);
+    event.target.value = "";
+  }
+
+  async function handleDrop(event) {
+    event.preventDefault();
+    setDragActive(false);
+    await uploadFiles(event.dataTransfer?.files);
+  }
+
+  async function handleDeleteAsset(asset) {
+    setUploadStatus(`Deleting ${asset.label}...`);
+    try {
+      await onDelete(asset.id);
+      setUploadStatus(`${asset.label} deleted.`);
+    } catch (error) {
+      setUploadStatus(error.message || "Unable to delete asset.");
+    }
+  }
+
   return (
     <section className="editor-shell">
-      <EditorHeader title="Assets" subtitle="Register external URLs now and switch to bucket uploads when ready." status={autosave.status} onSave={autosave.saveNow} />
+      <EditorHeader title="Assets" subtitle="" status="Library" onSave={() => {}} />
+      <section className="asset-upload-stage">
+        <label
+          className={`upload-dropzone ${dragActive ? "is-dragging" : ""}`}
+          onDragEnter={() => setDragActive(true)}
+          onDragLeave={() => setDragActive(false)}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragActive(true);
+          }}
+          onDrop={handleDrop}
+        >
+          <input name="files" type="file" multiple onChange={handleInputChange} />
+          <span className="upload-dropzone__eyebrow">Upload images</span>
+          <span className="upload-dropzone__title">Drop images anywhere in this zone</span>
+          <span className="upload-dropzone__copy">Or click to browse files from your computer. Uploads start immediately.</span>
+        </label>
+        {uploadStatus ? <p className="status-line">{uploadStatus}</p> : null}
+      </section>
       <div className="editor-grid">
-        <div className="editor-card">
-          <h3>Register external URL</h3>
-          <form onSubmit={handleRegisterUrl}>
-            <Field label="Label" value={urlForm.label} onChange={(value) => setUrlForm((current) => ({ ...current, label: value }))} />
-            <Field label="URL" value={urlForm.url} onChange={(value) => setUrlForm((current) => ({ ...current, url: value }))} />
-            <Field label="Category" value={urlForm.category} onChange={(value) => setUrlForm((current) => ({ ...current, category: value }))} />
-            <button className="button-primary" type="submit">Save URL</button>
-          </form>
-        </div>
-        <div className="editor-card">
-          <h3>Upload to bucket</h3>
-          <p className="status-line">{storage.bucketConfigured ? "Bucket storage is configured." : "Bucket storage is not configured yet. External URL mode is active."}</p>
-          <form onSubmit={handleUpload}>
-            <label><span>Label override (single upload only)</span><input name="label" /></label>
-            <label><span>Category</span><input name="category" defaultValue="upload" /></label>
-            <label><span>Files</span><input name="files" type="file" multiple /></label>
-            <button className="button-primary" type="submit">Upload selected files</button>
-          </form>
-          {uploadStatus ? <p className="status-line">{uploadStatus}</p> : null}
-        </div>
-        {draft ? (
-          <>
-            <div className="editor-card">
-              <label className="control-row">
-                <span>Selected asset</span>
-                <select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
-                  {assets.map((asset) => (
-                    <option key={asset.id} value={asset.id}>
-                      {asset.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <Field label="Label" value={draft.label} onChange={(value) => setDraft((current) => ({ ...current, label: value }))} />
-              <Field label="URL" value={draft.url} onChange={(value) => setDraft((current) => ({ ...current, url: value }))} />
-              <Field label="Storage type" value={draft.storageType} onChange={(value) => setDraft((current) => ({ ...current, storageType: value }))} />
+        <div className="editor-card editor-card--full">
+          <div className="asset-library">
+            <div className="asset-library__header">
+              <h3>Library</h3>
+              <p className="field-help">{imageAssets.length} uploaded image{imageAssets.length === 1 ? "" : "s"}</p>
             </div>
-            <div className="editor-card">
-              <h3>Asset preview</h3>
-              {isImageAsset(draft) ? <img className="asset-preview" src={draft.url} alt={draft.label} /> : <p className="field-help">Preview is shown for image assets. Current asset URL: {draft.url}</p>}
+            <div className="asset-gallery-grid">
+              {imageAssets.map((asset) => (
+                <div key={asset.id} className="asset-gallery-card asset-gallery-card--library">
+                  <img src={asset.url} alt={asset.label} className="asset-gallery-card__image" />
+                  <div className="asset-gallery-card__overlay">
+                    <div className="asset-gallery-card__copy">
+                    <span className="asset-gallery-card__title">{asset.label}</span>
+                    <span className="asset-gallery-card__meta">{formatAssetMeta(asset)}</span>
+                      </div>
+                    <button
+                      className="button-secondary asset-gallery-card__delete"
+                      type="button"
+                      onClick={() => handleDeleteAsset(asset)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          </>
-        ) : null}
+            {!imageAssets.length ? <p className="field-help">No uploaded images are in the library yet.</p> : null}
+          </div>
+        </div>
       </div>
     </section>
   );
 }
 
+function PageWorkspace({
+  pages,
+  issues,
+  assets,
+  onSavePage,
+  onSaveIssue,
+}) {
+  const entries = [
+    ...pages.map((page) => ({
+      id: `page:${page.id}`,
+      type: "page",
+      title: page.title,
+      subtitle: page.slug,
+      page,
+    })),
+    ...issues
+      .slice()
+      .sort((left, right) => left.sortOrder - right.sortOrder)
+      .map((issue) => ({
+        id: `issue:${issue.id}`,
+        type: "issue",
+        title: issue.title,
+        subtitle: issue.slug,
+        issue,
+      })),
+  ];
+
+  const [selectedEntryId, setSelectedEntryId] = useState(entries[0]?.id || "");
+  const [search, setSearch] = useState("");
+  const filteredEntries = entries.filter((entry) =>
+    [entry.title, entry.subtitle, entry.type].join(" ").toLowerCase().includes(search.trim().toLowerCase())
+  );
+  const selectedEntry =
+    entries.find((entry) => entry.id === selectedEntryId) || filteredEntries[0] || entries[0] || null;
+
+  useEffect(() => {
+    if (filteredEntries.some((entry) => entry.id === selectedEntryId) || entries.some((entry) => entry.id === selectedEntryId)) {
+      return;
+    }
+    setSelectedEntryId(filteredEntries[0]?.id || entries[0]?.id || "");
+  }, [entries, filteredEntries, selectedEntryId]);
+
+  if (!selectedEntry) {
+    return <div className="state-shell">No page entries available.</div>;
+  }
+
+  const selectedPage = selectedEntry.type === "page" ? selectedEntry.page : null;
+  const selectedIssue = selectedEntry.type === "issue" ? selectedEntry.issue : null;
+
+  return (
+    <section className="workspace-grid">
+      <aside className="workspace-list">
+        <label className="workspace-search">
+          <span>Search</span>
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search pages"
+          />
+        </label>
+        <div className="workspace-list__items">
+          {filteredEntries.map((entry) => (
+            <button
+              key={entry.id}
+              className={`workspace-list__item workspace-list__item--page ${entry.id === selectedEntry.id ? "is-active" : ""}`}
+              type="button"
+              onClick={() => setSelectedEntryId(entry.id)}
+            >
+              <strong>{entry.title}</strong>
+              <span>{entry.subtitle}</span>
+            </button>
+          ))}
+          {!filteredEntries.length ? <p className="workspace-empty-state">No pages match that search.</p> : null}
+        </div>
+      </aside>
+      <div className="workspace-main">
+        {selectedPage ? (
+          <PageEditor
+            pages={[selectedPage]}
+            assets={assets}
+            onSave={onSavePage}
+            title={selectedPage.title}
+          />
+        ) : null}
+        {selectedIssue ? (
+          <IssueEditor
+            issues={[selectedIssue]}
+            assets={assets}
+            onSave={onSaveIssue}
+            title={selectedIssue.title}
+          />
+        ) : null}
+      </div>
+    </section>
+  );
+}
 export default function AdminPage({ refreshBootstrap, session, refreshSession }) {
   const [loginState, setLoginState] = useState({ username: "", password: "" });
   const [loginError, setLoginError] = useState("");
   const [adminData, setAdminData] = useState(null);
   const [adminError, setAdminError] = useState("");
-  const [activeTab, setActiveTab] = useState("delivery");
+  const [activeTab, setActiveTab] = useState("letters");
 
   usePageSeo({
     seo: {
@@ -889,7 +1458,6 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
       <main className="admin-auth">
         <div className="admin-auth__card">
           <h1>Admin Login</h1>
-          <p>Sign in with your configured admin credentials.</p>
           <form onSubmit={handleLogin}>
             <Field label="Username" value={loginState.username} onChange={(value) => setLoginState((current) => ({ ...current, username: value }))} />
             <Field label="Password" value={loginState.password} onChange={(value) => setLoginState((current) => ({ ...current, password: value }))} />
@@ -908,53 +1476,78 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
   const tabs = [
     ["delivery", "Delivery"],
     ["pages", "Pages"],
-    ["issues", "Issues"],
     ["letters", "Letters"],
-    ["redirects", "Redirects"],
-    ["team", "Team"],
-    ["socials", "Socials"],
-    ["settings", "Settings"],
     ["assets", "Assets"],
+    ["general", "Settings"],
   ];
 
   return (
     <main className="admin-shell">
-      <aside className="admin-sidebar">
-        <Link className="brand-mark" to="/">Back to site</Link>
-        <p className="admin-sidebar__status">
-          Storage: {adminData.storage.database}
-          <br />
-          Uploads: {adminData.storage.bucketConfigured ? "bucket ready" : "URL mode"}
-          <br />
-          Public origin: {adminData.storage.publicSiteOrigin}
-          <br />
-          S3 core: {adminData.storage.bucketVars?.S3_BUCKET ? "bucket " : "no-bucket "}
-          {adminData.storage.bucketVars?.S3_REGION ? "region " : "no-region "}
-          {adminData.storage.bucketVars?.S3_ACCESS_KEY_ID ? "key " : "no-key "}
-          {adminData.storage.bucketVars?.S3_SECRET_ACCESS_KEY ? "secret" : "no-secret"}
-          <br />
-          S3 endpoint: {adminData.storage.bucketVars?.S3_ENDPOINT ? "present" : "missing"}
-          <br />
-          Resend: {adminData.storage.resendConfigured ? "ready" : "not ready"}
-        </p>
-        {tabs.map(([key, label]) => (
-          <button key={key} className={`admin-tab ${activeTab === key ? "is-active" : ""}`} onClick={() => setActiveTab(key)} type="button">
-            {label}
-          </button>
-        ))}
+        <aside className="admin-sidebar">
+          <Link className="brand-mark brand-mark--sidebar" to="/" aria-label="Back to site">
+            ←
+          </Link>
+        <nav className="admin-sidebar__nav" aria-label="Primary">
+          {tabs.map(([key, label]) => (
+            <button key={key} className={`admin-tab ${activeTab === key ? "is-active" : ""}`} onClick={() => setActiveTab(key)} type="button">
+              {label}
+            </button>
+          ))}
+        </nav>
         <button className="admin-tab admin-tab--ghost" onClick={handleLogout} type="button">Logout</button>
       </aside>
       <section className="admin-main">
+        {activeTab === "letters" ? (
+          <LettersAdmin
+            letters={adminData.lettersSubmissions}
+            onSave={async (letter) => syncAfterSave(await api.saveLetter(letter))}
+          />
+        ) : null}
         {activeTab === "delivery" ? <DeliveryAdmin /> : null}
-        {activeTab === "pages" ? <PageEditor pages={adminData.pages} assets={adminData.assets} onSave={async (page) => syncAfterSave(await api.savePage(page))} /> : null}
-        {activeTab === "issues" ? <IssueEditor issues={adminData.issues} assets={adminData.assets} onSave={async (issue) => syncAfterSave(await api.saveIssue(issue))} /> : null}
-        {activeTab === "letters" ? <LettersAdmin issues={adminData.issues} letters={adminData.lettersSubmissions} onSave={async (letter) => syncAfterSave(await api.saveLetter(letter))} /> : null}
-        {activeTab === "redirects" ? <SimpleCollectionEditor title="Redirects" subtitle="Preserve legacy and external URLs." items={adminData.redirects} assets={adminData.assets} onSave={async (redirect) => syncAfterSave(await api.saveRedirect(redirect))} itemLabel="Redirect" fields={[{ key: "sourcePath", label: "Source path" }, { key: "destination", label: "Destination" }, { key: "type", label: "Redirect type" }, { key: "active", label: "Active", type: "checkbox" }]} /> : null}
-        {activeTab === "team" ? <SimpleCollectionEditor title="Team" subtitle="Manage the Meet page profiles." items={adminData.teamMembers} assets={adminData.assets} onSave={async (teamMember) => syncAfterSave(await api.saveTeamMember(teamMember))} itemLabel="Team member" fields={[{ key: "name", label: "Name" }, { key: "role", label: "Role" }, { key: "image", label: "Image URL", type: "image" }, { key: "bio", label: "Bio", multiline: true }, { key: "sortOrder", label: "Sort order", numeric: true }]} /> : null}
-        {activeTab === "socials" ? <SimpleCollectionEditor title="Socials" subtitle="Manage social links and icons." items={adminData.socialLinks} assets={adminData.assets} onSave={async (socialLink) => syncAfterSave(await api.saveSocialLink(socialLink))} itemLabel="Social link" fields={[{ key: "personName", label: "Person" }, { key: "label", label: "Label" }, { key: "url", label: "URL" }, { key: "iconUrl", label: "Icon URL", type: "image" }, { key: "sortOrder", label: "Sort order", numeric: true }]} /> : null}
-        {activeTab === "settings" ? <SettingsEditor siteSettings={adminData.siteSettings} assets={adminData.assets} onSave={async (siteSettings) => syncAfterSave(await api.saveSiteSettings(siteSettings))} /> : null}
-        {activeTab === "assets" ? <AssetsEditor assets={adminData.assets} onSave={async (asset) => syncAfterSave(await api.saveAsset(asset))} onCreateUrl={async (payload) => syncAfterSave(await api.registerAssetUrl(payload))} onUpload={async (payload) => syncAfterSave(await api.uploadAssets(payload))} storage={adminData.storage} /> : null}
+        {activeTab === "pages" ? (
+          <PageWorkspace
+            pages={adminData.pages}
+            issues={adminData.issues}
+            letters={adminData.lettersSubmissions}
+            assets={adminData.assets}
+            onSavePage={async (page) => syncAfterSave(await api.savePage(page))}
+            onSaveIssue={async (issue) => syncAfterSave(await api.saveIssue(issue))}
+          />
+        ) : null}
+        {activeTab === "redirects" ? (
+          <SimpleCollectionEditor
+            title="Redirects"
+            items={adminData.redirects}
+            assets={adminData.assets}
+            onSave={async (redirect) => syncAfterSave(await api.saveRedirect(redirect))}
+            onDelete={async (redirectId) => syncAfterSave(await api.deleteRedirect(redirectId))}
+            itemLabel="Redirect"
+            createItem={() => {
+              const nextNumber = adminData.redirects.length + 1;
+              return {
+                id: `redirect-${crypto.randomUUID()}`,
+                sourcePath: `/new-redirect-${nextNumber}`,
+                destination: "https://example.com",
+                type: "302",
+                active: true,
+              };
+            }}
+            createLabel="Add redirect"
+            deleteLabel="Delete redirect"
+            fields={[
+              { key: "sourcePath", label: "Source path" },
+              { key: "destination", label: "Destination" },
+              { key: "type", label: "Redirect type" },
+              { key: "active", label: "Active", type: "checkbox" },
+            ]}
+          />
+        ) : null}
+        {activeTab === "assets" ? <AssetsEditor assets={adminData.assets} onUpload={async (payload) => syncAfterSave(await api.uploadAssets(payload))} onDelete={async (assetId) => syncAfterSave(await api.deleteAsset(assetId))} storage={adminData.storage} /> : null}
+        {activeTab === "general" ? <SettingsEditor siteSettings={adminData.siteSettings} assets={adminData.assets} onSave={async (siteSettings) => syncAfterSave(await api.saveSiteSettings(siteSettings))} title="Settings" /> : null}
       </section>
     </main>
   );
 }
+
+
+

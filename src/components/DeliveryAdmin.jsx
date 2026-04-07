@@ -12,6 +12,16 @@ function emptyProjectForm() {
   };
 }
 
+function createTierDraft(index = 0, fileIds = []) {
+  return {
+    id: `new-tier-${Date.now()}-${index}`,
+    name: `Tier ${index + 1}`,
+    messageOverride: "",
+    fileIds,
+    isNew: true,
+  };
+}
+
 function formatFileSize(bytes) {
   const value = Number(bytes || 0);
   if (!value) {
@@ -32,29 +42,8 @@ function formatFileSize(bytes) {
   return `${size.toFixed(size >= 10 ? 0 : 1)} ${unit}`;
 }
 
-function getWorkflowState(detail) {
-  const hasCover = Boolean(detail?.currentCover);
-  const hasPdf = Boolean(detail?.currentPdf);
-  const hasBackers = Boolean(detail?.backers?.length);
-
-  let currentStep = "upload";
-  if (!hasCover || !hasPdf) {
-    currentStep = "upload";
-  } else if (!hasBackers) {
-    currentStep = "backers";
-  } else if (!detail?.project?.lastDeliveredAt) {
-    currentStep = "delivery";
-  } else {
-    currentStep = "done";
-  }
-
-  return {
-    hasCover,
-    hasPdf,
-    hasBackers,
-    isReady: hasPdf && hasBackers,
-    currentStep,
-  };
+function fileRoute(fileId) {
+  return `/api/delivery/files/${encodeURIComponent(fileId)}`;
 }
 
 function SummaryRow({ label, value }) {
@@ -66,10 +55,6 @@ function SummaryRow({ label, value }) {
   );
 }
 
-function fileRoute(fileId) {
-  return `/api/delivery/files/${encodeURIComponent(fileId)}`;
-}
-
 export default function DeliveryAdmin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -79,7 +64,10 @@ export default function DeliveryAdmin() {
   const [detail, setDetail] = useState(null);
   const [detailStatus, setDetailStatus] = useState("");
   const [projectForm, setProjectForm] = useState(emptyProjectForm());
+  const [configForm, setConfigForm] = useState(emptyProjectForm());
+  const [tiersDraft, setTiersDraft] = useState([]);
   const [projectStatus, setProjectStatus] = useState("");
+  const [configStatus, setConfigStatus] = useState("");
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [csvText, setCsvText] = useState("");
   const [importStatus, setImportStatus] = useState("");
@@ -95,19 +83,40 @@ export default function DeliveryAdmin() {
     return nextProjects.projects;
   }
 
+  function syncConfig(nextDetail) {
+    setConfigForm({
+      title: nextDetail.project.title || "",
+      creatorName: nextDetail.project.creatorName || "",
+      slug: nextDetail.project.slug || "",
+      shortMessage: nextDetail.project.shortMessage || "",
+      description: nextDetail.project.description || "",
+    });
+    setTiersDraft(
+      (nextDetail.tiers || []).map((tier) => ({
+        id: tier.id,
+        name: tier.name || "",
+        messageOverride: tier.messageOverride || "",
+        fileIds: [...(tier.fileIds || [])],
+        backerCount: tier.backerCount || 0,
+      }))
+    );
+  }
+
   async function loadProjectDetail(projectId) {
     if (!projectId) {
       setDetail(null);
+      setTiersDraft([]);
       return;
     }
 
-    setDetailStatus("Loading project...");
+    setDetailStatus("Loading campaign...");
     try {
       const nextDetail = await api.getDeliveryProject(projectId);
       setDetail(nextDetail);
+      syncConfig(nextDetail);
       setDetailStatus("");
     } catch (loadError) {
-      setDetailStatus(loadError.message || "Unable to load project detail.");
+      setDetailStatus(loadError.message || "Unable to load campaign detail.");
       setDetail(null);
     }
   }
@@ -135,18 +144,46 @@ export default function DeliveryAdmin() {
 
   async function handleCreateProject(event) {
     event.preventDefault();
-    setProjectStatus("Creating project...");
+    setProjectStatus("Creating campaign...");
     try {
       const response = await api.createDeliveryProject(projectForm);
       setProjectForm(emptyProjectForm());
-      setProjectStatus("Project created.");
+      setProjectStatus("Campaign created.");
       setShowProjectForm(false);
       const nextProjects = await loadDashboard();
       const projectId = response.project.id || nextProjects[0]?.id || "";
       setSelectedProjectId(projectId);
       await loadProjectDetail(projectId);
     } catch (createError) {
-      setProjectStatus(createError.message || "Unable to create project.");
+      setProjectStatus(createError.message || "Unable to create campaign.");
+    }
+  }
+
+  async function handleSaveConfig() {
+    if (!selectedProjectId) {
+      setConfigStatus("Choose a campaign first.");
+      return;
+    }
+
+    setConfigStatus("Saving campaign...");
+    try {
+      const payload = {
+        ...configForm,
+        tiers: tiersDraft.map((tier, index) => ({
+          id: tier.isNew ? undefined : tier.id,
+          name: tier.name,
+          messageOverride: tier.messageOverride,
+          fileIds: tier.fileIds,
+          sortOrder: index,
+        })),
+      };
+      const nextDetail = await api.updateDeliveryProject(selectedProjectId, payload);
+      setDetail(nextDetail);
+      syncConfig(nextDetail);
+      setConfigStatus("Campaign saved.");
+      await loadDashboard();
+    } catch (saveError) {
+      setConfigStatus(saveError.message || "Campaign save failed.");
     }
   }
 
@@ -160,7 +197,7 @@ export default function DeliveryAdmin() {
     try {
       const result = await api.importDeliveryBackers(selectedProjectId, csvText);
       setImportStatus(
-        `Imported ${result.summary.importedCount} backers. Skipped ${result.summary.skippedExistingCount} existing email${result.summary.skippedExistingCount === 1 ? "" : "s"}.`
+        `Imported ${result.summary.importedCount}. Skipped ${result.summary.skippedExistingCount} existing and ${result.summary.skippedUnknownTierCount} unknown-tier row${result.summary.skippedUnknownTierCount === 1 ? "" : "s"}.`
       );
       setCsvText("");
       await loadDashboard();
@@ -174,7 +211,7 @@ export default function DeliveryAdmin() {
     event.preventDefault();
     const formElement = event.currentTarget;
     if (!selectedProjectId) {
-      setDetailStatus("Create or select a project first.");
+      setDetailStatus("Create or select a campaign first.");
       return;
     }
 
@@ -195,7 +232,7 @@ export default function DeliveryAdmin() {
       formElement.reset();
       await loadDashboard();
       await loadProjectDetail(selectedProjectId);
-      setDetailStatus(kind === "cover" ? "Cover updated." : "PDF updated.");
+      setDetailStatus(kind === "cover" ? "Cover updated." : "PDF uploaded.");
     } catch (uploadError) {
       setDetailStatus(uploadError.message || "Upload failed.");
     }
@@ -203,7 +240,7 @@ export default function DeliveryAdmin() {
 
   async function handleSendEmails() {
     if (!selectedProjectId) {
-      setSendStatus("Choose a project first.");
+      setSendStatus("Choose a campaign first.");
       return;
     }
 
@@ -224,7 +261,7 @@ export default function DeliveryAdmin() {
 
   async function handleDeleteProject() {
     if (!selectedProjectId || !detail) {
-      setDetailStatus("Choose a project first.");
+      setDetailStatus("Choose a campaign first.");
       return;
     }
 
@@ -235,7 +272,7 @@ export default function DeliveryAdmin() {
       return;
     }
 
-    setDetailStatus("Deleting project and bucket files...");
+    setDetailStatus("Deleting campaign and bucket files...");
     try {
       await api.deleteDeliveryProject(selectedProjectId);
       const nextProjects = await loadDashboard();
@@ -244,15 +281,15 @@ export default function DeliveryAdmin() {
       setCsvText("");
       setImportStatus("");
       setSendStatus("");
+      setConfigStatus("");
       if (nextProjectId) {
         await loadProjectDetail(nextProjectId);
-        setDetailStatus("Project deleted.");
       } else {
         setDetail(null);
-        setDetailStatus("Project deleted.");
       }
+      setDetailStatus("Campaign deleted.");
     } catch (deleteError) {
-      setDetailStatus(deleteError.message || "Project deletion failed.");
+      setDetailStatus(deleteError.message || "Campaign deletion failed.");
     }
   }
 
@@ -261,15 +298,7 @@ export default function DeliveryAdmin() {
       return;
     }
 
-    const isActivePdf = file.kind === "pdf" && detail?.project?.activePdfFileId === file.id;
-    const isActiveCover = file.kind === "cover" && detail?.project?.coverFileId === file.id;
-    const confirmed = window.confirm(
-      isActivePdf
-        ? `Delete ${file.originalFilename}? If another PDF version exists it will become active; otherwise the project will have no active PDF.`
-        : isActiveCover
-          ? `Delete ${file.originalFilename}? The project will have no cover image until you upload a new one.`
-          : `Delete ${file.originalFilename} from the project and bucket storage?`
-    );
+    const confirmed = window.confirm(`Delete ${file.originalFilename} from this campaign?`);
     if (!confirmed) {
       return;
     }
@@ -285,6 +314,42 @@ export default function DeliveryAdmin() {
     }
   }
 
+  function handleTierChange(index, key, value) {
+    setTiersDraft((current) =>
+      current.map((tier, tierIndex) =>
+        tierIndex === index ? { ...tier, [key]: value } : tier
+      )
+    );
+  }
+
+  function toggleTierFile(index, fileId) {
+    setTiersDraft((current) =>
+      current.map((tier, tierIndex) => {
+        if (tierIndex !== index) {
+          return tier;
+        }
+        const nextFileIds = tier.fileIds.includes(fileId)
+          ? tier.fileIds.filter((id) => id !== fileId)
+          : [...tier.fileIds, fileId];
+        return { ...tier, fileIds: nextFileIds };
+      })
+    );
+  }
+
+  function addTier() {
+    setTiersDraft((current) => [
+      ...current,
+      createTierDraft(
+        current.length,
+        detail?.files?.map((file) => file.id) || []
+      ),
+    ]);
+  }
+
+  function removeTier(index) {
+    setTiersDraft((current) => current.filter((_, tierIndex) => tierIndex !== index));
+  }
+
   if (loading) {
     return <div className="state-shell">Loading delivery workspace...</div>;
   }
@@ -293,30 +358,23 @@ export default function DeliveryAdmin() {
     return <div className="state-shell">{error}</div>;
   }
 
-  const workflow = getWorkflowState(detail);
-  const publicLink =
-    detail?.currentPdf && detail?.backers?.[0]?.accessToken
-      ? `/a/${detail.backers[0].accessToken}`
-      : "";
   const selectedProject = projects.find((project) => project.id === selectedProjectId) || null;
-  const summaryStatus = workflow.isReady ? "Ready" : "Needs Setup";
   const coverUrl = detail?.currentCover ? fileRoute(detail.currentCover.id) : "";
-  const pdfUrl = detail?.currentPdf ? fileRoute(detail.currentPdf.id) : "";
-  const pdfReaderUrl = detail?.currentPdf
-    ? `/api/delivery/files/${encodeURIComponent(detail.currentPdf.id)}/content`
-    : "";
+  const firstPreviewTier = tiersDraft.find((tier) =>
+    detail?.backers?.some((backer) => backer.tierId === tier.id)
+  );
 
   return (
     <section className="editor-shell delivery-workspace delivery-workspace--streamlined">
       <div className="delivery-header delivery-header--compact">
         <div>
           <p className="editor-header__eyebrow">Delivery</p>
-          <h1>Backer Delivery</h1>
+          <h1>Campaign Delivery</h1>
         </div>
         <div className="delivery-header__actions">
           {projects.length ? (
             <label className="delivery-project-picker">
-              <span>Project</span>
+              <span>Campaign</span>
               <select
                 value={selectedProjectId}
                 onChange={async (event) => {
@@ -338,7 +396,7 @@ export default function DeliveryAdmin() {
             type="button"
             onClick={() => setShowProjectForm((current) => !current)}
           >
-            {showProjectForm ? "Close" : "New Project"}
+            {showProjectForm ? "Close" : "New Campaign"}
           </button>
         </div>
       </div>
@@ -346,11 +404,11 @@ export default function DeliveryAdmin() {
       {showProjectForm || !projects.length ? (
         <section className="editor-card delivery-section">
           <div className="delivery-section__header">
-            <h2>Create Project</h2>
+            <h2>Create Campaign</h2>
           </div>
           <form className="delivery-form-grid" onSubmit={handleCreateProject}>
             <label>
-              <span>Project title</span>
+              <span>Campaign title</span>
               <input
                 value={projectForm.title}
                 onChange={(event) =>
@@ -368,7 +426,7 @@ export default function DeliveryAdmin() {
               />
             </label>
             <label className="delivery-form-grid__full">
-              <span>Short note</span>
+              <span>Default message</span>
               <textarea
                 rows={3}
                 value={projectForm.shortMessage}
@@ -398,7 +456,7 @@ export default function DeliveryAdmin() {
             </label>
             <div className="delivery-inline-actions delivery-form-grid__full">
               <button className="button-primary" type="submit">
-                Create Project
+                Create Campaign
               </button>
             </div>
             {projectStatus ? <p className="status-line">{projectStatus}</p> : null}
@@ -409,24 +467,61 @@ export default function DeliveryAdmin() {
       {detail ? (
         <div className="delivery-layout">
           <div className="delivery-primary">
-            <div className="delivery-progress">
-              <div className={`delivery-progress__step ${workflow.currentStep === "upload" ? "is-active" : workflow.hasCover && workflow.hasPdf ? "is-done" : ""}`}>
-                Upload Files
+            <section className="editor-card delivery-section">
+              <div className="delivery-section__header">
+                <h2>Campaign Setup</h2>
               </div>
-              <div className={`delivery-progress__step ${workflow.currentStep === "backers" ? "is-active" : workflow.hasBackers ? "is-done" : ""}`}>
-                Add Backers
+              <div className="delivery-form-grid">
+                <label>
+                  <span>Campaign title</span>
+                  <input
+                    value={configForm.title}
+                    onChange={(event) =>
+                      setConfigForm((current) => ({ ...current, title: event.target.value }))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Creator name</span>
+                  <input
+                    value={configForm.creatorName}
+                    onChange={(event) =>
+                      setConfigForm((current) => ({ ...current, creatorName: event.target.value }))
+                    }
+                  />
+                </label>
+                <label className="delivery-form-grid__full">
+                  <span>Default message</span>
+                  <textarea
+                    rows={3}
+                    value={configForm.shortMessage}
+                    onChange={(event) =>
+                      setConfigForm((current) => ({ ...current, shortMessage: event.target.value }))
+                    }
+                  />
+                </label>
+                <label className="delivery-form-grid__full">
+                  <span>Description</span>
+                  <textarea
+                    rows={4}
+                    value={configForm.description}
+                    onChange={(event) =>
+                      setConfigForm((current) => ({ ...current, description: event.target.value }))
+                    }
+                  />
+                </label>
               </div>
-              <div className={`delivery-progress__step ${workflow.currentStep === "delivery" ? "is-active" : detail.project.lastDeliveredAt ? "is-done" : ""}`}>
-                Send Emails
+              <div className="delivery-inline-actions">
+                <button className="button-primary" type="button" onClick={handleSaveConfig}>
+                  Save Campaign
+                </button>
               </div>
-              <div className={`delivery-progress__step ${workflow.currentStep === "done" ? "is-active is-done" : detail.project.lastDeliveredAt ? "is-done" : ""}`}>
-                Done
-              </div>
-            </div>
+              {configStatus ? <p className="status-line">{configStatus}</p> : null}
+            </section>
 
             <section className="editor-card delivery-section">
               <div className="delivery-section__header">
-                <h2>Project Setup</h2>
+                <h2>Assets</h2>
               </div>
               <div className="delivery-upload-grid">
                 <div className="delivery-upload-card">
@@ -458,25 +553,13 @@ export default function DeliveryAdmin() {
                 </div>
 
                 <div className="delivery-upload-card">
-                  <span className="delivery-upload-card__label">Main PDF</span>
-                  {pdfUrl ? (
-                    <>
-                      <div className="delivery-pdf-frame">
-                        <InlinePdfReader
-                          pdfUrl={pdfReaderUrl}
-                          compact
-                        />
-                      </div>
-                      <p className="delivery-upload-card__meta">
-                        {detail.currentPdf.originalFilename} · {formatFileSize(detail.currentPdf.fileSizeBytes)}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="delivery-upload-card__empty">No PDF uploaded yet.</p>
-                  )}
+                  <span className="delivery-upload-card__label">PDF library</span>
+                  <p className="delivery-upload-card__meta">
+                    {detail.files.length} PDF{detail.files.length === 1 ? "" : "s"} uploaded
+                  </p>
                   <form onSubmit={(event) => handleUpload("pdf", event)}>
                     <label className="button-primary button-compact delivery-upload-button">
-                      <span>{pdfUrl ? "Replace PDF" : "Upload PDF"}</span>
+                      <span>Upload PDF</span>
                       <input
                         className="delivery-upload-input"
                         name="file"
@@ -492,21 +575,113 @@ export default function DeliveryAdmin() {
                   </form>
                 </div>
               </div>
+              {detail.files.length ? (
+                <div className="delivery-mini-list">
+                  {detail.files.map((file) => (
+                    <div key={file.id} className="delivery-mini-list__item">
+                      <div className="delivery-mini-list__item-header">
+                        <strong>{file.originalFilename}</strong>
+                        <button
+                          className="button-secondary button-compact"
+                          type="button"
+                          onClick={() => handleDeleteFile(file)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                      <div className="delivery-pdf-frame">
+                        <InlinePdfReader
+                          pdfUrl={fileRoute(file.id) + "/content"}
+                          pages={file.readerPages || []}
+                          compact
+                        />
+                      </div>
+                      <span>
+                        v{file.versionNumber} | {formatFileSize(file.fileSizeBytes)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               {detailStatus ? <p className="status-line">{detailStatus}</p> : null}
             </section>
 
             <section className="editor-card delivery-section">
               <div className="delivery-section__header">
-                <h2>Add Backers</h2>
+                <h2>Tiers</h2>
               </div>
-              <p className="status-line">Paste emails or a one-column CSV list, then import them into this project.</p>
+              <p className="status-line">
+                Each tier can override the campaign message and choose which PDFs appear behind its private link.
+              </p>
+              <div className="delivery-mini-list">
+                {tiersDraft.map((tier, index) => (
+                  <div key={tier.id} className="delivery-mini-list__item">
+                    <div className="delivery-mini-list__item-header">
+                      <strong>Tier {index + 1}</strong>
+                      <button
+                        className="button-secondary button-compact"
+                        type="button"
+                        onClick={() => removeTier(index)}
+                        disabled={tiersDraft.length <= 1 || tier.backerCount > 0}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <label>
+                      <span>Name</span>
+                      <input
+                        value={tier.name}
+                        onChange={(event) => handleTierChange(index, "name", event.target.value)}
+                      />
+                    </label>
+                    <label>
+                      <span>Tier-specific message override</span>
+                      <textarea
+                        rows={3}
+                        value={tier.messageOverride}
+                        onChange={(event) =>
+                          handleTierChange(index, "messageOverride", event.target.value)
+                        }
+                      />
+                    </label>
+                    <div className="delivery-mini-list">
+                      {detail.files.map((file) => (
+                        <label key={file.id} className="workspace-toggle">
+                          <input
+                            type="checkbox"
+                            checked={tier.fileIds.includes(file.id)}
+                            onChange={() => toggleTierFile(index, file.id)}
+                          />
+                          <span>{file.originalFilename}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <span>{tier.backerCount || 0} backer{tier.backerCount === 1 ? "" : "s"} in this tier</span>
+                  </div>
+                ))}
+              </div>
+              <div className="delivery-inline-actions">
+                <button className="button-secondary" type="button" onClick={addTier}>
+                  Add Tier
+                </button>
+                <button className="button-primary" type="button" onClick={handleSaveConfig}>
+                  Save Tier Setup
+                </button>
+              </div>
+            </section>
+
+            <section className="editor-card delivery-section">
+              <div className="delivery-section__header">
+                <h2>Import Backers</h2>
+              </div>
+              <p className="status-line">Use `email,tier` rows. Tier names can match the labels above.</p>
               <label>
-                <span>Backer emails</span>
+                <span>Backer CSV</span>
                 <textarea
                   rows={9}
                   value={csvText}
                   onChange={(event) => setCsvText(event.target.value)}
-                  placeholder={"email\nreader@example.com\nshop@example.com"}
+                  placeholder={"email,tier\nreader@example.com,Issue 2 only\ncollector@example.com,Issues 1 + 2"}
                 />
               </label>
               <div className="delivery-inline-actions">
@@ -521,96 +696,74 @@ export default function DeliveryAdmin() {
               <div className="delivery-section__header">
                 <h2>Send Delivery</h2>
               </div>
-              {detail.backers.length ? (
-                <div className="delivery-email-list">
-                  {detail.backers.map((backer) => (
-                    <div key={backer.id} className="delivery-email-list__item">
-                      {backer.email}
+              {detail.tiers.length ? (
+                <div className="delivery-mini-list">
+                  {detail.tiers.map((tier) => (
+                    <div key={tier.id} className="delivery-mini-list__item">
+                      <strong>{tier.name}</strong>
+                      <span>{tier.backerCount} backer{tier.backerCount === 1 ? "" : "s"}</span>
+                      <span>{(tier.fileIds || []).length} accessible PDF{(tier.fileIds || []).length === 1 ? "" : "s"}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="status-line">Add backers first and they will appear here.</p>
+                <p className="status-line">Add tiers first.</p>
               )}
               <button
                 className="button-primary"
                 type="button"
                 onClick={handleSendEmails}
-                disabled={!detail.backers.length || !detail.currentPdf}
+                disabled={!detail.backers.length || !detail.files.length}
               >
                 Send Emails To Backers
               </button>
-              <p className="status-line">
-                Each backer will receive a private access link.
-              </p>
+              <p className="status-line">Each backer gets one private campaign link filtered by their tier.</p>
               {sendStatus ? <p className="status-line">{sendStatus}</p> : null}
             </section>
 
             <section className="editor-card delivery-section">
               <div className="delivery-section__header">
-                <h2>Preview Access Page</h2>
+                <h2>Tier Preview</h2>
               </div>
-              {publicLink ? (
-                <>
-                  <div className="delivery-inline-actions">
-                    <a className="button-primary" href={publicLink} target="_blank" rel="noreferrer">
-                      Open Access Page
-                    </a>
-                  </div>
-                  <p className="status-line">Example link: {publicLink}</p>
-                </>
-              ) : (
-                <p className="status-line">
-                  This becomes available after a PDF and at least one backer are in place.
-                </p>
-              )}
+              {detail.tiers.length ? (
+                <div className="delivery-mini-list">
+                  {detail.tiers.map((tier) => {
+                    const previewBacker = detail.backers.find((backer) => backer.tierId === tier.id);
+                    return (
+                      <div key={tier.id} className="delivery-mini-list__item">
+                        <strong>{tier.name}</strong>
+                        <span>{tier.messageOverride || detail.project.shortMessage || "Uses default message."}</span>
+                        {previewBacker ? (
+                          <a href={`/a/${previewBacker.accessToken}`} target="_blank" rel="noreferrer">
+                            Open preview
+                          </a>
+                        ) : (
+                          <span>Add one backer to preview this tier</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+              {!firstPreviewTier ? (
+                <p className="status-line">Import at least one backer into a tier to preview the public page.</p>
+              ) : null}
             </section>
           </div>
 
           <aside className="delivery-secondary">
             <section className="editor-card delivery-summary-card">
               <div className="delivery-section__header">
-                <h2>Project Summary</h2>
+                <h2>Campaign Summary</h2>
               </div>
               <p className="delivery-summary-card__title">{selectedProject?.title || detail.project.title}</p>
-              <SummaryRow label="Status" value={summaryStatus} />
+              <SummaryRow label="Status" value={detail.project.status || "draft"} />
               <SummaryRow label="Backers" value={detail.backers.length} />
-              <SummaryRow label="Files" value={`${detail.files.length} uploaded`} />
-              <SummaryRow label="Creator" value={detail.project.creatorName} />
+              <SummaryRow label="PDFs" value={detail.files.length} />
+              <SummaryRow label="Tiers" value={detail.tiers.length} />
               <button className="button-secondary button-compact" type="button" onClick={handleDeleteProject}>
-                Delete Project
+                Delete Campaign
               </button>
-            </section>
-
-            <section className="editor-card delivery-summary-card">
-              <div className="delivery-section__header">
-                <h2>Files</h2>
-              </div>
-              {detail.files.length ? (
-                <div className="delivery-mini-list">
-                  {detail.files.map((file) => (
-                    <div key={file.id} className="delivery-mini-list__item">
-                      <div className="delivery-mini-list__item-header">
-                        <strong>{file.kind.toUpperCase()}</strong>
-                        <button
-                          className="button-secondary button-compact"
-                          type="button"
-                          onClick={() => handleDeleteFile(file)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                      <span>{file.originalFilename}</span>
-                      <span>
-                        v{file.versionNumber} | {formatFileSize(file.fileSizeBytes)}
-                        {file.isActive ? " | active" : ""}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="status-line">No files uploaded yet.</p>
-              )}
             </section>
 
             <section className="editor-card delivery-summary-card">
@@ -624,6 +777,7 @@ export default function DeliveryAdmin() {
                   {detail.backers.map((backer) => (
                     <div key={backer.id} className="delivery-mini-list__item">
                       <strong>{backer.email}</strong>
+                      <span>{backer.tierName || "Unassigned tier"}</span>
                       <a href={`/a/${backer.accessToken}`} target="_blank" rel="noreferrer">
                         Open page
                       </a>

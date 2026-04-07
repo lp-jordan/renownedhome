@@ -7,7 +7,8 @@ import {
 } from "react-router-dom";
 import { api } from "../lib/api";
 import DeliveryAccessPage from "./DeliveryAccessPage";
-import { usePageSeo, useSeo } from "../lib/seo";
+import DeliveryReadPage from "./DeliveryReadPage";
+import { resolveSeo, usePageSeo, useSeo } from "../lib/seo";
 
 const SWIPE_THRESHOLD = 44;
 const ComicPdfPage = lazy(() => import("./ComicPdfPage"));
@@ -45,16 +46,65 @@ function uniqueItems(items) {
   return [...new Set(items.filter(Boolean))];
 }
 
+function getIssueFeaturedImage(issue) {
+  return issue.featuredImage || issue.coverImage || issue.heroAssets?.[0] || "";
+}
+
 function getIssueGallery(issue) {
-  return uniqueItems([issue.coverImage, ...(issue.heroAssets || [])]);
+  return uniqueItems(issue.heroAssets || []);
 }
 
 function getIssueReaderImages(issue) {
-  const explicitPages = Array.isArray(issue.readerImages) ? issue.readerImages : [];
-  if (explicitPages.length) {
-    return uniqueItems(explicitPages);
+  return uniqueItems([getIssueFeaturedImage(issue), ...getIssueGallery(issue)]);
+}
+
+function getIssuePresentationPath(issue) {
+  if (!issue) {
+    return "/read";
   }
-  return getIssueGallery(issue);
+
+  if (issue.slug === "/one-shot") {
+    return "/read/3-10-to-nowhere";
+  }
+
+  return `/read${issue.slug}`;
+}
+
+const HOME_PANEL_ORDER = ["/read", "/meet", "/letters", "/buy"];
+const HOME_PANEL_DEFAULTS = {
+  "/read": { label: "Read", href: "/read" },
+  "/meet": { label: "Meet", href: "/meet" },
+  "/letters": { label: "Letters", href: "/letters" },
+  "/buy": { label: "Buy", href: "/buy" },
+};
+
+function getHomePanels(page, lettersPage) {
+  const panelLookup = Object.fromEntries((page?.content?.panels || []).map((panel) => [panel.href, panel]));
+
+  return HOME_PANEL_ORDER.map((href) => {
+    const base = {
+      ...HOME_PANEL_DEFAULTS[href],
+      ...(panelLookup[href] || {}),
+    };
+
+    if (href === "/letters") {
+      return {
+        ...base,
+        image: base.image || lettersPage?.hero.backgroundImage || page?.hero?.backgroundImage,
+        layout: "half",
+      };
+    }
+
+    if (href === "/read") {
+      return { ...base, layout: "hero" };
+    }
+
+    if (href === "/meet") {
+      return { ...base, layout: "half" };
+    }
+
+    return { ...base, layout: "footer" };
+  }).filter((panel) => panel.href && panel.image);
 }
 
 export default function PublicSite({ bootstrap, refreshBootstrap }) {
@@ -67,7 +117,7 @@ export default function PublicSite({ bootstrap, refreshBootstrap }) {
 
   return (
     <div className="site-shell">
-      {hideBreadcrumbs ? null : <BreadcrumbBar />}
+      {hideBreadcrumbs ? null : <BreadcrumbBar bootstrap={bootstrap} />}
       <div className="site-shell__content">
         <Routes>
           <Route path="/" element={<HomePage bootstrap={bootstrap} />} />
@@ -75,12 +125,17 @@ export default function PublicSite({ bootstrap, refreshBootstrap }) {
           <Route path="/connect" element={<TeamPage bootstrap={bootstrap} routeSlug="/connect" />} />
           <Route path="/meet" element={<TeamPage bootstrap={bootstrap} routeSlug="/meet" />} />
           <Route path="/read" element={<ReadPage bootstrap={bootstrap} />} />
+          <Route path="/read/issue-1" element={<IssuePage bootstrap={bootstrap} slug="/issue-1" />} />
+          <Route path="/read/issue-2" element={<IssuePage bootstrap={bootstrap} slug="/issue-2" />} />
+          <Route path="/read/3-10-to-nowhere" element={<IssuePage bootstrap={bootstrap} slug="/one-shot" />} />
           <Route path="/issue-1" element={<IssuePage bootstrap={bootstrap} slug="/issue-1" />} />
           <Route path="/issue-2" element={<IssuePage bootstrap={bootstrap} slug="/issue-2" />} />
           <Route path="/issue-3" element={<IssuePage bootstrap={bootstrap} slug="/issue-3" />} />
           <Route path="/one-shot" element={<IssuePage bootstrap={bootstrap} slug="/one-shot" />} />
           <Route path="/go" element={<RedirectPage bootstrap={bootstrap} pathName="/go" />} />
           <Route path="/a/:token" element={<DeliveryAccessPage />} />
+          <Route path="/a/:token/read" element={<DeliveryReadPage />} />
+          <Route path="/a/:token/read/:fileId" element={<DeliveryReadPage />} />
           <Route
             path="/3-10-to-nowhere"
             element={<RedirectPage bootstrap={bootstrap} pathName="/3-10-to-nowhere" />}
@@ -114,19 +169,9 @@ function HomePage({ bootstrap }) {
     SPLASH_HOLD_DURATION;
   const splashTotalDuration = splashOutDelay + SPLASH_OUT_DURATION;
   const lettersPage = findPage(bootstrap, "/letters");
-  const panelLookup = Object.fromEntries(page.content.panels.map((panel) => [panel.href, panel]));
-  const homePanels = [
-    { ...panelLookup["/read"], layout: "hero" },
-    { ...panelLookup["/meet"], layout: "half" },
-    {
-      label: "Letters",
-      href: "/letters",
-      image: lettersPage?.hero.backgroundImage || page.hero.backgroundImage,
-      layout: "half",
-    },
-    { ...panelLookup["/buy"], layout: "footer" },
-  ].filter(Boolean);
-  usePageSeo(page);
+  const homePanels = getHomePanels(page, lettersPage);
+  const featuredLetters = bootstrap.lettersSubmissions.filter((letter) => letter.featured).slice(0, 3);
+  usePageSeo(page, { siteSettings: bootstrap.siteSettings });
 
   useLayoutEffect(() => {
     if (!settings.homeSplash.enabled || hasShownHomeSplashThisVisit) {
@@ -182,19 +227,18 @@ function HomePage({ bootstrap }) {
             </RevealOnScroll>
           ))}
         </section>
-        <section className="quote-section">
-          <SectionHeading title="Featured Letters" narrow />
-          <div className="quote-grid quote-grid--letters">
-            {bootstrap.lettersSubmissions
-              .filter((letter) => letter.featured)
-              .slice(0, 3)
-              .map((letter, index) => (
+        {featuredLetters.length ? (
+          <section className="quote-section">
+            <SectionHeading title="Featured Letters" narrow />
+            <div className="quote-grid quote-grid--letters">
+              {featuredLetters.map((letter, index) => (
                 <RevealOnScroll key={letter.id} delay={index * 140}>
                   <LetterCard letter={letter} issues={bootstrap.issues} compact />
                 </RevealOnScroll>
               ))}
-          </div>
-        </section>
+            </div>
+          </section>
+        ) : null}
       </main>
     </>
   );
@@ -217,7 +261,7 @@ function BuyPage({ bootstrap }) {
       },
     ],
   }));
-  usePageSeo(page);
+  usePageSeo(page, { siteSettings: bootstrap.siteSettings });
 
   return (
     <main className="page-stack page-stack--subpage">
@@ -291,7 +335,7 @@ function TeamPage({ bootstrap, routeSlug }) {
   const seoPage = findPage(bootstrap, routeSlug);
   const meetPage = findPage(bootstrap, "/meet");
   const connectPage = findPage(bootstrap, "/connect");
-  usePageSeo(seoPage || meetPage);
+  usePageSeo(seoPage || meetPage, { siteSettings: bootstrap.siteSettings });
 
   return (
     <main className="page-stack page-stack--subpage">
@@ -349,7 +393,7 @@ function TeamPage({ bootstrap, routeSlug }) {
 
 function ReadPage({ bootstrap }) {
   const page = findPage(bootstrap, "/read");
-  usePageSeo(page);
+  usePageSeo(page, { siteSettings: bootstrap.siteSettings });
   return (
     <main className="page-stack page-stack--subpage">
       <HeroSection hero={page.hero} variant="subpage" />
@@ -360,7 +404,7 @@ function ReadPage({ bootstrap }) {
       <section className="section-shell section-shell--subpage">
         <div className="read-grid">
           {sortByOrder(bootstrap.issues).map((issue) => (
-            <Link key={issue.id} className="issue-card" to={issue.slug}>
+            <Link key={issue.id} className="issue-card" to={getIssuePresentationPath(issue)}>
               <div
                 className="issue-card__image"
                 style={{ backgroundImage: `url(${issue.coverImage || page.hero.backgroundImage})` }}
@@ -388,8 +432,10 @@ function IssuePage({ bootstrap, slug }) {
   if (!issue) {
     return <NotFoundPage />;
   }
-  useSeo(issue.seo.title, issue.seo.description, issue.seo.canonicalUrl, issue.seo.noindex, issue.seo.ogImage);
+  const seo = resolveSeo(issue, { siteSettings: bootstrap.siteSettings });
+  useSeo(seo.title, seo.description, seo.canonicalUrl, seo.noindex, seo.ogImage, seo.keywords);
   const synopsis = issue.description.split("\n\n").filter(Boolean);
+  const featuredImage = getIssueFeaturedImage(issue);
   const galleryImages = getIssueGallery(issue);
   const readerImages = getIssueReaderImages(issue);
   const hasReader = Boolean(issue.readerPdfUrl || readerImages.length);
@@ -412,31 +458,20 @@ function IssuePage({ bootstrap, slug }) {
       <main className="page-stack page-stack--issue">
         <section className="issue-hero section-shell">
           <div className="issue-hero__media">
-            {issue.coverImage ? (
+            {featuredImage ? (
               <button
                 type="button"
                 className={`issue-cover ${hasReader ? "issue-cover--interactive" : ""}`}
                 onClick={() => openReader(1)}
                 aria-label={hasReader ? `Open ${issue.title} preview` : issue.title}
               >
-                <img src={issue.coverImage} alt={`${issue.title} cover`} />
+                <img src={featuredImage} alt={`${issue.title} featured art`} />
               </button>
             ) : (
               <div className="issue-cover issue-cover--placeholder">
                 <span>Preview coming soon</span>
               </div>
             )}
-            {galleryImages.slice(1, 3).map((asset, index) => (
-              <button
-                key={`${issue.id}-peek-${asset}`}
-                type="button"
-                className={`issue-hero__peek issue-hero__peek--${index + 1}`}
-                onClick={() => openReader(index + 2)}
-                aria-label={`Open preview page ${index + 2}`}
-              >
-                <img src={asset} alt="" loading="lazy" />
-              </button>
-            ))}
           </div>
           <div className="issue-hero__content">
             <p className="issue-hero__eyebrow">{issue.shortLabel || issue.title}</p>
@@ -459,12 +494,12 @@ function IssuePage({ bootstrap, slug }) {
             <p className="issue-hero__hint">
               {hasReader
                 ? "Tap to read with a distraction-free, mobile-friendly viewer."
-                : "Additional preview pages will appear here when they are available."}
+                : "Preview pages can be added to the gallery below as they become available."}
             </p>
           </div>
         </section>
         <section className="section-shell issue-story">
-          <article className="issue-synopsis">
+          <article className="issue-synopsis issue-story__synopsis">
             <SectionHeading kicker="Synopsis" title={issue.shortLabel || issue.title} />
             <div className="body-copy body-copy--issue">
               {synopsis.map((paragraph) => (
@@ -472,42 +507,36 @@ function IssuePage({ bootstrap, slug }) {
               ))}
             </div>
           </article>
-          <aside className="issue-sidebar">
-            <section className="issue-meta-card">
-              <p className="issue-meta-card__eyebrow">Credits</p>
-              <div className="issue-meta-list">
-                {credits.map(([label, value]) => (
-                  <div key={label} className="issue-meta-list__row">
-                    <span>{label}</span>
-                    <strong>{value}</strong>
-                  </div>
-                ))}
-              </div>
-            </section>
-            {galleryImages.length > 1 ? (
-              <section className="issue-meta-card issue-meta-card--soft">
-                <p className="issue-meta-card__eyebrow">Preview Pages</p>
-                <p className="issue-meta-card__copy">
-                  Open the reader from any image. It keeps controls hidden until you need them.
-                </p>
-              </section>
-            ) : null}
-          </aside>
+          <section className="issue-meta-card issue-story__credits">
+            <p className="issue-meta-card__eyebrow">Credits</p>
+            <div className="issue-meta-list">
+              {credits.map(([label, value]) => (
+                <div key={label} className="issue-meta-list__row">
+                  <span>{label}</span>
+                  <strong>{value}</strong>
+                </div>
+              ))}
+            </div>
+          </section>
         </section>
-        {galleryImages.length > 1 ? (
+        {galleryImages.length ? (
           <section className="section-shell issue-gallery-section">
             <div className="issue-gallery">
-              {galleryImages.slice(1).map((asset, index) => (
-                <button
-                  key={`${issue.id}-gallery-${asset}`}
-                  type="button"
-                  className="issue-gallery__item"
-                  onClick={() => openReader(index + 2)}
-                  aria-label={`Open preview page ${index + 2}`}
-                >
-                  <img src={asset} alt="" loading="lazy" />
-                </button>
-              ))}
+              {galleryImages.map((asset, index) => {
+                const pageNumber = readerImages.indexOf(asset) + 1 || 1;
+
+                return (
+                  <button
+                    key={`${issue.id}-gallery-${asset}`}
+                    type="button"
+                    className="issue-gallery__item"
+                    onClick={() => openReader(pageNumber)}
+                    aria-label={`Open preview page ${pageNumber}`}
+                  >
+                    <img src={asset} alt="" loading="lazy" />
+                  </button>
+                );
+              })}
             </div>
           </section>
         ) : null}
@@ -723,21 +752,27 @@ function ReaderLoading() {
 function LettersPage({ bootstrap, refreshBootstrap }) {
   const page = findPage(bootstrap, "/letters");
   const issues = sortByOrder(bootstrap.issues);
-  const publicLetters = [...bootstrap.lettersSubmissions].sort(
-    (a, b) => new Date(b.publishedAt || b.createdAt) - new Date(a.publishedAt || a.createdAt),
-  );
+  const publicLetters = [...bootstrap.lettersSubmissions]
+    .sort((a, b) => new Date(b.publishedAt || b.createdAt) - new Date(a.publishedAt || a.createdAt));
+  const initialVisibleCount = 8;
   const formRef = useRef(null);
   const [formState, setFormState] = useState({
     issueSlug: "",
     message: "",
   });
   const [nameValue, setNameValue] = useState("");
+  const [locationValue, setLocationValue] = useState("");
   const [formStatus, setFormStatus] = useState("");
   const [isNameModalOpen, setIsNameModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
-  usePageSeo(page);
+  const [showAllLetters, setShowAllLetters] = useState(false);
+  usePageSeo(page, { siteSettings: bootstrap.siteSettings });
+
+  const visibleLetters = showAllLetters
+    ? publicLetters
+    : publicLetters.slice(0, initialVisibleCount);
 
   useEffect(() => {
     if (!showToast) {
@@ -763,12 +798,14 @@ function LettersPage({ bootstrap, refreshBootstrap }) {
     try {
       await api.submitLetter({
         name: nameValue.trim(),
+        location: locationValue.trim(),
         email: "",
         issueSlug: formState.issueSlug,
         message: formState.message,
       });
       setFormState({ issueSlug: "", message: "" });
       setNameValue("");
+      setLocationValue("");
       setIsNameModalOpen(false);
       setShowCelebration(true);
       setShowToast(true);
@@ -855,11 +892,24 @@ function LettersPage({ bootstrap, refreshBootstrap }) {
         </section>
         <section className="section-shell">
           {publicLetters.length ? (
-            <div className="letters-grid letters-grid--letters-page">
-              {publicLetters.map((letter) => (
-                <LetterCard key={letter.id} letter={letter} issues={issues} compact={!letter.editorReply} />
-              ))}
-            </div>
+            <>
+              <div className="letters-grid letters-grid--letters-page">
+                {visibleLetters.map((letter) => (
+                  <LetterCard key={letter.id} letter={letter} issues={issues} compact={!letter.editorReply} />
+                ))}
+              </div>
+              {publicLetters.length > initialVisibleCount ? (
+                <div className="letters-grid__more">
+                  <button
+                    className="button-secondary"
+                    type="button"
+                    onClick={() => setShowAllLetters((current) => !current)}
+                  >
+                    {showAllLetters ? "Show less" : "See more"}
+                  </button>
+                </div>
+              ) : null}
+            </>
           ) : (
             <div className="empty-state">
               No public letters just yet. The first few will appear here once they have been
@@ -871,6 +921,7 @@ function LettersPage({ bootstrap, refreshBootstrap }) {
       <LetterNameModal
         isOpen={isNameModalOpen}
         nameValue={nameValue}
+        locationValue={locationValue}
         isSubmitting={isSubmitting}
         onClose={() => {
           if (isSubmitting) {
@@ -880,13 +931,23 @@ function LettersPage({ bootstrap, refreshBootstrap }) {
         }}
         onConfirm={submitLetter}
         onNameChange={setNameValue}
+        onLocationChange={setLocationValue}
       />
       <LetterToast isVisible={showToast} message="your letter's in the mail!" />
     </>
   );
 }
 
-function LetterNameModal({ isOpen, nameValue, isSubmitting, onClose, onConfirm, onNameChange }) {
+function LetterNameModal({
+  isOpen,
+  nameValue,
+  locationValue,
+  isSubmitting,
+  onClose,
+  onConfirm,
+  onNameChange,
+  onLocationChange,
+}) {
   useEffect(() => {
     if (!isOpen) {
       return undefined;
@@ -916,12 +977,17 @@ function LetterNameModal({ isOpen, nameValue, isSubmitting, onClose, onConfirm, 
       <button type="button" className="letter-modal__veil" onClick={onClose} aria-label="Close modal" />
       <div className="letter-modal__card" role="dialog" aria-modal="true" aria-labelledby="letter-modal-title">
         <h2 id="letter-modal-title">Sign your letter</h2>
-        <p>What name should we put on it?</p>
+        <p>What name and hometown should we put on it?</p>
         <input
           autoFocus
           value={nameValue}
           onChange={(event) => onNameChange(event.target.value)}
           placeholder="Your name"
+        />
+        <input
+          value={locationValue}
+          onChange={(event) => onLocationChange(event.target.value)}
+          placeholder="Where ya from"
         />
         <div className="letter-modal__actions">
           <button type="button" className="button-secondary" onClick={onClose}>
@@ -950,6 +1016,8 @@ function LetterToast({ isVisible, message }) {
 }
 
 function LetterCard({ letter, issues, compact = false }) {
+  const signature = letter.location ? `${letter.name}, ${letter.location}` : letter.name;
+
   return (
     <article className={`letter-card ${letter.featured ? "letter-card--featured" : ""}`}>
       <div className="letter-card__meta">
@@ -961,7 +1029,7 @@ function LetterCard({ letter, issues, compact = false }) {
       <div className="letter-card__body">
         <p>{letter.message}</p>
       </div>
-      <footer className="letter-card__footer">- {letter.name}</footer>
+      <footer className="letter-card__footer">- {signature}</footer>
       {!compact && letter.editorReply ? (
         <div className="letter-card__reply">
           <p>{letter.editorReply}</p>
@@ -1095,8 +1163,43 @@ function SiteFooter({ footer }) {
   );
 }
 
-function BreadcrumbBar() {
+function BreadcrumbBar({ bootstrap }) {
   const location = useLocation();
+  const currentIssue = bootstrap.issues.find((issue) => {
+    const presentationPath = getIssuePresentationPath(issue);
+    return (
+      location.pathname === issue.slug ||
+      location.pathname === presentationPath ||
+      (issue.slug === "/one-shot" && location.pathname === "/3-10-to-nowhere")
+    );
+  });
+
+  if (currentIssue) {
+    const crumbs = [
+      { label: "HOME", href: "/" },
+      { label: "READ", href: "/read" },
+      { label: currentIssue.title.toUpperCase(), href: getIssuePresentationPath(currentIssue) },
+    ];
+
+    return (
+      <nav className="breadcrumb-bar" aria-label="Breadcrumb">
+        {crumbs.map((crumb, index) => {
+          const isLast = index === crumbs.length - 1;
+          return (
+            <span key={crumb.href} className="breadcrumb-bar__item">
+              {isLast ? (
+                <span className="breadcrumb-bar__current">{crumb.label}</span>
+              ) : (
+                <Link to={crumb.href}>{crumb.label}</Link>
+              )}
+              {!isLast ? <span className="breadcrumb-bar__sep">/</span> : null}
+            </span>
+          );
+        })}
+      </nav>
+    );
+  }
+
   const parts = location.pathname.split("/").filter(Boolean);
   const crumbs = [{ label: "HOME", href: "/" }];
 

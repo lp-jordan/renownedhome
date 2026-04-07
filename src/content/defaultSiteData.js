@@ -268,6 +268,8 @@ export const defaultSiteData = {
       },
       coverImage:
         "https://renownedcomic.com/wp-content/uploads/2025/09/oneshotcover.png",
+      featuredImage:
+        "https://renownedcomic.com/wp-content/uploads/2025/09/oneshotcover.png",
       previewLabel: "PREVIEW",
       previewUrl: "https://bindings.app/read/LuIWDiMt",
       readerLabel: "Read preview",
@@ -307,6 +309,8 @@ export const defaultSiteData = {
           "https://renownedcomic.com/wp-content/uploads/2025/09/1cover.png",
       },
       coverImage:
+        "https://renownedcomic.com/wp-content/uploads/2025/09/1cover.png",
+      featuredImage:
         "https://renownedcomic.com/wp-content/uploads/2025/09/1cover.png",
       previewLabel: "FOLLOW",
       previewUrl:
@@ -349,6 +353,8 @@ export const defaultSiteData = {
       },
       coverImage:
         "https://renownedcomic.com/wp-content/uploads/2025/09/read.jpg",
+      featuredImage:
+        "https://renownedcomic.com/wp-content/uploads/2025/09/read.jpg",
       previewLabel: "SUPPORT",
       previewUrl:
         "https://www.kickstarter.com/projects/jmintonjohnson/renowned-2-supernatural-detective-series",
@@ -387,6 +393,7 @@ export const defaultSiteData = {
         ogImage: "",
       },
       coverImage: "",
+      featuredImage: "",
       previewLabel: "Coming Soon",
       previewUrl: "",
       readerLabel: "Read preview",
@@ -522,29 +529,7 @@ export const defaultSiteData = {
     },
   ],
   lettersSubmissions: [],
-  assets: [
-    {
-      id: "asset-home-world",
-      label: "Home world background",
-      url: "https://renownedcomic.com/wp-content/uploads/2025/09/world.jpg",
-      storageType: "external-url",
-      metadata: { category: "background" },
-    },
-    {
-      id: "asset-read-cover",
-      label: "Read page cover",
-      url: "https://renownedcomic.com/wp-content/uploads/2025/09/read.jpg",
-      storageType: "external-url",
-      metadata: { category: "cover" },
-    },
-    {
-      id: "asset-logo-white",
-      label: "Renowned logo white",
-      url: "https://renownedcomic.com/wp-content/uploads/2025/09/logowhite_nodrop-small.png",
-      storageType: "external-url",
-      metadata: { category: "logo" },
-    },
-  ],
+  assets: [],
 };
 
 export function cloneDefaultSiteData() {

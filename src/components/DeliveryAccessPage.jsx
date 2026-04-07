@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { useSeo } from "../lib/seo";
 
@@ -31,7 +31,7 @@ export default function DeliveryAccessPage() {
 
   useSeo(
     access ? `${access.project.title} - Delivery` : "Comic Delivery",
-    access?.project?.description || "Access your delivered comic.",
+    access?.project?.description || "Access your delivered comics.",
     "",
     true,
     access?.assets?.coverUrl || ""
@@ -81,30 +81,37 @@ export default function DeliveryAccessPage() {
           )}
         </div>
         <div className="delivery-card__content">
-          <p className="delivery-access__eyebrow">Your Digital Copy Is Ready</p>
+          <p className="delivery-access__eyebrow">{access.tier?.name || "Your Delivery"}</p>
           <h1 className="delivery-card__title">{access.project.title}</h1>
           <p className="delivery-card__byline">from {access.project.creatorName}</p>
-          {access.project.shortMessage ? (
-            <p className="delivery-card__message">{access.project.shortMessage}</p>
+          {access.tier?.message ? (
+            <p className="delivery-card__message">{access.tier.message}</p>
           ) : null}
           {access.project.description ? (
             <p className="delivery-card__description">{access.project.description}</p>
           ) : null}
-          <div className="delivery-card__actions">
-            <a className="button-primary" href={access.actions.downloadUrl}>
-              Download PDF
-            </a>
-            <a className="button-secondary" href={access.actions.readUrl} target="_blank" rel="noreferrer">
-              Read In Browser
-            </a>
-          </div>
-          {access.file ? (
-            <div className="delivery-card__meta">
-              <span>{access.file.originalFilename}</span>
-              <span>Version {access.file.versionNumber}</span>
-              <span>{formatFileSize(access.file.fileSizeBytes)}</span>
+          {access.files?.length ? (
+            <div className="delivery-mini-list">
+              {access.files.map((file) => (
+                <div key={file.id} className="delivery-mini-list__item">
+                  <strong>{file.originalFilename}</strong>
+                  <span>
+                    Version {file.versionNumber} | {formatFileSize(file.fileSizeBytes)}
+                  </span>
+                  <div className="delivery-inline-actions">
+                    <a className="button-primary" href={file.actions.downloadUrl}>
+                      Download
+                    </a>
+                    <Link className="button-secondary" to={file.actions.readUrl}>
+                      Read In Browser
+                    </Link>
+                  </div>
+                </div>
+              ))}
             </div>
-          ) : null}
+          ) : (
+            <p className="delivery-card__footnote">No files are assigned to this tier yet.</p>
+          )}
           <p className="delivery-card__footnote">
             This link is tied to {access.backer.email}. Save the email if you want easy access
             later.

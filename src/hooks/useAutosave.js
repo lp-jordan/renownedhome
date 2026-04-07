@@ -30,9 +30,10 @@ export function useAutosave({ draft, enabled, resetKey, save }) {
       return undefined;
     }
 
-    setStatus("Saving...");
+    setStatus("Unsaved");
     const timeout = setTimeout(async () => {
       try {
+        setStatus("Saving...");
         await saveRef.current(draft);
         lastSavedSerializedRef.current = serialized;
         setStatus("Saved");

@@ -27,96 +27,147 @@ export function buildDeliveryEmail({
   return {
     subject: `${projectTitle} is ready`,
     html: `
-      <div style="margin:0;padding:32px 16px;background:#0b0f16;color:#f2f4f8;font-family:Arial,sans-serif;">
-        <div style="max-width:720px;margin:0 auto;border:1px solid rgba(255,255,255,0.1);border-radius:28px;background:#10131c;box-shadow:0 28px 70px rgba(0,0,0,0.34);overflow:hidden;">
-          <div style="padding:28px 28px 18px;">
-            <div style="display:inline-block;margin:0 0 14px;padding:7px 12px;border:1px solid rgba(255,255,255,0.12);border-radius:999px;background:rgba(255,255,255,0.03);color:#d5dbe6;font-size:11px;letter-spacing:0.24em;text-transform:uppercase;">
-              Digital Delivery
-            </div>
-            <h1 style="margin:0 0 10px;font-size:31px;line-height:1.08;font-weight:700;color:#ffffff;">${safeProjectTitle}</h1>
-            <p style="margin:0;color:#aeb7c5;font-size:14px;line-height:1.6;">
-              Delivered by <span style="color:#ffffff;font-weight:700;">${safeCreatorName}</span>
-            </p>
-          </div>
+      <!doctype html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>${safeProjectTitle} is ready</title>
+        </head>
+        <body style="margin:0;padding:0;background:#0b0f16;font-family:Arial,sans-serif;color:#f2f4f8;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;margin:0;padding:0;background:#0b0f16;">
+            <tr>
+              <td align="center" style="padding:24px 12px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;max-width:600px;margin:0 auto;background:#10131c;border:1px solid #252b38;border-radius:24px;">
+                  <tr>
+                    <td style="padding:28px 24px 18px;">
+                      <div style="display:inline-block;margin:0 0 14px;padding:7px 12px;border:1px solid #303746;border-radius:999px;background:#171c27;color:#d5dbe6;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;">
+                        Digital Delivery
+                      </div>
+                      <h1 style="margin:0 0 10px;font-size:30px;line-height:1.12;font-weight:700;color:#ffffff;">${safeProjectTitle}</h1>
+                      <p style="margin:0;color:#aeb7c5;font-size:14px;line-height:1.6;">
+                        Delivered by <span style="color:#ffffff;font-weight:700;">${safeCreatorName}</span>
+                      </p>
+                    </td>
+                  </tr>
 
-          <div style="margin:0 28px;border-top:1px solid rgba(255,255,255,0.08);"></div>
+                  <tr>
+                    <td style="padding:0 24px;">
+                      <div style="border-top:1px solid #252b38;font-size:0;line-height:0;">&nbsp;</div>
+                    </td>
+                  </tr>
 
-          <div style="padding:18px 28px 22px;">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-              <tr>
-                <td valign="top" style="width:220px;padding:0 18px 0 0;">
-                  ${
-                    safeCoverImageUrl
-                      ? `
-                        <div style="width:200px;max-width:100%;overflow:hidden;border-radius:18px;border:1px solid rgba(255,255,255,0.08);background:#1a2230;box-shadow:0 18px 40px rgba(0,0,0,0.22);">
-                          <img
-                            src="${safeCoverImageUrl}"
-                            alt="${safeProjectTitle} cover"
-                            style="display:block;width:100%;height:auto;"
-                          />
-                        </div>
-                      `
-                      : `
-                        <div style="width:200px;max-width:100%;height:300px;border-radius:18px;border:1px solid rgba(255,255,255,0.08);background:#1a2230;"></div>
-                      `
-                  }
-                </td>
-                <td valign="top" style="padding:0;">
-                  <p style="margin:0 0 14px;color:#d5dbe6;font-size:12px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;">A Note From The Creator</p>
-                  <div style="font-size:15px;line-height:1.9;color:#eef2f7;">
-                    ${safeShortMessage
-                      .split(/\n+/)
-                      .filter(Boolean)
-                      .map((paragraph) => `<p style="margin:0 0 10px;">${paragraph}</p>`)
-                      .join("")}
-                  </div>
+                  <tr>
+                    <td style="padding:20px 24px 22px;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;">
+                        <tr>
+                          <td valign="top" width="100%" style="display:block;width:100%;padding:0 0 18px;">
+                            ${
+                              safeCoverImageUrl
+                                ? `
+                                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;max-width:220px;">
+                                    <tr>
+                                      <td style="overflow:hidden;border-radius:18px;border:1px solid #252b38;background:#1a2230;">
+                                        <img
+                                          src="${safeCoverImageUrl}"
+                                          alt="${safeProjectTitle} cover"
+                                          width="218"
+                                          style="display:block;width:100%;max-width:218px;height:auto;border:0;"
+                                        />
+                                      </td>
+                                    </tr>
+                                  </table>
+                                `
+                                : `
+                                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;max-width:220px;">
+                                    <tr>
+                                      <td height="300" style="height:300px;border-radius:18px;border:1px solid #252b38;background:#1a2230;font-size:0;line-height:0;">&nbsp;</td>
+                                    </tr>
+                                  </table>
+                                `
+                            }
+                          </td>
+                        </tr>
+                        <tr>
+                          <td valign="top" width="100%" style="display:block;width:100%;padding:0;">
+                            <p style="margin:0 0 14px;color:#d5dbe6;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;">A Note From The Creator</p>
+                            <div style="font-size:15px;line-height:1.8;color:#eef2f7;">
+                              ${safeShortMessage
+                                .split(/\n+/)
+                                .filter(Boolean)
+                                .map((paragraph) => `<p style="margin:0 0 10px;">${paragraph}</p>`)
+                                .join("")}
+                            </div>
 
-                  <div style="margin:22px 0 18px;border-top:1px solid rgba(255,255,255,0.08);"></div>
+                            <div style="margin:22px 0 18px;border-top:1px solid #252b38;font-size:0;line-height:0;">&nbsp;</div>
 
-                  <div style="margin:0 0 12px;">
-                    <a
-                      href="${safeAccessUrl}"
-                      style="display:inline-block;padding:16px 28px;border-radius:16px;background:#ffffff;color:#0b0f16;text-decoration:none;font-size:15px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;"
-                    >
-                      Open Your Copy
-                    </a>
-                  </div>
-                  <p style="margin:0;color:#b8c1cf;font-size:14px;line-height:1.8;">
-                    This will open in your browser. You can download or read it online anytime.
-                  </p>
-                </td>
-              </tr>
-            </table>
-          </div>
+                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 12px;">
+                              <tr>
+                                <td align="center" bgcolor="#ffffff" style="border-radius:16px;">
+                                  <a
+                                    href="${safeAccessUrl}"
+                                    style="display:block;padding:16px 24px;border-radius:16px;background:#ffffff;color:#0b0f16;text-decoration:none;font-size:15px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;"
+                                  >
+                                    Open Your Copy
+                                  </a>
+                                </td>
+                              </tr>
+                            </table>
+                            <p style="margin:0;color:#b8c1cf;font-size:14px;line-height:1.8;">
+                              This will open in your browser. You can download or read it online anytime.
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
 
-          <div style="margin:0 28px;border-top:1px solid rgba(255,255,255,0.08);"></div>
+                  <tr>
+                    <td style="padding:0 24px;">
+                      <div style="border-top:1px solid #252b38;font-size:0;line-height:0;">&nbsp;</div>
+                    </td>
+                  </tr>
 
-          <div style="padding:20px 28px 18px;">
-            <div style="padding:14px 16px;border:1px solid rgba(255,255,255,0.06);border-radius:18px;background:rgba(255,255,255,0.04);">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-                <tr>
-                  <td valign="top" style="width:40px;padding:0 12px 0 0;">
-                    <div style="width:32px;height:32px;border-radius:999px;background:rgba(255,255,255,0.08);color:#ffffff;font-size:18px;line-height:32px;text-align:center;">?</div>
-                  </td>
-                  <td valign="top" style="padding:0;">
-                    <p style="margin:0 0 4px;color:#ffffff;font-size:15px;font-weight:700;">Having trouble?</p>
-                    <p style="margin:0 0 10px;color:#b6becc;font-size:13px;line-height:1.6;">
-                      If the button doesn&apos;t work, copy and paste this link:
-                    </p>
-                    <div style="padding:12px 14px;border-radius:12px;background:rgba(255,255,255,0.05);color:#f2f4f8;font-size:12px;line-height:1.6;word-break:break-word;">
-                      <a href="${safeAccessUrl}" style="color:#f2f4f8;text-decoration:none;">${safeAccessUrl}</a>
-                    </div>
-                  </td>
-                </tr>
-              </table>
-            </div>
-          </div>
+                  <tr>
+                    <td style="padding:20px 24px 18px;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border:1px solid #252b38;border-radius:18px;background:#171c27;">
+                        <tr>
+                          <td style="padding:14px 16px;">
+                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;">
+                              <tr>
+                                <td valign="top" style="display:block;width:100%;padding:0 0 12px;">
+                                  <div style="width:32px;height:32px;border-radius:999px;background:#242c39;color:#ffffff;font-size:18px;line-height:32px;text-align:center;">?</div>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td valign="top" style="display:block;width:100%;padding:0;">
+                                  <p style="margin:0 0 4px;color:#ffffff;font-size:15px;font-weight:700;">Having trouble?</p>
+                                  <p style="margin:0 0 10px;color:#b6becc;font-size:13px;line-height:1.6;">
+                                    If the button doesn&apos;t work, copy and paste this link:
+                                  </p>
+                                  <div style="padding:12px 14px;border-radius:12px;background:#1c2330;color:#f2f4f8;font-size:12px;line-height:1.6;word-break:break-word;overflow-wrap:anywhere;">
+                                    <a href="${safeAccessUrl}" style="color:#f2f4f8;text-decoration:none;word-break:break-word;overflow-wrap:anywhere;">${safeAccessUrl}</a>
+                                  </div>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
 
-          <div style="padding:18px 28px 22px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;color:#b6becc;font-size:13px;line-height:1.6;">
-            Keep this email. You can always return to your copy with this link.
-          </div>
-        </div>
-      </div>
+                  <tr>
+                    <td style="padding:18px 24px 22px;border-top:1px solid #252b38;text-align:center;color:#b6becc;font-size:13px;line-height:1.6;">
+                      Keep this email. You can always return to your copy with this link.
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
     `,
     text: `${projectTitle} is ready\n\n${shortMessage || "Your digital copy is ready."}\n\nAccess your copy here:\n${accessUrl}\n`,
   };

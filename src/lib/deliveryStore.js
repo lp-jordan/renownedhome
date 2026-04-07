@@ -26,23 +26,38 @@ function createToken() {
   return crypto.randomBytes(24).toString("base64url");
 }
 
+function createId() {
+  return crypto.randomUUID();
+}
+
+function createDefaultTier(projectId, sortOrder = 0) {
+  const now = new Date().toISOString();
+  return {
+    id: createId(),
+    projectId,
+    name: "General Access",
+    slug: "general-access",
+    messageOverride: "",
+    sortOrder,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 function buildProjectStatus(project) {
   if (project.archivedAt) {
     return "archived";
   }
-
   if (project.lastDeliveredAt) {
     return "delivered";
   }
-
-  if (project.backerCount > 0 && project.activePdfFileId) {
+  if (project.backerCount > 0 && project.fileCount > 0) {
     return "ready";
   }
-
   return "draft";
 }
 
-function summarizeProject(project, backers, accessEvents) {
+function summarizeProject(project, backers, files, tiers, accessEvents) {
   const downloadCount = accessEvents.filter(
     (event) => event.projectId === project.id && event.eventType === "file_download"
   ).length;
@@ -51,15 +66,59 @@ function summarizeProject(project, backers, accessEvents) {
     ...project,
     backerCount: backers.length,
     emailedCount: backers.filter((backer) => backer.lastEmailedAt).length,
+    fileCount: files.filter((file) => file.kind === "pdf").length,
+    tierCount: tiers.length,
     downloadCount,
     status: buildProjectStatus({
       ...project,
       backerCount: backers.length,
+      fileCount: files.filter((file) => file.kind === "pdf").length,
     }),
   };
 }
 
-function createImportSummary(preview, importedCount, skippedExistingCount) {
+function normalizeReaderPages(readerPages) {
+  if (!Array.isArray(readerPages)) {
+    return [];
+  }
+
+  return readerPages
+    .map((page, index) => ({
+      pageNumber: Number(page?.pageNumber || index + 1),
+      storageKey: String(page?.storageKey || "").trim(),
+      mimeType: String(page?.mimeType || "image/jpeg").trim() || "image/jpeg",
+      width: Number(page?.width || 0) || null,
+      height: Number(page?.height || 0) || null,
+    }))
+    .filter((page) => page.pageNumber > 0 && page.storageKey);
+}
+
+function normalizeDeliveryFile(file) {
+  if (!file) {
+    return null;
+  }
+
+  return {
+    ...file,
+    readerPages: normalizeReaderPages(file.readerPages),
+  };
+}
+
+function normalizeTier(tier) {
+  if (!tier) {
+    return null;
+  }
+
+  return {
+    ...tier,
+    name: String(tier.name || "").trim(),
+    slug: slugify(tier.slug || tier.name),
+    messageOverride: String(tier.messageOverride || "").trim(),
+    sortOrder: Number(tier.sortOrder || 0),
+  };
+}
+
+function createImportSummary(preview, importedCount, skippedExistingCount, skippedUnknownTierCount) {
   return {
     totalRows: preview.summary.totalRows,
     validCount: preview.summary.validCount,
@@ -67,7 +126,104 @@ function createImportSummary(preview, importedCount, skippedExistingCount) {
     duplicateCount: preview.summary.duplicateCount,
     importedCount,
     skippedExistingCount,
+    skippedUnknownTierCount,
   };
+}
+
+function sortByCreatedDesc(items) {
+  return [...items].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+function sortTiers(tiers) {
+  return [...tiers].sort((a, b) => {
+    if (a.sortOrder !== b.sortOrder) {
+      return a.sortOrder - b.sortOrder;
+    }
+    return a.name.localeCompare(b.name);
+  });
+}
+
+function getProjectFiles(files, projectId) {
+  return files
+    .filter((file) => file.projectId === projectId)
+    .map((file) => normalizeDeliveryFile(file));
+}
+
+function getProjectTiers(tiers, projectId) {
+  return sortTiers(
+    tiers
+      .filter((tier) => tier.projectId === projectId)
+      .map((tier) => normalizeTier(tier))
+  );
+}
+
+function getTierFileIds(tierFiles, tierId) {
+  return tierFiles
+    .filter((entry) => entry.tierId === tierId)
+    .map((entry) => entry.fileId);
+}
+
+function buildProjectDetail(data, project) {
+  const files = getProjectFiles(data.files, project.id);
+  const pdfFiles = sortByCreatedDesc(files.filter((file) => file.kind === "pdf"));
+  const coverFiles = sortByCreatedDesc(files.filter((file) => file.kind === "cover"));
+  const currentCover = coverFiles.find((file) => file.id === project.coverFileId) || null;
+  const tiers = getProjectTiers(data.tiers, project.id).map((tier) => {
+    const fileIds = getTierFileIds(data.tierFiles, tier.id);
+    return {
+      ...tier,
+      fileIds,
+      backerCount: data.backers.filter((backer) => backer.tierId === tier.id).length,
+    };
+  });
+  const backers = sortByCreatedDesc(
+    data.backers
+      .filter((backer) => backer.projectId === project.id)
+      .map((backer) => {
+        const tier = tiers.find((entry) => entry.id === backer.tierId) || null;
+        return {
+          ...backer,
+          tierName: tier?.name || "",
+          tierSlug: tier?.slug || "",
+        };
+      })
+  );
+
+  return {
+    project: summarizeProject(project, backers, pdfFiles, tiers, data.accessEvents),
+    currentCover,
+    files: pdfFiles,
+    tiers,
+    backers,
+  };
+}
+
+function ensureUniqueTierSlugs(tiers) {
+  const seen = new Set();
+  return tiers.map((tier, index) => {
+    const baseSlug = slugify(tier.slug || tier.name || `tier-${index + 1}`) || `tier-${index + 1}`;
+    let nextSlug = baseSlug;
+    let suffix = 2;
+    while (seen.has(nextSlug)) {
+      nextSlug = `${baseSlug}-${suffix}`;
+      suffix += 1;
+    }
+    seen.add(nextSlug);
+    return {
+      ...tier,
+      slug: nextSlug,
+      sortOrder: index,
+    };
+  });
+}
+
+function findTierByLabel(tiers, label) {
+  const normalized = slugify(label);
+  return (
+    tiers.find((tier) => tier.slug === normalized) ||
+    tiers.find((tier) => slugify(tier.name) === normalized) ||
+    null
+  );
 }
 
 export function parseBackerCsv(csvText) {
@@ -94,6 +250,7 @@ export function parseBackerCsv(csvText) {
 
   const firstColumns = lines[0].split(",").map((cell) => cell.trim().toLowerCase());
   const emailIndex = firstColumns.findIndex((cell) => cell === "email");
+  const tierIndex = firstColumns.findIndex((cell) => cell === "tier");
   const hasHeader = emailIndex >= 0;
   const rows = [];
   const validRows = [];
@@ -105,10 +262,14 @@ export function parseBackerCsv(csvText) {
     const raw = lines[index];
     const columns = raw.split(",").map((cell) => cell.trim());
     const email = normalizeEmail(hasHeader ? columns[emailIndex] : columns[0]);
+    const tier = String(
+      hasHeader && tierIndex >= 0 ? columns[tierIndex] || "" : columns[1] || ""
+    ).trim();
     const row = {
       rowNumber: index + 1,
       raw,
       email,
+      tier,
       status: "valid",
     };
 
@@ -159,6 +320,8 @@ export class DeliveryFileStore {
         projects: [],
         files: [],
         backers: [],
+        tiers: [],
+        tierFiles: [],
         deliveries: [],
         accessEvents: [],
       });
@@ -168,11 +331,20 @@ export class DeliveryFileStore {
     const data = await this.read();
     const nextData = {
       projects: Array.isArray(data.projects) ? data.projects : [],
-      files: Array.isArray(data.files) ? data.files : [],
+      files: Array.isArray(data.files) ? data.files.map((file) => normalizeDeliveryFile(file)) : [],
       backers: Array.isArray(data.backers) ? data.backers : [],
+      tiers: Array.isArray(data.tiers) ? data.tiers.map((tier) => normalizeTier(tier)) : [],
+      tierFiles: Array.isArray(data.tierFiles) ? data.tierFiles : [],
       deliveries: Array.isArray(data.deliveries) ? data.deliveries : [],
       accessEvents: Array.isArray(data.accessEvents) ? data.accessEvents : [],
     };
+
+    for (const project of nextData.projects) {
+      const projectTiers = nextData.tiers.filter((tier) => tier.projectId === project.id);
+      if (!projectTiers.length) {
+        nextData.tiers.push(createDefaultTier(project.id));
+      }
+    }
 
     await this.write(nextData);
   }
@@ -194,6 +366,8 @@ export class DeliveryFileStore {
         summarizeProject(
           project,
           data.backers.filter((backer) => backer.projectId === project.id),
+          data.files.filter((file) => file.projectId === project.id && file.kind === "pdf"),
+          data.tiers.filter((tier) => tier.projectId === project.id),
           data.accessEvents
         )
       )
@@ -203,8 +377,9 @@ export class DeliveryFileStore {
   async createProject(userId, payload) {
     const data = await this.read();
     const now = new Date().toISOString();
+    const projectId = createId();
     const project = {
-      id: crypto.randomUUID(),
+      id: projectId,
       userId,
       title: String(payload.title || "").trim(),
       slug: slugify(payload.slug || payload.title),
@@ -212,7 +387,6 @@ export class DeliveryFileStore {
       description: String(payload.description || "").trim(),
       shortMessage: String(payload.shortMessage || "").trim(),
       coverFileId: null,
-      activePdfFileId: null,
       lastDeliveredAt: null,
       archivedAt: null,
       createdAt: now,
@@ -220,8 +394,96 @@ export class DeliveryFileStore {
     };
 
     data.projects.unshift(project);
+    data.tiers.unshift(createDefaultTier(projectId));
     await this.write(data);
-    return summarizeProject(project, [], []);
+    return summarizeProject(project, [], [], data.tiers.filter((tier) => tier.projectId === projectId), []);
+  }
+
+  async updateProject(userId, projectId, payload) {
+    const data = await this.read();
+    const projectIndex = data.projects.findIndex(
+      (entry) => entry.id === projectId && entry.userId === userId
+    );
+
+    if (projectIndex === -1) {
+      return null;
+    }
+
+    const now = new Date().toISOString();
+    const project = data.projects[projectIndex];
+    const nextProject = {
+      ...project,
+      title: String(payload.title || project.title).trim(),
+      slug: slugify(payload.slug || payload.title || project.slug),
+      creatorName: String(payload.creatorName || project.creatorName).trim(),
+      description: String(payload.description ?? project.description).trim(),
+      shortMessage: String(payload.shortMessage ?? project.shortMessage).trim(),
+      updatedAt: now,
+    };
+
+    const existingFiles = getProjectFiles(data.files, projectId).filter((file) => file.kind === "pdf");
+    const existingTiers = getProjectTiers(data.tiers, projectId);
+    const submittedTiers = Array.isArray(payload.tiers) && payload.tiers.length
+      ? ensureUniqueTierSlugs(
+          payload.tiers.map((tier, index) => ({
+            id: tier.id || createId(),
+            projectId,
+            name: String(tier.name || `Tier ${index + 1}`).trim(),
+            slug: tier.slug || tier.name,
+            messageOverride: String(tier.messageOverride || "").trim(),
+            sortOrder: index,
+            createdAt:
+              existingTiers.find((entry) => entry.id === tier.id)?.createdAt || now,
+            updatedAt: now,
+          }))
+        )
+      : existingTiers;
+
+    const removedTierIds = existingTiers
+      .filter((tier) => !submittedTiers.some((entry) => entry.id === tier.id))
+      .map((tier) => tier.id);
+
+    const tierBackerConflict = data.backers.find((backer) => removedTierIds.includes(backer.tierId));
+    if (tierBackerConflict) {
+      throw new Error("Move backers out of a tier before removing it.");
+    }
+
+    data.projects[projectIndex] = nextProject;
+    data.tiers = data.tiers
+      .filter((tier) => !removedTierIds.includes(tier.id))
+      .filter((tier) => tier.projectId !== projectId)
+      .concat(submittedTiers);
+
+    data.tierFiles = data.tierFiles.filter((entry) => {
+      if (entry.projectId !== projectId) {
+        return true;
+      }
+      return !removedTierIds.includes(entry.tierId);
+    });
+
+    const nextTierFiles = [];
+    for (const tier of submittedTiers) {
+      const submittedTier = payload.tiers?.find((entry) => entry.id === tier.id) || null;
+      const fileIds = Array.isArray(submittedTier?.fileIds)
+        ? submittedTier.fileIds
+        : existingFiles.map((file) => file.id);
+      for (const fileId of fileIds) {
+        if (!existingFiles.some((file) => file.id === fileId)) {
+          continue;
+        }
+        nextTierFiles.push({
+          id: createId(),
+          projectId,
+          tierId: tier.id,
+          fileId,
+          createdAt: now,
+        });
+      }
+    }
+
+    data.tierFiles = data.tierFiles.filter((entry) => entry.projectId !== projectId).concat(nextTierFiles);
+    await this.write(data);
+    return buildProjectDetail(data, nextProject);
   }
 
   async getProject(userId, projectId) {
@@ -234,15 +496,7 @@ export class DeliveryFileStore {
       return null;
     }
 
-    const backers = data.backers.filter((backer) => backer.projectId === project.id);
-    const files = data.files.filter((file) => file.projectId === project.id);
-    return {
-      project: summarizeProject(project, backers, data.accessEvents),
-      currentCover: files.find((file) => file.id === project.coverFileId) || null,
-      currentPdf: files.find((file) => file.id === project.activePdfFileId) || null,
-      files: files.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
-      backers: backers.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
-    };
+    return buildProjectDetail(data, project);
   }
 
   async attachFile(userId, projectId, payload) {
@@ -262,34 +516,48 @@ export class DeliveryFileStore {
     const nextVersion = payload.kind === "pdf" ? previousFiles.length + 1 : 1;
     const now = new Date().toISOString();
     const file = {
-      id: crypto.randomUUID(),
+      id: createId(),
       projectId,
       kind: payload.kind,
       storageKey: payload.storageKey,
       originalFilename: payload.originalFilename,
       mimeType: payload.mimeType,
       fileSizeBytes: payload.fileSizeBytes,
+      readerPages: normalizeReaderPages(payload.readerPages),
       versionNumber: nextVersion,
       isActive: true,
       createdAt: now,
     };
 
-    data.files = data.files.map((entry) =>
-      entry.projectId === projectId && entry.kind === payload.kind
-        ? { ...entry, isActive: false }
-        : entry
-    );
+    if (payload.kind === "cover") {
+      data.files = data.files.filter(
+        (entry) => !(entry.projectId === projectId && entry.kind === "cover")
+      );
+      data.projects[projectIndex] = {
+        ...project,
+        coverFileId: file.id,
+        updatedAt: now,
+      };
+    } else {
+      const tiers = getProjectTiers(data.tiers, projectId);
+      for (const tier of tiers) {
+        data.tierFiles.push({
+          id: createId(),
+          projectId,
+          tierId: tier.id,
+          fileId: file.id,
+          createdAt: now,
+        });
+      }
+      data.projects[projectIndex] = {
+        ...project,
+        updatedAt: now,
+      };
+    }
+
     data.files.unshift(file);
-
-    data.projects[projectIndex] = {
-      ...project,
-      coverFileId: payload.kind === "cover" ? file.id : project.coverFileId,
-      activePdfFileId: payload.kind === "pdf" ? file.id : project.activePdfFileId,
-      updatedAt: now,
-    };
-
     await this.write(data);
-    return file;
+    return normalizeDeliveryFile(file);
   }
 
   async deleteProject(userId, projectId) {
@@ -306,6 +574,8 @@ export class DeliveryFileStore {
     data.projects = data.projects.filter((entry) => entry.id !== projectId);
     data.files = data.files.filter((file) => file.projectId !== projectId);
     data.backers = data.backers.filter((backer) => backer.projectId !== projectId);
+    data.tiers = data.tiers.filter((tier) => tier.projectId !== projectId);
+    data.tierFiles = data.tierFiles.filter((entry) => entry.projectId !== projectId);
     data.accessEvents = data.accessEvents.filter((event) => event.projectId !== projectId);
     await this.write(data);
 
@@ -332,42 +602,19 @@ export class DeliveryFileStore {
     }
 
     const project = data.projects[projectIndex];
-    const remainingFiles = data.files.filter((entry) => entry.id !== fileId);
-    const nextProject = { ...project, updatedAt: new Date().toISOString() };
+    data.files = data.files.filter((entry) => entry.id !== fileId);
+    data.tierFiles = data.tierFiles.filter((entry) => entry.fileId !== fileId);
 
-    if (file.kind === "cover" && project.coverFileId === fileId) {
-      nextProject.coverFileId = null;
-    } else if (file.kind === "pdf" && project.activePdfFileId === fileId) {
-      const nextPdf = remainingFiles
-        .filter((entry) => entry.projectId === projectId && entry.kind === "pdf")
-        .sort((a, b) => {
-          if (b.versionNumber !== a.versionNumber) {
-            return b.versionNumber - a.versionNumber;
-          }
-          return new Date(b.createdAt) - new Date(a.createdAt);
-        })[0] || null;
+    data.projects[projectIndex] = {
+      ...project,
+      coverFileId: file.kind === "cover" && project.coverFileId === fileId ? null : project.coverFileId,
+      updatedAt: new Date().toISOString(),
+    };
 
-      nextProject.activePdfFileId = nextPdf?.id || null;
-      data.files = remainingFiles.map((entry) =>
-        entry.projectId === projectId && entry.kind === "pdf"
-          ? { ...entry, isActive: entry.id === nextProject.activePdfFileId }
-          : entry
-      );
-    } else {
-      data.files = remainingFiles;
-    }
-
-    if (file.kind === "cover") {
-      data.files = remainingFiles;
-    }
-
-    data.projects[projectIndex] = nextProject;
     await this.write(data);
-
     return {
       deletedFile: file,
-      nextActivePdfFileId: nextProject.activePdfFileId,
-      nextCoverFileId: nextProject.coverFileId,
+      nextCoverFileId: data.projects[projectIndex].coverFileId,
     };
   }
 
@@ -382,6 +629,8 @@ export class DeliveryFileStore {
     }
 
     const preview = parseBackerCsv(csvText);
+    const tiers = getProjectTiers(data.tiers, projectId);
+    const defaultTier = tiers[0] || null;
     const existingEmails = new Set(
       data.backers
         .filter((backer) => backer.projectId === projectId)
@@ -390,6 +639,7 @@ export class DeliveryFileStore {
     const now = new Date().toISOString();
     let importedCount = 0;
     let skippedExistingCount = 0;
+    let skippedUnknownTierCount = 0;
 
     for (const row of preview.validRows) {
       if (existingEmails.has(row.email)) {
@@ -397,11 +647,18 @@ export class DeliveryFileStore {
         continue;
       }
 
+      const tier = row.tier ? findTierByLabel(tiers, row.tier) : defaultTier;
+      if (!tier) {
+        skippedUnknownTierCount += 1;
+        continue;
+      }
+
       existingEmails.add(row.email);
       importedCount += 1;
       data.backers.unshift({
-        id: crypto.randomUUID(),
+        id: createId(),
         projectId,
+        tierId: tier.id,
         email: row.email,
         normalizedEmail: row.email,
         accessToken: createToken(),
@@ -417,13 +674,18 @@ export class DeliveryFileStore {
     await this.write(data);
 
     return {
-      summary: createImportSummary(preview, importedCount, skippedExistingCount),
+      summary: createImportSummary(
+        preview,
+        importedCount,
+        skippedExistingCount,
+        skippedUnknownTierCount
+      ),
     };
   }
 
   async getFile(fileId) {
     const data = await this.read();
-    return data.files.find((file) => file.id === fileId) || null;
+    return normalizeDeliveryFile(data.files.find((file) => file.id === fileId)) || null;
   }
 
   async getAccessByToken(token) {
@@ -434,27 +696,40 @@ export class DeliveryFileStore {
     }
 
     const project = data.projects.find((entry) => entry.id === backer.projectId);
-    if (!project || !project.activePdfFileId) {
+    const tier = data.tiers.find((entry) => entry.id === backer.tierId);
+    if (!project || !tier) {
       return null;
     }
 
-    const currentPdf = data.files.find((file) => file.id === project.activePdfFileId) || null;
-    const currentCover = data.files.find((file) => file.id === project.coverFileId) || null;
+    const fileIds = getTierFileIds(data.tierFiles, tier.id);
+    const files = sortByCreatedDesc(
+      data.files
+        .filter((file) => file.projectId === project.id && file.kind === "pdf" && fileIds.includes(file.id))
+        .map((file) => normalizeDeliveryFile(file))
+    );
+    const currentCover = normalizeDeliveryFile(
+      data.files.find((file) => file.id === project.coverFileId)
+    ) || null;
 
     return {
       project,
       backer,
-      currentPdf,
+      tier: {
+        ...normalizeTier(tier),
+        message: tier.messageOverride || project.shortMessage,
+      },
       currentCover,
+      files,
     };
   }
 
-  async logAccessEvent(projectId, backerId, eventType) {
+  async logAccessEvent(projectId, backerId, eventType, fileId = null) {
     const data = await this.read();
     data.accessEvents.unshift({
-      id: crypto.randomUUID(),
+      id: createId(),
       projectId,
       backerId,
+      fileId,
       eventType,
       createdAt: new Date().toISOString(),
     });
@@ -515,7 +790,6 @@ export class DeliveryPgStore {
         description TEXT NOT NULL DEFAULT '',
         short_message TEXT NOT NULL DEFAULT '',
         cover_file_id UUID NULL,
-        active_pdf_file_id UUID NULL,
         last_delivered_at TIMESTAMPTZ NULL,
         archived_at TIMESTAMPTZ NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -524,9 +798,6 @@ export class DeliveryPgStore {
     `);
     await this.pool.query(
       `ALTER TABLE delivery_projects ADD COLUMN IF NOT EXISTS cover_file_id UUID NULL`
-    );
-    await this.pool.query(
-      `ALTER TABLE delivery_projects ADD COLUMN IF NOT EXISTS active_pdf_file_id UUID NULL`
     );
     await this.pool.query(
       `ALTER TABLE delivery_projects ADD COLUMN IF NOT EXISTS last_delivered_at TIMESTAMPTZ NULL`
@@ -547,9 +818,38 @@ export class DeliveryPgStore {
         original_filename TEXT NOT NULL,
         mime_type TEXT NOT NULL,
         file_size_bytes BIGINT NOT NULL,
+        reader_pages JSONB NOT NULL DEFAULT '[]'::jsonb,
         version_number INT NOT NULL DEFAULT 1,
         is_active BOOLEAN NOT NULL DEFAULT TRUE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await this.pool.query(
+      `ALTER TABLE delivery_files ADD COLUMN IF NOT EXISTS reader_pages JSONB NOT NULL DEFAULT '[]'::jsonb`
+    );
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS delivery_tiers (
+        id UUID PRIMARY KEY,
+        project_id UUID NOT NULL REFERENCES delivery_projects(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        message_override TEXT NOT NULL DEFAULT '',
+        sort_order INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (project_id, slug)
+      );
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS delivery_tier_files (
+        id UUID PRIMARY KEY,
+        project_id UUID NOT NULL REFERENCES delivery_projects(id) ON DELETE CASCADE,
+        tier_id UUID NOT NULL REFERENCES delivery_tiers(id) ON DELETE CASCADE,
+        file_id UUID NOT NULL REFERENCES delivery_files(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (tier_id, file_id)
       );
     `);
 
@@ -557,6 +857,7 @@ export class DeliveryPgStore {
       CREATE TABLE IF NOT EXISTS delivery_backers (
         id UUID PRIMARY KEY,
         project_id UUID NOT NULL REFERENCES delivery_projects(id) ON DELETE CASCADE,
+        tier_id UUID NULL REFERENCES delivery_tiers(id) ON DELETE SET NULL,
         email TEXT NOT NULL,
         normalized_email TEXT NOT NULL,
         access_token TEXT NOT NULL,
@@ -566,6 +867,9 @@ export class DeliveryPgStore {
         UNIQUE (project_id, normalized_email)
       );
     `);
+    await this.pool.query(
+      `ALTER TABLE delivery_backers ADD COLUMN IF NOT EXISTS tier_id UUID NULL REFERENCES delivery_tiers(id) ON DELETE SET NULL`
+    );
     await this.pool.query(
       `ALTER TABLE delivery_backers ADD COLUMN IF NOT EXISTS access_token TEXT NULL`
     );
@@ -579,6 +883,7 @@ export class DeliveryPgStore {
         AND access_token_hash IS NOT NULL
         AND access_token_hash <> ''
     `).catch(() => {});
+
     const missingTokenRows = await this.pool
       .query(`SELECT id FROM delivery_backers WHERE access_token IS NULL OR access_token = ''`)
       .catch(() => ({ rows: [] }));
@@ -594,9 +899,60 @@ export class DeliveryPgStore {
         id UUID PRIMARY KEY,
         project_id UUID NOT NULL REFERENCES delivery_projects(id) ON DELETE CASCADE,
         backer_id UUID NULL REFERENCES delivery_backers(id) ON DELETE SET NULL,
+        file_id UUID NULL REFERENCES delivery_files(id) ON DELETE SET NULL,
         event_type TEXT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+    `);
+    await this.pool.query(
+      `ALTER TABLE delivery_access_events ADD COLUMN IF NOT EXISTS file_id UUID NULL REFERENCES delivery_files(id) ON DELETE SET NULL`
+    );
+
+    const projectsResult = await this.pool.query(`SELECT id FROM delivery_projects`);
+    for (const row of projectsResult.rows) {
+      const tierResult = await this.pool.query(
+        `SELECT id FROM delivery_tiers WHERE project_id = $1 LIMIT 1`,
+        [row.id]
+      );
+      if (!tierResult.rows[0]) {
+        const tier = createDefaultTier(row.id);
+        await this.pool.query(
+          `
+            INSERT INTO delivery_tiers (
+              id,
+              project_id,
+              name,
+              slug,
+              message_override,
+              sort_order,
+              created_at,
+              updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          `,
+          [
+            tier.id,
+            tier.projectId,
+            tier.name,
+            tier.slug,
+            tier.messageOverride,
+            tier.sortOrder,
+            tier.createdAt,
+            tier.updatedAt,
+          ]
+        );
+      }
+    }
+
+    await this.pool.query(`
+      UPDATE delivery_backers b
+      SET tier_id = t.id
+      FROM (
+        SELECT DISTINCT ON (project_id) id, project_id
+        FROM delivery_tiers
+        ORDER BY project_id, sort_order ASC, created_at ASC
+      ) t
+      WHERE b.project_id = t.project_id
+        AND b.tier_id IS NULL
     `);
   }
 
@@ -612,16 +968,19 @@ export class DeliveryPgStore {
           p.description,
           p.short_message AS "shortMessage",
           p.cover_file_id AS "coverFileId",
-          p.active_pdf_file_id AS "activePdfFileId",
           p.last_delivered_at AS "lastDeliveredAt",
           p.archived_at AS "archivedAt",
           p.created_at AS "createdAt",
           p.updated_at AS "updatedAt",
           COUNT(DISTINCT b.id)::INT AS "backerCount",
           COUNT(DISTINCT b.id) FILTER (WHERE b.last_emailed_at IS NOT NULL)::INT AS "emailedCount",
+          COUNT(DISTINCT tf.file_id)::INT AS "fileCount",
+          COUNT(DISTINCT t.id)::INT AS "tierCount",
           COUNT(ae.id) FILTER (WHERE ae.event_type = 'file_download')::INT AS "downloadCount"
         FROM delivery_projects p
         LEFT JOIN delivery_backers b ON b.project_id = p.id
+        LEFT JOIN delivery_tiers t ON t.project_id = p.id
+        LEFT JOIN delivery_tier_files tf ON tf.project_id = p.id
         LEFT JOIN delivery_access_events ae ON ae.project_id = p.id
         WHERE p.user_id = $1
         GROUP BY p.id
@@ -637,422 +996,86 @@ export class DeliveryPgStore {
   }
 
   async createProject(userId, payload) {
-    const id = crypto.randomUUID();
-    const result = await this.pool.query(
-      `
-        INSERT INTO delivery_projects (
-          id,
-          user_id,
-          title,
-          slug,
-          creator_name,
-          description,
-          short_message
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING
-          id,
-          user_id AS "userId",
-          title,
-          slug,
-          creator_name AS "creatorName",
-          description,
-          short_message AS "shortMessage",
-          cover_file_id AS "coverFileId",
-          active_pdf_file_id AS "activePdfFileId",
-          last_delivered_at AS "lastDeliveredAt",
-          archived_at AS "archivedAt",
-          created_at AS "createdAt",
-          updated_at AS "updatedAt"
-      `,
-      [
-        id,
-        userId,
-        String(payload.title || "").trim(),
-        slugify(payload.slug || payload.title),
-        String(payload.creatorName || "").trim(),
-        String(payload.description || "").trim(),
-        String(payload.shortMessage || "").trim(),
-      ]
-    );
-
-    return {
-      ...result.rows[0],
-      backerCount: 0,
-      emailedCount: 0,
-      downloadCount: 0,
-      status: "draft",
-    };
-  }
-
-  async getProject(userId, projectId) {
-    const projectResult = await this.pool.query(
-      `
-        SELECT
-          p.id,
-          p.user_id AS "userId",
-          p.title,
-          p.slug,
-          p.creator_name AS "creatorName",
-          p.description,
-          p.short_message AS "shortMessage",
-          p.cover_file_id AS "coverFileId",
-          p.active_pdf_file_id AS "activePdfFileId",
-          p.last_delivered_at AS "lastDeliveredAt",
-          p.archived_at AS "archivedAt",
-          p.created_at AS "createdAt",
-          p.updated_at AS "updatedAt",
-          COUNT(DISTINCT b.id)::INT AS "backerCount",
-          COUNT(DISTINCT b.id) FILTER (WHERE b.last_emailed_at IS NOT NULL)::INT AS "emailedCount",
-          COUNT(ae.id) FILTER (WHERE ae.event_type = 'file_download')::INT AS "downloadCount"
-        FROM delivery_projects p
-        LEFT JOIN delivery_backers b ON b.project_id = p.id
-        LEFT JOIN delivery_access_events ae ON ae.project_id = p.id
-        WHERE p.user_id = $1 AND p.id = $2
-        GROUP BY p.id
-      `,
-      [userId, projectId]
-    );
-
-    const project = projectResult.rows[0];
-    if (!project) {
-      return null;
-    }
-
-    const [filesResult, backersResult] = await Promise.all([
-      this.pool.query(
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const projectId = createId();
+      const now = new Date().toISOString();
+      const projectResult = await client.query(
         `
-          SELECT
+          INSERT INTO delivery_projects (
             id,
-            project_id AS "projectId",
-            kind,
-            storage_key AS "storageKey",
-            original_filename AS "originalFilename",
-            mime_type AS "mimeType",
-            file_size_bytes::INT AS "fileSizeBytes",
-            version_number AS "versionNumber",
-            is_active AS "isActive",
-            created_at AS "createdAt"
-          FROM delivery_files
-          WHERE project_id = $1
-          ORDER BY created_at DESC
-        `,
-        [projectId]
-      ),
-      this.pool.query(
-        `
-          SELECT
+            user_id,
+            title,
+            slug,
+            creator_name,
+            description,
+            short_message,
+            created_at,
+            updated_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+          RETURNING
             id,
-            project_id AS "projectId",
-            email,
-            normalized_email AS "normalizedEmail",
-            access_token AS "accessToken",
-            last_emailed_at AS "lastEmailedAt",
+            user_id AS "userId",
+            title,
+            slug,
+            creator_name AS "creatorName",
+            description,
+            short_message AS "shortMessage",
+            cover_file_id AS "coverFileId",
+            last_delivered_at AS "lastDeliveredAt",
+            archived_at AS "archivedAt",
             created_at AS "createdAt",
             updated_at AS "updatedAt"
-          FROM delivery_backers
-          WHERE project_id = $1
-          ORDER BY created_at DESC
-        `,
-        [projectId]
-      ),
-    ]);
-
-    const files = filesResult.rows;
-    return {
-      project: {
-        ...project,
-        status: buildProjectStatus(project),
-      },
-      currentCover: files.find((file) => file.id === project.coverFileId) || null,
-      currentPdf: files.find((file) => file.id === project.activePdfFileId) || null,
-      files,
-      backers: backersResult.rows,
-    };
-  }
-
-  async attachFile(userId, projectId, payload) {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      const projectResult = await client.query(
-        `SELECT id, cover_file_id AS "coverFileId" FROM delivery_projects WHERE id = $1 AND user_id = $2`,
-        [projectId, userId]
-      );
-      if (!projectResult.rows[0]) {
-        await client.query("ROLLBACK");
-        return null;
-      }
-
-      const versionResult = await client.query(
-        `SELECT COUNT(*)::INT AS count FROM delivery_files WHERE project_id = $1 AND kind = $2`,
-        [projectId, payload.kind]
-      );
-      const versionNumber = payload.kind === "pdf" ? versionResult.rows[0].count + 1 : 1;
-      const fileId = crypto.randomUUID();
-
-      await client.query(
-        `UPDATE delivery_files SET is_active = FALSE WHERE project_id = $1 AND kind = $2`,
-        [projectId, payload.kind]
-      );
-      await client.query(
-        `
-          INSERT INTO delivery_files (
-            id,
-            project_id,
-            kind,
-            storage_key,
-            original_filename,
-            mime_type,
-            file_size_bytes,
-            version_number,
-            is_active
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE)
         `,
         [
-          fileId,
           projectId,
-          payload.kind,
-          payload.storageKey,
-          payload.originalFilename,
-          payload.mimeType,
-          payload.fileSizeBytes,
-          versionNumber,
+          userId,
+          String(payload.title || "").trim(),
+          slugify(payload.slug || payload.title),
+          String(payload.creatorName || "").trim(),
+          String(payload.description || "").trim(),
+          String(payload.shortMessage || "").trim(),
+          now,
         ]
       );
+
+      const tier = createDefaultTier(projectId);
       await client.query(
         `
-          UPDATE delivery_projects
-          SET
-            cover_file_id = CASE WHEN $3 = 'cover' THEN $4 ELSE cover_file_id END,
-            active_pdf_file_id = CASE WHEN $3 = 'pdf' THEN $4 ELSE active_pdf_file_id END,
-            updated_at = NOW()
-          WHERE id = $1 AND user_id = $2
-        `,
-        [projectId, userId, payload.kind, fileId]
-      );
-      await client.query("COMMIT");
-
-      return {
-        id: fileId,
-        projectId,
-        kind: payload.kind,
-        storageKey: payload.storageKey,
-        originalFilename: payload.originalFilename,
-        mimeType: payload.mimeType,
-        fileSizeBytes: payload.fileSizeBytes,
-        versionNumber,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-      };
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
-
-  async deleteProject(userId, projectId) {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      const projectResult = await client.query(
-        `SELECT id FROM delivery_projects WHERE id = $1 AND user_id = $2`,
-        [projectId, userId]
-      );
-      if (!projectResult.rows[0]) {
-        await client.query("ROLLBACK");
-        return null;
-      }
-
-      const filesResult = await client.query(
-        `SELECT storage_key AS "storageKey" FROM delivery_files WHERE project_id = $1`,
-        [projectId]
-      );
-      await client.query(`DELETE FROM delivery_projects WHERE id = $1 AND user_id = $2`, [
-        projectId,
-        userId,
-      ]);
-      await client.query("COMMIT");
-
-      return {
-        projectId,
-        deletedFileKeys: filesResult.rows.map((row) => row.storageKey).filter(Boolean),
-        projectPrefix: `delivery/projects/${projectId}/`,
-      };
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
-
-  async deleteFile(userId, projectId, fileId) {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      const projectResult = await client.query(
-        `
-          SELECT
+          INSERT INTO delivery_tiers (
             id,
-            cover_file_id AS "coverFileId",
-            active_pdf_file_id AS "activePdfFileId"
-          FROM delivery_projects
-          WHERE id = $1 AND user_id = $2
+            project_id,
+            name,
+            slug,
+            message_override,
+            sort_order,
+            created_at,
+            updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         `,
-        [projectId, userId]
-      );
-      const project = projectResult.rows[0];
-      if (!project) {
-        await client.query("ROLLBACK");
-        return null;
-      }
-
-      const fileResult = await client.query(
-        `
-          SELECT
-            id,
-            project_id AS "projectId",
-            kind,
-            storage_key AS "storageKey",
-            original_filename AS "originalFilename",
-            mime_type AS "mimeType",
-            file_size_bytes::INT AS "fileSizeBytes",
-            version_number AS "versionNumber",
-            is_active AS "isActive",
-            created_at AS "createdAt"
-          FROM delivery_files
-          WHERE id = $1 AND project_id = $2
-        `,
-        [fileId, projectId]
-      );
-      const file = fileResult.rows[0];
-      if (!file) {
-        await client.query("ROLLBACK");
-        return null;
-      }
-
-      let nextActivePdfFileId = project.activePdfFileId;
-      let nextCoverFileId = project.coverFileId;
-
-      if (file.kind === "cover" && project.coverFileId === fileId) {
-        nextCoverFileId = null;
-      } else if (file.kind === "pdf" && project.activePdfFileId === fileId) {
-        const nextPdfResult = await client.query(
-          `
-            SELECT id
-            FROM delivery_files
-            WHERE project_id = $1 AND kind = 'pdf' AND id <> $2
-            ORDER BY version_number DESC, created_at DESC
-            LIMIT 1
-          `,
-          [projectId, fileId]
-        );
-        nextActivePdfFileId = nextPdfResult.rows[0]?.id || null;
-      }
-
-      await client.query(`DELETE FROM delivery_files WHERE id = $1 AND project_id = $2`, [
-        fileId,
-        projectId,
-      ]);
-
-      if (file.kind === "pdf") {
-        await client.query(`UPDATE delivery_files SET is_active = FALSE WHERE project_id = $1 AND kind = 'pdf'`, [
-          projectId,
-        ]);
-        if (nextActivePdfFileId) {
-          await client.query(`UPDATE delivery_files SET is_active = TRUE WHERE id = $1`, [
-            nextActivePdfFileId,
-          ]);
-        }
-      }
-
-      await client.query(
-        `
-          UPDATE delivery_projects
-          SET
-            cover_file_id = $3,
-            active_pdf_file_id = $4,
-            updated_at = NOW()
-          WHERE id = $1 AND user_id = $2
-        `,
-        [projectId, userId, nextCoverFileId, nextActivePdfFileId]
-      );
-
-      await client.query("COMMIT");
-
-      return {
-        deletedFile: file,
-        nextActivePdfFileId,
-        nextCoverFileId,
-      };
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
-
-  async importBackers(userId, projectId, csvText) {
-    const preview = parseBackerCsv(csvText);
-    const client = await this.pool.connect();
-
-    try {
-      await client.query("BEGIN");
-      const projectResult = await client.query(
-        `SELECT id FROM delivery_projects WHERE id = $1 AND user_id = $2`,
-        [projectId, userId]
-      );
-      if (!projectResult.rows[0]) {
-        await client.query("ROLLBACK");
-        return null;
-      }
-
-      const existingResult = await client.query(
-        `SELECT normalized_email AS "normalizedEmail" FROM delivery_backers WHERE project_id = $1`,
-        [projectId]
-      );
-      const existingEmails = new Set(
-        existingResult.rows.map((row) => row.normalizedEmail)
-      );
-      let importedCount = 0;
-      let skippedExistingCount = 0;
-
-      for (const row of preview.validRows) {
-        if (existingEmails.has(row.email)) {
-          skippedExistingCount += 1;
-          continue;
-        }
-
-        existingEmails.add(row.email);
-        importedCount += 1;
-        await client.query(
-          `
-            INSERT INTO delivery_backers (
-              id,
-              project_id,
-              email,
-              normalized_email,
-              access_token
-            )
-            VALUES ($1, $2, $3, $4, $5)
-          `,
-          [crypto.randomUUID(), projectId, row.email, row.email, createToken()]
-        );
-      }
-
-      await client.query(
-        `UPDATE delivery_projects SET updated_at = NOW() WHERE id = $1`,
-        [projectId]
+        [
+          tier.id,
+          tier.projectId,
+          tier.name,
+          tier.slug,
+          tier.messageOverride,
+          tier.sortOrder,
+          tier.createdAt,
+          tier.updatedAt,
+        ]
       );
       await client.query("COMMIT");
 
       return {
-        summary: createImportSummary(preview, importedCount, skippedExistingCount),
+        ...projectResult.rows[0],
+        backerCount: 0,
+        emailedCount: 0,
+        fileCount: 0,
+        tierCount: 1,
+        downloadCount: 0,
+        status: "draft",
       };
     } catch (error) {
       await client.query("ROLLBACK");
@@ -1073,6 +1096,7 @@ export class DeliveryPgStore {
           original_filename AS "originalFilename",
           mime_type AS "mimeType",
           file_size_bytes::INT AS "fileSizeBytes",
+          reader_pages AS "readerPages",
           version_number AS "versionNumber",
           is_active AS "isActive",
           created_at AS "createdAt"
@@ -1081,7 +1105,7 @@ export class DeliveryPgStore {
       `,
       [fileId]
     );
-    return result.rows[0] || null;
+    return normalizeDeliveryFile(result.rows[0]) || null;
   }
 
   async getAccessByToken(token) {
@@ -1094,23 +1118,27 @@ export class DeliveryPgStore {
           p.description,
           p.short_message AS "shortMessage",
           p.cover_file_id AS "coverFileId",
-          p.active_pdf_file_id AS "activePdfFileId",
           b.id AS "backerId",
           b.email,
-          b.access_token AS "accessToken"
+          b.access_token AS "accessToken",
+          t.id AS "tierId",
+          t.name AS "tierName",
+          t.slug AS "tierSlug",
+          t.message_override AS "messageOverride"
         FROM delivery_backers b
         INNER JOIN delivery_projects p ON p.id = b.project_id
+        LEFT JOIN delivery_tiers t ON t.id = b.tier_id
         WHERE b.access_token = $1
       `,
       [token]
     );
 
     const row = result.rows[0];
-    if (!row || !row.activePdfFileId) {
+    if (!row || !row.tierId) {
       return null;
     }
 
-    const [coverResult, pdfResult] = await Promise.all([
+    const [coverResult, filesResult] = await Promise.all([
       row.coverFileId
         ? this.pool.query(
             `
@@ -1122,6 +1150,7 @@ export class DeliveryPgStore {
                 original_filename AS "originalFilename",
                 mime_type AS "mimeType",
                 file_size_bytes::INT AS "fileSizeBytes",
+                reader_pages AS "readerPages",
                 version_number AS "versionNumber",
                 is_active AS "isActive",
                 created_at AS "createdAt"
@@ -1134,20 +1163,23 @@ export class DeliveryPgStore {
       this.pool.query(
         `
           SELECT
-            id,
-            project_id AS "projectId",
-            kind,
-            storage_key AS "storageKey",
-            original_filename AS "originalFilename",
-            mime_type AS "mimeType",
-            file_size_bytes::INT AS "fileSizeBytes",
-            version_number AS "versionNumber",
-            is_active AS "isActive",
-            created_at AS "createdAt"
-          FROM delivery_files
-          WHERE id = $1
+            f.id,
+            f.project_id AS "projectId",
+            f.kind,
+            f.storage_key AS "storageKey",
+            f.original_filename AS "originalFilename",
+            f.mime_type AS "mimeType",
+            f.file_size_bytes::INT AS "fileSizeBytes",
+            f.reader_pages AS "readerPages",
+            f.version_number AS "versionNumber",
+            f.is_active AS "isActive",
+            f.created_at AS "createdAt"
+          FROM delivery_tier_files tf
+          INNER JOIN delivery_files f ON f.id = tf.file_id
+          WHERE tf.tier_id = $1
+          ORDER BY f.created_at DESC
         `,
-        [row.activePdfFileId]
+        [row.tierId]
       ),
     ]);
 
@@ -1159,30 +1191,36 @@ export class DeliveryPgStore {
         description: row.description,
         shortMessage: row.shortMessage,
         coverFileId: row.coverFileId,
-        activePdfFileId: row.activePdfFileId,
       },
       backer: {
         id: row.backerId,
         email: row.email,
         accessToken: row.accessToken,
       },
-      currentCover: coverResult.rows[0] || null,
-      currentPdf: pdfResult.rows[0] || null,
+      tier: {
+        id: row.tierId,
+        name: row.tierName,
+        slug: row.tierSlug,
+        message: row.messageOverride || row.shortMessage,
+      },
+      currentCover: normalizeDeliveryFile(coverResult.rows[0]) || null,
+      files: filesResult.rows.map((file) => normalizeDeliveryFile(file)),
     };
   }
 
-  async logAccessEvent(projectId, backerId, eventType) {
+  async logAccessEvent(projectId, backerId, eventType, fileId = null) {
     await this.pool.query(
       `
         INSERT INTO delivery_access_events (
           id,
           project_id,
           backer_id,
+          file_id,
           event_type
         )
-        VALUES ($1, $2, $3, $4)
+        VALUES ($1, $2, $3, $4, $5)
       `,
-      [crypto.randomUUID(), projectId, backerId, eventType]
+      [createId(), projectId, backerId, fileId, eventType]
     );
   }
 

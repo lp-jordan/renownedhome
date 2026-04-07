@@ -1,13 +1,16 @@
 import cookieParser from "cookie-parser";
 import bcrypt from "bcryptjs";
 import express from "express";
+import { execFile as execFileCallback } from "node:child_process";
 import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
+import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import multer from "multer";
 import pg from "pg";
+import sharp from "sharp";
 import {
   DeleteObjectCommand,
   DeleteObjectsCommand,
@@ -22,7 +25,6 @@ import {
 } from "./src/content/defaultSiteData.js";
 import {
   DeliveryFileStore,
-  DeliveryPgStore,
   parseBackerCsv,
 } from "./src/lib/deliveryStore.js";
 import {
@@ -32,6 +34,7 @@ import {
 } from "./src/lib/resendEmail.js";
 
 const { Pool } = pg;
+const execFile = promisify(execFileCallback);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -110,6 +113,8 @@ const uploadFileSizeLimitBytes =
   (parsePositiveInteger(process.env.UPLOAD_MAX_FILE_SIZE_MB || "300") || 300) *
   1024 *
   1024;
+const maxRasterImageDimension =
+  parsePositiveInteger(process.env.IMAGE_MAX_DIMENSION_PX || "2560") || 2560;
 const upload = multer({
   storage: multer.diskStorage({
     destination: async (_req, _file, callback) => {
@@ -148,6 +153,11 @@ const allowedUploadMimeTypes = new Set([
   "image/jpeg",
   "image/png",
   "image/svg+xml",
+  "image/webp",
+]);
+const normalizedRasterMimeTypes = new Set([
+  "image/jpeg",
+  "image/png",
   "image/webp",
 ]);
 
@@ -344,6 +354,18 @@ async function removeTempUpload(filePath) {
   }
 }
 
+async function removeTempDirectory(directoryPath) {
+  if (!directoryPath) {
+    return;
+  }
+
+  try {
+    await fs.rm(directoryPath, { recursive: true, force: true });
+  } catch {
+    // Temporary render directories are best-effort cleanup.
+  }
+}
+
 async function buildBootstrapAdminUser() {
   const username = String(process.env.ADMIN_USERNAME || "").trim();
   const password = String(process.env.ADMIN_PASSWORD || "");
@@ -394,6 +416,213 @@ function validateRuntimeConfig() {
       "DATABASE_URL is required in production. Railway deployments should use Postgres instead of the local runtime JSON file."
     );
   }
+}
+
+let pdfToImageToolStatusPromise = null;
+
+function getPdfRenderOutputPrefix(projectId) {
+  return path.join(uploadTempDir, `pdf-render-${projectId}-${crypto.randomUUID()}`, "page");
+}
+
+async function getPdfToImageToolStatus() {
+  if (!pdfToImageToolStatusPromise) {
+    pdfToImageToolStatusPromise = execFile("pdftoppm", ["-v"], { timeout: 10000 })
+      .then(({ stdout, stderr }) => ({
+        available: true,
+        message: String(stderr || stdout || "").trim(),
+      }))
+      .catch((error) => ({
+        available: false,
+        message: error?.message || "pdftoppm is unavailable",
+      }));
+  }
+
+  return pdfToImageToolStatusPromise;
+}
+
+async function renderPdfPagesToImages(pdfPath, projectId) {
+  const outputPrefix = getPdfRenderOutputPrefix(projectId);
+  const renderDirectory = path.dirname(outputPrefix);
+  await fs.mkdir(renderDirectory, { recursive: true });
+
+  try {
+    await execFile(
+      "pdftoppm",
+      [
+        "-jpeg",
+        "-r",
+        "144",
+        "-jpegopt",
+        "quality=82,progressive=y,optimize=y",
+        pdfPath,
+        outputPrefix,
+      ],
+      { timeout: 120000 }
+    );
+
+    const entries = await fs.readdir(renderDirectory, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isFile() && /^page-\d+\.jpe?g$/i.test(entry.name))
+      .map((entry) => {
+        const pageNumber = Number(entry.name.match(/(\d+)/)?.[1] || 0);
+        return {
+          pageNumber,
+          filePath: path.join(renderDirectory, entry.name),
+          fileName: entry.name,
+        };
+      })
+      .filter((page) => page.pageNumber > 0)
+      .sort((a, b) => a.pageNumber - b.pageNumber);
+  } catch (error) {
+    await removeTempDirectory(renderDirectory);
+    throw error;
+  }
+}
+
+function getImageOutputOptions(contentType) {
+  if (contentType === "image/png") {
+    return {
+      contentType,
+      apply: (image) => image.png({ compressionLevel: 9, palette: true }),
+    };
+  }
+
+  if (contentType === "image/webp") {
+    return {
+      contentType,
+      apply: (image) => image.webp({ quality: 84 }),
+    };
+  }
+
+  return {
+    contentType: "image/jpeg",
+    apply: (image) => image.jpeg({ quality: 84, mozjpeg: true }),
+  };
+}
+
+async function prepareUploadedAsset(file) {
+  const contentType = file.mimetype || "";
+  const baseMetadata = {
+    category: "upload",
+    contentType,
+    fileName: file.originalname,
+    size: file.size,
+  };
+
+  if (!contentType.startsWith("image/")) {
+    return {
+      body: createReadStream(file.path),
+      contentType,
+      metadata: baseMetadata,
+    };
+  }
+
+  if (!normalizedRasterMimeTypes.has(contentType)) {
+    try {
+      const metadata = await sharp(file.path, { failOn: "none" }).metadata();
+      return {
+        body: createReadStream(file.path),
+        contentType,
+        metadata: {
+          ...baseMetadata,
+          width: metadata.width || null,
+          height: metadata.height || null,
+          originalWidth: metadata.width || null,
+          originalHeight: metadata.height || null,
+          normalized: false,
+        },
+      };
+    } catch {
+      return {
+        body: createReadStream(file.path),
+        contentType,
+        metadata: {
+          ...baseMetadata,
+          normalized: false,
+        },
+      };
+    }
+  }
+
+  const originalMetadata = await sharp(file.path, { failOn: "none" }).metadata();
+  const output = getImageOutputOptions(contentType);
+  const pipeline = sharp(file.path, { failOn: "none" })
+    .rotate()
+    .resize({
+      width: maxRasterImageDimension,
+      height: maxRasterImageDimension,
+      fit: "inside",
+      withoutEnlargement: true,
+    });
+  const { data, info } = await output.apply(pipeline).toBuffer({ resolveWithObject: true });
+
+  return {
+    body: data,
+    contentType: output.contentType,
+    metadata: {
+      ...baseMetadata,
+      contentType: output.contentType,
+      size: data.length,
+      width: info.width || null,
+      height: info.height || null,
+      originalWidth: originalMetadata.width || null,
+      originalHeight: originalMetadata.height || null,
+      normalized:
+        info.width !== originalMetadata.width ||
+        info.height !== originalMetadata.height ||
+        output.contentType !== contentType ||
+        Boolean(originalMetadata.orientation),
+    },
+  };
+}
+
+function getReaderPageStorageKeys(file) {
+  return (file?.readerPages || []).map((page) => page.storageKey).filter(Boolean);
+}
+
+function serializeDeliveryFile(file, options = {}) {
+  if (!file) {
+    return null;
+  }
+
+  const { accessToken = "" } = options;
+  const readerPages = Array.isArray(file.readerPages) ? file.readerPages : [];
+  return {
+    ...file,
+    readerPages: readerPages.map((page) => ({
+      ...page,
+      url: accessToken
+        ? `/api/delivery/access/${encodeURIComponent(accessToken)}/files/${encodeURIComponent(file.id)}/read/pages/${page.pageNumber}`
+        : `/api/delivery/files/${encodeURIComponent(file.id)}/pages/${page.pageNumber}`,
+    })),
+  };
+}
+
+function buildAccessFilePayload(file, accessToken) {
+  if (!file) {
+    return null;
+  }
+
+  return {
+    ...serializeDeliveryFile(file, { accessToken }),
+    actions: {
+      downloadUrl: `/api/delivery/access/${encodeURIComponent(accessToken)}/files/${encodeURIComponent(file.id)}/download`,
+      readUrl: `/a/${encodeURIComponent(accessToken)}/read/${encodeURIComponent(file.id)}`,
+      readerUrl: `/api/delivery/access/${encodeURIComponent(accessToken)}/files/${encodeURIComponent(file.id)}/read/content`,
+    },
+  };
+}
+
+function findAccessibleFile(access, fileId) {
+  if (!access?.files?.length) {
+    return null;
+  }
+
+  if (!fileId) {
+    return access.files[0] || null;
+  }
+
+  return access.files.find((file) => file.id === fileId) || null;
 }
 
 class FileRepository {
@@ -638,9 +867,7 @@ validateRuntimeConfig();
 const repository = process.env.DATABASE_URL
   ? new PgRepository(process.env.DATABASE_URL, bootstrapAdminUser)
   : new FileRepository(runtimeFile, bootstrapAdminUser);
-const deliveryStore = process.env.DATABASE_URL
-  ? new DeliveryPgStore(process.env.DATABASE_URL)
-  : new DeliveryFileStore(deliveryRuntimeFile);
+const deliveryStore = new DeliveryFileStore(deliveryRuntimeFile);
 
 app.use(setSecurityHeaders);
 app.use(setCacheHeaders);
@@ -663,8 +890,8 @@ setInterval(cleanupRateLimits, 5 * 60 * 1000).unref();
 function sanitizePublicData(data) {
   return {
     siteSettings: data.siteSettings,
-    pages: data.pages.filter((page) => page.status === "published"),
-    issues: data.issues.filter((issue) => issue.status === "published"),
+    pages: data.pages,
+    issues: data.issues,
     teamMembers: [...data.teamMembers].sort((a, b) => a.sortOrder - b.sortOrder),
     socialLinks: [...data.socialLinks].sort((a, b) => a.sortOrder - b.sortOrder),
     redirects: data.redirects.filter((redirect) => redirect.active),
@@ -683,6 +910,7 @@ function sanitizePublicData(data) {
 function sanitizeAdminData(data) {
   return {
     ...data,
+    assets: data.assets.filter((asset) => asset.storageType === "s3-bucket"),
     users: data.users.map((user) => ({
       id: user.id,
       username: user.username,
@@ -712,7 +940,7 @@ function getRuntimeDiagnostics() {
   return {
     database: process.env.DATABASE_URL ? "postgres" : "runtime-json",
     bucketConfigured: storageIsConfigured(),
-    assetDeliveryMode: storageIsConfigured() ? "signed-app-route" : "external-url",
+    assetDeliveryMode: storageIsConfigured() ? "signed-app-route" : "not-configured",
     publicSiteOrigin: getPublicSiteOrigin(),
     resendConfigured: resendIsConfigured(),
     bucketVars,
@@ -811,6 +1039,44 @@ function getAssetUrl(assetId) {
   return `/api/assets/${encodeURIComponent(assetId)}`;
 }
 
+function collectAssetUsagePaths(value, target, path = [], matches = []) {
+  if (typeof value === "string") {
+    if (value === target) {
+      matches.push(path.join(".").replace(/\.\[/g, "["));
+    }
+    return matches;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => {
+      collectAssetUsagePaths(entry, target, [...path, `[${index}]`], matches);
+    });
+    return matches;
+  }
+
+  if (value && typeof value === "object") {
+    Object.entries(value).forEach(([key, entry]) => {
+      collectAssetUsagePaths(entry, target, [...path, key], matches);
+    });
+  }
+
+  return matches;
+}
+
+function getAssetUsageReferences(data, assetUrl) {
+  const targets = [
+    ["siteSettings", data.siteSettings],
+    ["pages", data.pages],
+    ["issues", data.issues],
+    ["teamMembers", data.teamMembers],
+    ["socialLinks", data.socialLinks],
+  ];
+
+  return targets.flatMap(([label, value]) =>
+    collectAssetUsagePaths(value, assetUrl, [label])
+  );
+}
+
 function getAssetUrlTtlSeconds() {
   const configured = Number(process.env.ASSET_URL_SIGN_TTL_SECONDS || 900);
   if (!Number.isFinite(configured) || configured <= 0) {
@@ -883,11 +1149,14 @@ async function streamStorageFile(res, { key, contentType, disposition, filename 
     const webStream = response.Body.transformToWebStream();
     const reader = webStream.getReader();
 
-    while (true) {
-      const { done, value } = await reader.read();
+    let done = false;
+    while (!done) {
+      const chunk = await reader.read();
+      done = chunk.done;
       if (done) {
         break;
       }
+      const { value } = chunk;
       res.write(Buffer.from(value));
     }
 
@@ -1092,7 +1361,7 @@ app.get("/api/health", async (_req, res) => {
 });
 
 app.post("/api/public/letters", publicFormRateLimiter, async (req, res) => {
-  const { name, email, issueSlug, message } = req.body ?? {};
+  const { name, location, email, issueSlug, message } = req.body ?? {};
 
   if (!name || !issueSlug || !message) {
     res.status(400).json({ error: "Name, issue, and message are required." });
@@ -1101,6 +1370,7 @@ app.post("/api/public/letters", publicFormRateLimiter, async (req, res) => {
 
   const trimmed = {
     name: String(name).trim(),
+    location: String(location || "").trim(),
     email: String(email || "").trim(),
     issueSlug: String(issueSlug).trim(),
     message: String(message).trim(),
@@ -1227,6 +1497,22 @@ app.put("/api/admin/redirects/:id", requireTrustedOrigin, requireAdmin, async (r
   res.json(sanitizeAdminData(next));
 });
 
+app.delete("/api/admin/redirects/:id", requireTrustedOrigin, requireAdmin, async (req, res) => {
+  const currentData = await repository.getAllData();
+  const redirect = currentData.redirects.find((entry) => entry.id === req.params.id);
+
+  if (!redirect) {
+    res.status(404).json({ error: "Redirect not found." });
+    return;
+  }
+
+  const next = await withData((data) => ({
+    ...data,
+    redirects: data.redirects.filter((entry) => entry.id !== req.params.id),
+  }));
+  res.json(sanitizeAdminData(next));
+});
+
 app.put("/api/admin/letters/:id", requireTrustedOrigin, requireAdmin, async (req, res) => {
   const payload = req.body?.letter;
   if (!payload) {
@@ -1255,24 +1541,38 @@ app.put("/api/admin/assets/:id", requireTrustedOrigin, requireAdmin, async (req,
   res.json(sanitizeAdminData(next));
 });
 
-app.post("/api/admin/assets/url", requireTrustedOrigin, requireAdmin, async (req, res) => {
-  const { label, url, category } = req.body ?? {};
-  if (!label || !url) {
-    res.status(400).json({ error: "label and url are required" });
+app.delete("/api/admin/assets/:id", requireTrustedOrigin, requireAdmin, async (req, res) => {
+  const currentData = await repository.getAllData();
+  const asset = currentData.assets.find((entry) => entry.id === req.params.id);
+
+  if (!asset) {
+    res.status(404).json({ error: "Asset not found." });
     return;
   }
 
-  const asset = {
-    id: crypto.randomUUID(),
-    label: String(label).trim(),
-    url: String(url).trim(),
-    storageType: "external-url",
-    metadata: { category: String(category || "general").trim() },
-  };
+  const usage = getAssetUsageReferences(currentData, asset.url);
+  if (usage.length) {
+    res.status(409).json({
+      error: "Asset is still in use and cannot be deleted.",
+      usage,
+    });
+    return;
+  }
+
+  const objectKey = asset.metadata?.objectKey;
+  if (asset.storageType === "s3-bucket" && objectKey && storageIsConfigured()) {
+    const client = createStorageClient();
+    await client.send(
+      new DeleteObjectCommand({
+        Bucket: getStorageEnv().bucket,
+        Key: objectKey,
+      })
+    );
+  }
 
   const next = await withData((data) => ({
     ...data,
-    assets: [asset, ...data.assets],
+    assets: data.assets.filter((entry) => entry.id !== req.params.id),
   }));
   res.json(sanitizeAdminData(next));
 });
@@ -1322,13 +1622,14 @@ app.post(
           .replace(/^-|-$/g, "");
         const key = `uploads/${Date.now()}-${safeBase || "asset"}${extension}`;
         const assetId = crypto.randomUUID();
+        const preparedAsset = await prepareUploadedAsset(file);
 
         await client.send(
           new PutObjectCommand({
             Bucket: getStorageEnv().bucket,
             Key: key,
-            Body: createReadStream(file.path),
-            ContentType: file.mimetype,
+            Body: preparedAsset.body,
+            ContentType: preparedAsset.contentType,
           })
         );
 
@@ -1341,11 +1642,9 @@ app.post(
           url: getAssetUrl(assetId),
           storageType: "s3-bucket",
           metadata: {
-            category: req.body.category || "upload",
+            ...preparedAsset.metadata,
+            category: req.body.category || preparedAsset.metadata.category || "upload",
             objectKey: key,
-            contentType: file.mimetype,
-            fileName: file.originalname,
-            size: file.size,
           },
         });
       }
@@ -1367,11 +1666,6 @@ app.get("/api/assets/:id", async (req, res) => {
 
   if (!asset) {
     res.status(404).json({ error: "Asset not found." });
-    return;
-  }
-
-  if (asset.storageType === "external-url") {
-    res.redirect(302, asset.url);
     return;
   }
 
@@ -1431,8 +1725,40 @@ app.get("/api/admin/delivery/projects/:id", requireAdmin, async (req, res) => {
     return;
   }
 
-  res.json(detail);
+  res.json({
+    ...detail,
+    currentCover: serializeDeliveryFile(detail.currentCover),
+    files: detail.files.map((file) => serializeDeliveryFile(file)),
+  });
 });
+
+app.put(
+  "/api/admin/delivery/projects/:id",
+  requireTrustedOrigin,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const detail = await deliveryStore.updateProject(
+        req.session.user.id,
+        req.params.id,
+        req.body ?? {}
+      );
+
+      if (!detail) {
+        res.status(404).json({ error: "Delivery project not found." });
+        return;
+      }
+
+      res.json({
+        ...detail,
+        currentCover: serializeDeliveryFile(detail.currentCover),
+        files: detail.files.map((file) => serializeDeliveryFile(file)),
+      });
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Unable to update delivery project." });
+    }
+  }
+);
 
 app.delete(
   "/api/admin/delivery/projects/:id",
@@ -1483,7 +1809,7 @@ app.delete(
     }
 
     try {
-      await deleteStorageKeys([file.storageKey]);
+      await deleteStorageKeys([file.storageKey, ...getReaderPageStorageKeys(file)]);
       const result = await deliveryStore.deleteFile(
         req.session.user.id,
         req.params.id,
@@ -1596,6 +1922,7 @@ app.post(
   upload.single("file"),
   async (req, res) => {
     let tempFilePath = null;
+    let renderDirectory = null;
     if (!storageIsConfigured()) {
       res.status(501).json({
         error:
@@ -1622,8 +1949,36 @@ app.post(
     const objectId = crypto.randomUUID();
     const key = `delivery/projects/${req.params.id}/pdfs/${objectId}.pdf`;
     const client = createStorageClient();
+    const toolStatus = await getPdfToImageToolStatus();
+    let readerPages = [];
 
     try {
+      if (toolStatus.available) {
+        const renderedPages = await renderPdfPagesToImages(tempFilePath, req.params.id);
+        renderDirectory = renderedPages[0] ? path.dirname(renderedPages[0].filePath) : null;
+
+        for (const page of renderedPages) {
+          const pageStorageKey = `delivery/projects/${req.params.id}/reader/${objectId}/page-${String(page.pageNumber).padStart(3, "0")}.jpg`;
+          const pageStat = await fs.stat(page.filePath);
+          await client.send(
+            new PutObjectCommand({
+              Bucket: getStorageEnv().bucket,
+              Key: pageStorageKey,
+              Body: createReadStream(page.filePath),
+              ContentType: "image/jpeg",
+              ContentLength: pageStat.size,
+            })
+          );
+          readerPages.push({
+            pageNumber: page.pageNumber,
+            storageKey: pageStorageKey,
+            mimeType: "image/jpeg",
+          });
+        }
+      } else {
+        console.warn("pdftoppm unavailable; PDF uploaded without preprocessed reader pages.");
+      }
+
       await client.send(
         new PutObjectCommand({
           Bucket: getStorageEnv().bucket,
@@ -1640,19 +1995,29 @@ app.post(
         originalFilename: req.file.originalname,
         mimeType: "application/pdf",
         fileSizeBytes: req.file.size,
+        readerPages,
       });
 
       if (!file) {
+        await deleteStorageKeys([key, ...readerPages.map((page) => page.storageKey)]);
         res.status(404).json({ error: "Delivery project not found." });
         return;
       }
 
-      res.status(201).json({ file });
+      res.status(201).json({
+        file: serializeDeliveryFile(file),
+        preprocessing: {
+          available: toolStatus.available,
+          pageCount: readerPages.length,
+        },
+      });
     } catch (error) {
+      await deleteStorageKeys(readerPages.map((page) => page.storageKey));
       console.error("Delivery PDF upload failed", error);
       res.status(500).json({ error: "PDF upload failed. Check the server log for details." });
     } finally {
       await removeTempUpload(tempFilePath);
+      await removeTempDirectory(renderDirectory);
     }
   }
 );
@@ -1697,8 +2062,8 @@ app.post(
       return;
     }
 
-    if (!detail.currentPdf) {
-      res.status(400).json({ error: "Upload a PDF before sending delivery emails." });
+    if (!detail.files.length) {
+      res.status(400).json({ error: "Upload at least one PDF before sending delivery emails." });
       return;
     }
 
@@ -1716,10 +2081,12 @@ app.post(
 
     for (const backer of detail.backers) {
       const accessUrl = `${siteOrigin}/a/${backer.accessToken}`;
+      const tier =
+        detail.tiers.find((entry) => entry.id === backer.tierId) || detail.tiers[0] || null;
       const email = buildDeliveryEmail({
         projectTitle: detail.project.title,
         creatorName: detail.project.creatorName,
-        shortMessage: detail.project.shortMessage,
+        shortMessage: tier?.messageOverride || detail.project.shortMessage,
         accessUrl,
         coverImageUrl,
       });
@@ -1803,6 +2170,38 @@ app.get("/api/delivery/files/:id/content", async (req, res) => {
   }
 });
 
+app.get("/api/delivery/files/:id/pages/:pageNumber", async (req, res) => {
+  const file = await deliveryStore.getFile(req.params.id);
+  if (!file) {
+    res.status(404).json({ error: "File not found." });
+    return;
+  }
+
+  const pageNumber = Number(req.params.pageNumber);
+  const readerPage = (file.readerPages || []).find((page) => page.pageNumber === pageNumber);
+  if (!readerPage) {
+    res.status(404).json({ error: "Page not found." });
+    return;
+  }
+
+  if (!storageIsConfigured() || !readerPage.storageKey) {
+    res.status(404).json({ error: "Page is unavailable." });
+    return;
+  }
+
+  try {
+    await streamStorageFile(res, {
+      key: readerPage.storageKey,
+      contentType: readerPage.mimeType,
+      disposition: "inline",
+      filename: `${path.parse(file.originalFilename).name}-page-${pageNumber}.jpg`,
+    });
+  } catch (error) {
+    console.error("Delivery page stream failed", error);
+    res.status(500).json({ error: "Page is unavailable." });
+  }
+});
+
 app.get("/api/delivery/access/:token", async (req, res) => {
   const access = await deliveryStore.getAccessByToken(req.params.token);
   if (!access) {
@@ -1816,95 +2215,210 @@ app.get("/api/delivery/access/:token", async (req, res) => {
     backer: {
       email: access.backer.email,
     },
+    tier: access.tier,
     assets: {
       coverUrl: access.currentCover
         ? `/api/delivery/files/${encodeURIComponent(access.currentCover.id)}`
         : "",
     },
-    file: access.currentPdf
-      ? {
-          id: access.currentPdf.id,
-          originalFilename: access.currentPdf.originalFilename,
-          versionNumber: access.currentPdf.versionNumber,
-          fileSizeBytes: access.currentPdf.fileSizeBytes,
-        }
-      : null,
-    actions: {
-      downloadUrl: `/api/delivery/access/${encodeURIComponent(req.params.token)}/download`,
-      readUrl: `/api/delivery/access/${encodeURIComponent(req.params.token)}/read`,
-      readerUrl: `/api/delivery/access/${encodeURIComponent(req.params.token)}/read/content`,
-    },
+    files: access.files.map((file) => buildAccessFilePayload(file, req.params.token)),
   });
 });
 
 app.get("/api/delivery/access/:token/download", async (req, res) => {
   const access = await deliveryStore.getAccessByToken(req.params.token);
-  if (!access?.currentPdf) {
+  const file = findAccessibleFile(access);
+  if (!file) {
     res.status(404).json({ error: "This file is unavailable." });
     return;
   }
 
-  if (!storageIsConfigured() || !access.currentPdf.storageKey) {
+  if (!storageIsConfigured() || !file.storageKey) {
     res.status(404).json({ error: "This file is unavailable." });
     return;
   }
 
-  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "file_download");
+  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "file_download", file.id);
   const signedUrl = await createSignedStorageUrl({
-    key: access.currentPdf.storageKey,
-    contentType: access.currentPdf.mimeType,
+    key: file.storageKey,
+    contentType: file.mimeType,
     disposition: "attachment",
-    filename: access.currentPdf.originalFilename,
+    filename: file.originalFilename,
+  });
+  res.redirect(302, signedUrl);
+});
+
+app.get("/api/delivery/access/:token/files/:fileId/download", async (req, res) => {
+  const access = await deliveryStore.getAccessByToken(req.params.token);
+  const file = findAccessibleFile(access, req.params.fileId);
+  if (!file) {
+    res.status(404).json({ error: "This file is unavailable." });
+    return;
+  }
+
+  if (!storageIsConfigured() || !file.storageKey) {
+    res.status(404).json({ error: "This file is unavailable." });
+    return;
+  }
+
+  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "file_download", file.id);
+  const signedUrl = await createSignedStorageUrl({
+    key: file.storageKey,
+    contentType: file.mimeType,
+    disposition: "attachment",
+    filename: file.originalFilename,
   });
   res.redirect(302, signedUrl);
 });
 
 app.get("/api/delivery/access/:token/read", async (req, res) => {
   const access = await deliveryStore.getAccessByToken(req.params.token);
-  if (!access?.currentPdf) {
+  const file = findAccessibleFile(access);
+  if (!file) {
     res.status(404).json({ error: "This file is unavailable." });
     return;
   }
 
-  if (!storageIsConfigured() || !access.currentPdf.storageKey) {
+  if (!storageIsConfigured() || !file.storageKey) {
     res.status(404).json({ error: "This file is unavailable." });
     return;
   }
 
-  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline");
+  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline", file.id);
   const signedUrl = await createSignedStorageUrl({
-    key: access.currentPdf.storageKey,
-    contentType: access.currentPdf.mimeType,
+    key: file.storageKey,
+    contentType: file.mimeType,
     disposition: "inline",
-    filename: access.currentPdf.originalFilename,
+    filename: file.originalFilename,
   });
   res.redirect(302, signedUrl);
 });
 
-app.get("/api/delivery/access/:token/read/content", async (req, res) => {
+app.get("/api/delivery/access/:token/files/:fileId/read/content", async (req, res) => {
   const access = await deliveryStore.getAccessByToken(req.params.token);
-  if (!access?.currentPdf) {
+  const file = findAccessibleFile(access, req.params.fileId);
+  if (!file) {
     res.status(404).json({ error: "This file is unavailable." });
     return;
   }
 
-  if (!storageIsConfigured() || !access.currentPdf.storageKey) {
+  if (!storageIsConfigured() || !file.storageKey) {
     res.status(404).json({ error: "This file is unavailable." });
     return;
   }
 
-  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline");
+  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline", file.id);
 
   try {
     await streamStorageFile(res, {
-      key: access.currentPdf.storageKey,
-      contentType: access.currentPdf.mimeType,
+      key: file.storageKey,
+      contentType: file.mimeType,
       disposition: "inline",
-      filename: access.currentPdf.originalFilename,
+      filename: file.originalFilename,
     });
   } catch (error) {
     console.error("Delivery read stream failed", error);
     res.status(500).json({ error: "This file is unavailable." });
+  }
+});
+
+app.get("/api/delivery/access/:token/read/content", async (req, res) => {
+  const access = await deliveryStore.getAccessByToken(req.params.token);
+  const file = findAccessibleFile(access);
+  if (!file) {
+    res.status(404).json({ error: "This file is unavailable." });
+    return;
+  }
+
+  if (!storageIsConfigured() || !file.storageKey) {
+    res.status(404).json({ error: "This file is unavailable." });
+    return;
+  }
+
+  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline", file.id);
+
+  try {
+    await streamStorageFile(res, {
+      key: file.storageKey,
+      contentType: file.mimeType,
+      disposition: "inline",
+      filename: file.originalFilename,
+    });
+  } catch (error) {
+    console.error("Delivery read stream failed", error);
+    res.status(500).json({ error: "This file is unavailable." });
+  }
+});
+
+app.get("/api/delivery/access/:token/files/:fileId/read/pages/:pageNumber", async (req, res) => {
+  const access = await deliveryStore.getAccessByToken(req.params.token);
+  const file = findAccessibleFile(access, req.params.fileId);
+  if (!file) {
+    res.status(404).json({ error: "This file is unavailable." });
+    return;
+  }
+
+  const pageNumber = Number(req.params.pageNumber);
+  const readerPage = (file.readerPages || []).find(
+    (page) => page.pageNumber === pageNumber
+  );
+  if (!readerPage) {
+    res.status(404).json({ error: "This page is unavailable." });
+    return;
+  }
+
+  if (!storageIsConfigured() || !readerPage.storageKey) {
+    res.status(404).json({ error: "This page is unavailable." });
+    return;
+  }
+
+  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline", file.id);
+
+  try {
+    await streamStorageFile(res, {
+      key: readerPage.storageKey,
+      contentType: readerPage.mimeType,
+      disposition: "inline",
+      filename: `${path.parse(file.originalFilename).name}-page-${pageNumber}.jpg`,
+    });
+  } catch (error) {
+    console.error("Delivery read page stream failed", error);
+    res.status(500).json({ error: "This page is unavailable." });
+  }
+});
+
+app.get("/api/delivery/access/:token/read/pages/:pageNumber", async (req, res) => {
+  const access = await deliveryStore.getAccessByToken(req.params.token);
+  const file = findAccessibleFile(access);
+  if (!file) {
+    res.status(404).json({ error: "This file is unavailable." });
+    return;
+  }
+
+  const pageNumber = Number(req.params.pageNumber);
+  const readerPage = (file.readerPages || []).find((page) => page.pageNumber === pageNumber);
+  if (!readerPage) {
+    res.status(404).json({ error: "This page is unavailable." });
+    return;
+  }
+
+  if (!storageIsConfigured() || !readerPage.storageKey) {
+    res.status(404).json({ error: "This page is unavailable." });
+    return;
+  }
+
+  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline", file.id);
+
+  try {
+    await streamStorageFile(res, {
+      key: readerPage.storageKey,
+      contentType: readerPage.mimeType,
+      disposition: "inline",
+      filename: `${path.parse(file.originalFilename).name}-page-${pageNumber}.jpg`,
+    });
+  } catch (error) {
+    console.error("Delivery read page stream failed", error);
+    res.status(500).json({ error: "This page is unavailable." });
   }
 });
 

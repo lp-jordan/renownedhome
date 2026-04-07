@@ -12,6 +12,7 @@ function ReaderLoading() {
 
 export default function InlinePdfReader({
   pdfUrl,
+  pages = [],
   className = "",
   compact = false,
 }) {
@@ -25,9 +26,16 @@ export default function InlinePdfReader({
   useEffect(() => {
     setCurrentPage(1);
     setPageCount(0);
-  }, [pdfUrl]);
+  }, [pages, pdfUrl]);
 
   useEffect(() => {
+    if (pages.length) {
+      setPdfFile(null);
+      setLoadError("");
+      setPageCount(pages.length);
+      return undefined;
+    }
+
     if (!pdfUrl) {
       setPdfFile(null);
       setLoadError("PDF file is unavailable.");
@@ -62,7 +70,24 @@ export default function InlinePdfReader({
     loadPdfFile();
 
     return () => controller.abort();
-  }, [pdfUrl]);
+  }, [pages, pdfUrl]);
+
+  useEffect(() => {
+    if (!pages.length || !pages[currentPage]) {
+      return undefined;
+    }
+
+    const preloadPage = pages[currentPage];
+    if (!preloadPage?.url) {
+      return undefined;
+    }
+
+    const image = new window.Image();
+    image.src = preloadPage.url;
+    return () => {
+      image.src = "";
+    };
+  }, [currentPage, pages]);
 
   useEffect(() => {
     function updateStageWidth() {
@@ -87,7 +112,9 @@ export default function InlinePdfReader({
     setCurrentPage((page) => Math.min(page + 1, pageCount || page + 1));
   }
 
-  const preloadPageNumbers = pageCount && currentPage < pageCount ? [currentPage + 1] : [];
+  const preloadPageNumbers =
+    !pages.length && pageCount && currentPage < pageCount ? [currentPage + 1] : [];
+  const currentImagePage = pages[currentPage - 1] || null;
 
   return (
     <div
@@ -96,6 +123,12 @@ export default function InlinePdfReader({
       <div className="inline-pdf-reader__frame" ref={stageRef}>
         {loadError ? (
           <div className="inline-pdf-reader__error">{loadError}</div>
+        ) : currentImagePage?.url ? (
+          <img
+            className="inline-pdf-reader__image"
+            src={currentImagePage.url}
+            alt={`Page ${currentPage}`}
+          />
         ) : pdfFile ? (
           <Suspense fallback={<ReaderLoading />}>
             <ComicPdfPage

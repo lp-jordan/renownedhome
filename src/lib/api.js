@@ -98,6 +98,12 @@ export const api = {
       body: JSON.stringify({ redirect }),
     });
   },
+  deleteRedirect(redirectId) {
+    return request(`/api/admin/redirects/${encodeURIComponent(redirectId)}`, {
+      method: "DELETE",
+      body: JSON.stringify({}),
+    });
+  },
   saveLetter(letter) {
     return request(`/api/admin/letters/${encodeURIComponent(letter.id)}`, {
       method: "PUT",
@@ -110,10 +116,10 @@ export const api = {
       body: JSON.stringify({ asset }),
     });
   },
-  registerAssetUrl(payload) {
-    return request("/api/admin/assets/url", {
-      method: "POST",
-      body: JSON.stringify(payload),
+  deleteAsset(assetId) {
+    return request(`/api/admin/assets/${encodeURIComponent(assetId)}`, {
+      method: "DELETE",
+      body: JSON.stringify({}),
     });
   },
   getDeliverySummary() {
@@ -128,6 +134,12 @@ export const api = {
   createDeliveryProject(payload) {
     return request("/api/admin/delivery/projects", {
       method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateDeliveryProject(projectId, payload) {
+    return request(`/api/admin/delivery/projects/${encodeURIComponent(projectId)}`, {
+      method: "PUT",
       body: JSON.stringify(payload),
     });
   },
@@ -203,15 +215,11 @@ export const api = {
       headers: {},
     });
   },
-  async uploadAssets({ files, label, category }) {
+  async uploadAssets({ files }) {
     const formData = new FormData();
     files.forEach((file) => {
       formData.append("files", file);
     });
-    if (label) {
-      formData.append("label", label);
-    }
-    formData.append("category", category);
 
     const response = await fetch("/api/admin/assets/upload", {
       method: "POST",
@@ -229,8 +237,6 @@ export const api = {
   async uploadAsset(payload) {
     return api.uploadAssets({
       files: [payload.file],
-      label: payload.label,
-      category: payload.category,
     });
   },
 };
