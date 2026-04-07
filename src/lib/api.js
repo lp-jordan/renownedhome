@@ -161,6 +161,30 @@ export const api = {
       body: JSON.stringify({ csvText }),
     });
   },
+  updateDeliveryBacker(projectId, backer) {
+    return request(
+      `/api/admin/delivery/projects/${encodeURIComponent(projectId)}/backers/${encodeURIComponent(backer.id)}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ backer }),
+      }
+    );
+  },
+  moveDeliveryBackers(projectId, backerIds, tierId) {
+    return request(`/api/admin/delivery/projects/${encodeURIComponent(projectId)}/backers/move`, {
+      method: "POST",
+      body: JSON.stringify({ backerIds, tierId }),
+    });
+  },
+  deleteDeliveryBacker(projectId, backerId) {
+    return request(
+      `/api/admin/delivery/projects/${encodeURIComponent(projectId)}/backers/${encodeURIComponent(backerId)}`,
+      {
+        method: "DELETE",
+        body: JSON.stringify({}),
+      }
+    );
+  },
   sendDeliveryEmails(projectId) {
     return request(`/api/admin/delivery/projects/${encodeURIComponent(projectId)}/send-emails`, {
       method: "POST",

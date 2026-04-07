@@ -2043,6 +2043,70 @@ app.post(
   }
 );
 
+app.put(
+  "/api/admin/delivery/projects/:id/backers/:backerId",
+  requireTrustedOrigin,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const backer = await deliveryStore.updateBacker(
+        req.session.user.id,
+        req.params.id,
+        req.params.backerId,
+        req.body?.backer ?? {}
+      );
+      if (!backer) {
+        res.status(404).json({ error: "Backer not found." });
+        return;
+      }
+      res.json({ backer });
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Unable to update backer." });
+    }
+  }
+);
+
+app.post(
+  "/api/admin/delivery/projects/:id/backers/move",
+  requireTrustedOrigin,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const result = await deliveryStore.moveBackers(
+        req.session.user.id,
+        req.params.id,
+        req.body?.backerIds ?? [],
+        req.body?.tierId ?? ""
+      );
+      if (!result) {
+        res.status(404).json({ error: "Delivery project not found." });
+        return;
+      }
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Unable to move backers." });
+    }
+  }
+);
+
+app.delete(
+  "/api/admin/delivery/projects/:id/backers/:backerId",
+  requireTrustedOrigin,
+  requireAdmin,
+  async (req, res) => {
+    const backer = await deliveryStore.deleteBacker(
+      req.session.user.id,
+      req.params.id,
+      req.params.backerId
+    );
+    if (!backer) {
+      res.status(404).json({ error: "Backer not found." });
+      return;
+    }
+    res.json({ deleted: true, backer });
+  }
+);
+
 app.post(
   "/api/admin/delivery/projects/:id/send-emails",
   requireTrustedOrigin,

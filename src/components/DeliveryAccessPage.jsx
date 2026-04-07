@@ -105,6 +105,16 @@ export default function DeliveryAccessPage() {
                     <Link className="button-secondary" to={file.actions.readUrl}>
                       Read In Browser
                     </Link>
+                    {access.tier?.additionalLinkUrl ? (
+                      <a
+                        className="button-secondary"
+                        href={access.tier.additionalLinkUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {access.tier.additionalLinkLabel || "Open Link"}
+                      </a>
+                    ) : null}
                   </div>
                 </div>
               ))}

@@ -17,6 +17,8 @@ function createTierDraft(index = 0, fileIds = []) {
     id: `new-tier-${Date.now()}-${index}`,
     name: `Tier ${index + 1}`,
     messageOverride: "",
+    additionalLinkLabel: "",
+    additionalLinkUrl: "",
     fileIds,
     isNew: true,
   };
@@ -72,6 +74,11 @@ export default function DeliveryAdmin() {
   const [csvText, setCsvText] = useState("");
   const [importStatus, setImportStatus] = useState("");
   const [sendStatus, setSendStatus] = useState("");
+  const [selectedBackerIds, setSelectedBackerIds] = useState([]);
+  const [moveTierId, setMoveTierId] = useState("");
+  const [backerStatus, setBackerStatus] = useState("");
+  const [editingBackerId, setEditingBackerId] = useState("");
+  const [backerDraft, setBackerDraft] = useState({ email: "", tierId: "" });
 
   async function loadDashboard() {
     const [nextSummary, nextProjects] = await Promise.all([
@@ -96,10 +103,16 @@ export default function DeliveryAdmin() {
         id: tier.id,
         name: tier.name || "",
         messageOverride: tier.messageOverride || "",
+        additionalLinkLabel: tier.additionalLinkLabel || "",
+        additionalLinkUrl: tier.additionalLinkUrl || "",
         fileIds: [...(tier.fileIds || [])],
         backerCount: tier.backerCount || 0,
       }))
     );
+    setSelectedBackerIds([]);
+    setMoveTierId(nextDetail.tiers?.[0]?.id || "");
+    setEditingBackerId("");
+    setBackerDraft({ email: "", tierId: nextDetail.tiers?.[0]?.id || "" });
   }
 
   async function loadProjectDetail(projectId) {
@@ -173,6 +186,8 @@ export default function DeliveryAdmin() {
           id: tier.isNew ? undefined : tier.id,
           name: tier.name,
           messageOverride: tier.messageOverride,
+          additionalLinkLabel: tier.additionalLinkLabel,
+          additionalLinkUrl: tier.additionalLinkUrl,
           fileIds: tier.fileIds,
           sortOrder: index,
         })),
@@ -197,7 +212,7 @@ export default function DeliveryAdmin() {
     try {
       const result = await api.importDeliveryBackers(selectedProjectId, csvText);
       setImportStatus(
-        `Imported ${result.summary.importedCount}. Skipped ${result.summary.skippedExistingCount} existing and ${result.summary.skippedUnknownTierCount} unknown-tier row${result.summary.skippedUnknownTierCount === 1 ? "" : "s"}.`
+        `Imported ${result.summary.importedCount}. Skipped ${result.summary.skippedExistingCount} existing and ${result.summary.skippedUnknownTierCount} unknown-tier row${result.summary.skippedUnknownTierCount === 1 ? "" : "s"}. Rows without a tier were added to General Access.`
       );
       setCsvText("");
       await loadDashboard();
@@ -348,6 +363,91 @@ export default function DeliveryAdmin() {
 
   function removeTier(index) {
     setTiersDraft((current) => current.filter((_, tierIndex) => tierIndex !== index));
+  }
+
+  function startEditingBacker(backer) {
+    setEditingBackerId(backer.id);
+    setBackerDraft({
+      email: backer.email,
+      tierId: backer.tierId || detail?.tiers?.[0]?.id || "",
+    });
+    setBackerStatus("");
+  }
+
+  function toggleBackerSelection(backerId) {
+    setSelectedBackerIds((current) =>
+      current.includes(backerId)
+        ? current.filter((id) => id !== backerId)
+        : [...current, backerId]
+    );
+  }
+
+  function toggleSelectAllBackers() {
+    if (!detail?.backers?.length) {
+      return;
+    }
+
+    setSelectedBackerIds((current) =>
+      current.length === detail.backers.length ? [] : detail.backers.map((backer) => backer.id)
+    );
+  }
+
+  async function handleSaveBacker(backerId) {
+    if (!selectedProjectId) {
+      return;
+    }
+
+    setBackerStatus("Saving backer...");
+    try {
+      await api.updateDeliveryBacker(selectedProjectId, {
+        id: backerId,
+        email: backerDraft.email,
+        tierId: backerDraft.tierId,
+      });
+      await loadDashboard();
+      await loadProjectDetail(selectedProjectId);
+      setBackerStatus("Backer updated.");
+    } catch (saveError) {
+      setBackerStatus(saveError.message || "Unable to update backer.");
+    }
+  }
+
+  async function handleMoveSelectedBackers() {
+    if (!selectedProjectId || !selectedBackerIds.length || !moveTierId) {
+      setBackerStatus("Select backers and choose a tier first.");
+      return;
+    }
+
+    setBackerStatus("Moving backers...");
+    try {
+      await api.moveDeliveryBackers(selectedProjectId, selectedBackerIds, moveTierId);
+      await loadDashboard();
+      await loadProjectDetail(selectedProjectId);
+      setBackerStatus("Backers moved.");
+    } catch (moveError) {
+      setBackerStatus(moveError.message || "Unable to move backers.");
+    }
+  }
+
+  async function handleDeleteBacker(backer) {
+    if (!selectedProjectId) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete ${backer.email} from this campaign?`);
+    if (!confirmed) {
+      return;
+    }
+
+    setBackerStatus("Deleting backer...");
+    try {
+      await api.deleteDeliveryBacker(selectedProjectId, backer.id);
+      await loadDashboard();
+      await loadProjectDetail(selectedProjectId);
+      setBackerStatus("Backer deleted.");
+    } catch (deleteError) {
+      setBackerStatus(deleteError.message || "Unable to delete backer.");
+    }
   }
 
   if (loading) {
@@ -644,6 +744,26 @@ export default function DeliveryAdmin() {
                         }
                       />
                     </label>
+                    <label>
+                      <span>Additional link label</span>
+                      <input
+                        value={tier.additionalLinkLabel || ""}
+                        onChange={(event) =>
+                          handleTierChange(index, "additionalLinkLabel", event.target.value)
+                        }
+                        placeholder="Leave a Letter"
+                      />
+                    </label>
+                    <label>
+                      <span>Additional link URL</span>
+                      <input
+                        value={tier.additionalLinkUrl || ""}
+                        onChange={(event) =>
+                          handleTierChange(index, "additionalLinkUrl", event.target.value)
+                        }
+                        placeholder="https://example.com"
+                      />
+                    </label>
                     <div className="delivery-mini-list">
                       {detail.files.map((file) => (
                         <label key={file.id} className="workspace-toggle">
@@ -674,7 +794,7 @@ export default function DeliveryAdmin() {
               <div className="delivery-section__header">
                 <h2>Import Backers</h2>
               </div>
-              <p className="status-line">Use `email,tier` rows. Tier names can match the labels above.</p>
+              <p className="status-line">Use `email,tier` rows. If tier is omitted, the backer goes to General Access and can be moved later.</p>
               <label>
                 <span>Backer CSV</span>
                 <textarea
@@ -690,6 +810,100 @@ export default function DeliveryAdmin() {
                 </button>
               </div>
               {importStatus ? <p className="status-line">{importStatus}</p> : null}
+            </section>
+
+            <section className="editor-card delivery-section">
+              <div className="delivery-section__header">
+                <h2>Manage Backers</h2>
+              </div>
+              {detail.backers.length ? (
+                <>
+                  <div className="delivery-inline-actions">
+                    <label className="delivery-project-picker">
+                      <span>Move selected to</span>
+                      <select value={moveTierId} onChange={(event) => setMoveTierId(event.target.value)}>
+                        {detail.tiers.map((tier) => (
+                          <option key={tier.id} value={tier.id}>
+                            {tier.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button className="button-secondary" type="button" onClick={toggleSelectAllBackers}>
+                      {selectedBackerIds.length === detail.backers.length ? "Clear Selection" : "Select All"}
+                    </button>
+                    <button className="button-primary" type="button" onClick={handleMoveSelectedBackers}>
+                      Move Selected
+                    </button>
+                  </div>
+                  <div className="delivery-mini-list">
+                    {detail.backers.map((backer) => {
+                      const isEditing = editingBackerId === backer.id;
+                      return (
+                        <div key={backer.id} className="delivery-mini-list__item">
+                          <label className="workspace-toggle">
+                            <input
+                              type="checkbox"
+                              checked={selectedBackerIds.includes(backer.id)}
+                              onChange={() => toggleBackerSelection(backer.id)}
+                            />
+                            <span>Select</span>
+                          </label>
+                          {isEditing ? (
+                            <>
+                              <input
+                                value={backerDraft.email}
+                                onChange={(event) =>
+                                  setBackerDraft((current) => ({ ...current, email: event.target.value }))
+                                }
+                              />
+                              <select
+                                value={backerDraft.tierId}
+                                onChange={(event) =>
+                                  setBackerDraft((current) => ({ ...current, tierId: event.target.value }))
+                                }
+                              >
+                                {detail.tiers.map((tier) => (
+                                  <option key={tier.id} value={tier.id}>
+                                    {tier.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="delivery-inline-actions">
+                                <button className="button-primary button-compact" type="button" onClick={() => handleSaveBacker(backer.id)}>
+                                  Save
+                                </button>
+                                <button className="button-secondary button-compact" type="button" onClick={() => setEditingBackerId("")}>
+                                  Cancel
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <strong>{backer.email}</strong>
+                              <span>{backer.tierName || "General Access"}</span>
+                              <div className="delivery-inline-actions">
+                                <button className="button-secondary button-compact" type="button" onClick={() => startEditingBacker(backer)}>
+                                  Edit
+                                </button>
+                                <button className="button-secondary button-compact" type="button" onClick={() => handleDeleteBacker(backer)}>
+                                  Delete
+                                </button>
+                                <a href={`/a/${backer.accessToken}`} target="_blank" rel="noreferrer">
+                                  Open page
+                                </a>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <p className="status-line">Import backers and they will appear here for reassignment.</p>
+              )}
+              {backerStatus ? <p className="status-line">{backerStatus}</p> : null}
             </section>
 
             <section className="editor-card delivery-section">
@@ -729,13 +943,16 @@ export default function DeliveryAdmin() {
                 <div className="delivery-mini-list">
                   {detail.tiers.map((tier) => {
                     const previewBacker = detail.backers.find((backer) => backer.tierId === tier.id);
-                    return (
-                      <div key={tier.id} className="delivery-mini-list__item">
-                        <strong>{tier.name}</strong>
-                        <span>{tier.messageOverride || detail.project.shortMessage || "Uses default message."}</span>
-                        {previewBacker ? (
-                          <a href={`/a/${previewBacker.accessToken}`} target="_blank" rel="noreferrer">
-                            Open preview
+                      return (
+                        <div key={tier.id} className="delivery-mini-list__item">
+                          <strong>{tier.name}</strong>
+                          <span>{tier.messageOverride || detail.project.shortMessage || "Uses default message."}</span>
+                          {tier.additionalLinkUrl ? (
+                            <span>{tier.additionalLinkLabel || tier.additionalLinkUrl}</span>
+                          ) : null}
+                          {previewBacker ? (
+                            <a href={`/a/${previewBacker.accessToken}`} target="_blank" rel="noreferrer">
+                              Open preview
                           </a>
                         ) : (
                           <span>Add one backer to preview this tier</span>

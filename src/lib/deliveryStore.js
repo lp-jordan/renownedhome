@@ -38,6 +38,8 @@ function createDefaultTier(projectId, sortOrder = 0) {
     name: "General Access",
     slug: "general-access",
     messageOverride: "",
+    additionalLinkLabel: "",
+    additionalLinkUrl: "",
     sortOrder,
     createdAt: now,
     updatedAt: now,
@@ -114,6 +116,8 @@ function normalizeTier(tier) {
     name: String(tier.name || "").trim(),
     slug: slugify(tier.slug || tier.name),
     messageOverride: String(tier.messageOverride || "").trim(),
+    additionalLinkLabel: String(tier.additionalLinkLabel || "").trim(),
+    additionalLinkUrl: String(tier.additionalLinkUrl || "").trim(),
     sortOrder: Number(tier.sortOrder || 0),
   };
 }
@@ -431,6 +435,8 @@ export class DeliveryFileStore {
             name: String(tier.name || `Tier ${index + 1}`).trim(),
             slug: tier.slug || tier.name,
             messageOverride: String(tier.messageOverride || "").trim(),
+            additionalLinkLabel: String(tier.additionalLinkLabel || "").trim(),
+            additionalLinkUrl: String(tier.additionalLinkUrl || "").trim(),
             sortOrder: index,
             createdAt:
               existingTiers.find((entry) => entry.id === tier.id)?.createdAt || now,
@@ -681,6 +687,116 @@ export class DeliveryFileStore {
         skippedUnknownTierCount
       ),
     };
+  }
+
+  async updateBacker(userId, projectId, backerId, payload) {
+    const data = await this.read();
+    const project = data.projects.find(
+      (entry) => entry.id === projectId && entry.userId === userId
+    );
+    if (!project) {
+      return null;
+    }
+
+    const backerIndex = data.backers.findIndex(
+      (entry) => entry.id === backerId && entry.projectId === projectId
+    );
+    if (backerIndex === -1) {
+      return null;
+    }
+
+    const currentBacker = data.backers[backerIndex];
+    const nextEmail = normalizeEmail(payload.email ?? currentBacker.email);
+    if (!nextEmail || !isEmailLike(nextEmail)) {
+      throw new Error("A valid email is required.");
+    }
+
+    const tierId = payload.tierId ?? currentBacker.tierId;
+    const tier = data.tiers.find((entry) => entry.id === tierId && entry.projectId === projectId);
+    if (!tier) {
+      throw new Error("Choose a valid tier.");
+    }
+
+    const duplicate = data.backers.find(
+      (entry) =>
+        entry.projectId === projectId &&
+        entry.id !== backerId &&
+        entry.normalizedEmail === nextEmail
+    );
+    if (duplicate) {
+      throw new Error("That email is already in this campaign.");
+    }
+
+    const now = new Date().toISOString();
+    data.backers[backerIndex] = {
+      ...currentBacker,
+      email: nextEmail,
+      normalizedEmail: nextEmail,
+      tierId,
+      updatedAt: now,
+    };
+    await this.write(data);
+
+    const detail = buildProjectDetail(data, project);
+    return detail.backers.find((entry) => entry.id === backerId) || null;
+  }
+
+  async moveBackers(userId, projectId, backerIds, tierId) {
+    const data = await this.read();
+    const project = data.projects.find(
+      (entry) => entry.id === projectId && entry.userId === userId
+    );
+    if (!project) {
+      return null;
+    }
+
+    const tier = data.tiers.find((entry) => entry.id === tierId && entry.projectId === projectId);
+    if (!tier) {
+      throw new Error("Choose a valid tier.");
+    }
+
+    const backerIdSet = new Set(
+      Array.isArray(backerIds) ? backerIds.filter(Boolean) : []
+    );
+    const now = new Date().toISOString();
+    let movedCount = 0;
+
+    data.backers = data.backers.map((backer) => {
+      if (backer.projectId !== projectId || !backerIdSet.has(backer.id)) {
+        return backer;
+      }
+      movedCount += 1;
+      return {
+        ...backer,
+        tierId,
+        updatedAt: now,
+      };
+    });
+
+    await this.write(data);
+    return { movedCount, tierId };
+  }
+
+  async deleteBacker(userId, projectId, backerId) {
+    const data = await this.read();
+    const project = data.projects.find(
+      (entry) => entry.id === projectId && entry.userId === userId
+    );
+    if (!project) {
+      return null;
+    }
+
+    const existing = data.backers.find(
+      (entry) => entry.id === backerId && entry.projectId === projectId
+    );
+    if (!existing) {
+      return null;
+    }
+
+    data.backers = data.backers.filter((entry) => entry.id !== backerId);
+    data.accessEvents = data.accessEvents.filter((entry) => entry.backerId !== backerId);
+    await this.write(data);
+    return existing;
   }
 
   async getFile(fileId) {
