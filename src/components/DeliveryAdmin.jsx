@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import InlinePdfReader from "./InlinePdfReader";
 
@@ -118,14 +118,14 @@ export default function DeliveryAdmin() {
   const [importStatus, setImportStatus] = useState("");
   const [sendStatus, setSendStatus] = useState("");
   const [selectedBackerIds, setSelectedBackerIds] = useState([]);
-  const [moveTierId, setMoveTierId] = useState("");
   const [backerStatus, setBackerStatus] = useState("");
   const [editingBackerId, setEditingBackerId] = useState("");
   const [backerDraft, setBackerDraft] = useState({ email: "", tierId: "" });
   const [expandedTierIds, setExpandedTierIds] = useState([]);
-  const [showMoveModal, setShowMoveModal] = useState(false);
-  const [draggedBackerId, setDraggedBackerId] = useState("");
+  const [selectionAnchorId, setSelectionAnchorId] = useState("");
+  const [draggedBackerIds, setDraggedBackerIds] = useState([]);
   const [dragOverTierId, setDragOverTierId] = useState("");
+  const backersListRef = useRef(null);
 
   async function loadDashboard() {
     const [nextSummary, nextProjects] = await Promise.all([
@@ -157,7 +157,6 @@ export default function DeliveryAdmin() {
       }))
     );
     setSelectedBackerIds([]);
-    setMoveTierId(nextDetail.tiers?.[0]?.id || "");
     setEditingBackerId("");
     setBackerDraft({ email: "", tierId: nextDetail.tiers?.[0]?.id || "" });
     setExpandedTierIds((current) => {
@@ -222,6 +221,22 @@ export default function DeliveryAdmin() {
       return [...preserved, ...newIds];
     });
   }, [tiersDraft]);
+
+  useEffect(() => {
+    function handlePointerDown(event) {
+      if (!backersListRef.current) {
+        return;
+      }
+      if (backersListRef.current.contains(event.target)) {
+        return;
+      }
+      setSelectedBackerIds([]);
+      setSelectionAnchorId("");
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, []);
 
   async function handleCreateProject(event) {
     event.preventDefault();
@@ -442,22 +457,61 @@ export default function DeliveryAdmin() {
     setBackerStatus("");
   }
 
-  function toggleBackerSelection(backerId) {
-    setSelectedBackerIds((current) =>
-      current.includes(backerId)
-        ? current.filter((id) => id !== backerId)
-        : [...current, backerId]
-    );
-  }
-
-  function toggleSelectAllBackers() {
+  function handleBackerSelection(backerId, event) {
     if (!detail?.backers?.length) {
       return;
     }
 
-    setSelectedBackerIds((current) =>
-      current.length === detail.backers.length ? [] : detail.backers.map((backer) => backer.id)
-    );
+    const orderedIds = detail.backers.map((backer) => backer.id);
+    const clickedIndex = orderedIds.indexOf(backerId);
+    if (clickedIndex === -1) {
+      return;
+    }
+
+    if (event.shiftKey) {
+      const anchorId = selectionAnchorId || selectedBackerIds[0] || backerId;
+      const anchorIndex = orderedIds.indexOf(anchorId);
+      const rangeStart = Math.min(anchorIndex === -1 ? clickedIndex : anchorIndex, clickedIndex);
+      const rangeEnd = Math.max(anchorIndex === -1 ? clickedIndex : anchorIndex, clickedIndex);
+      setSelectedBackerIds(orderedIds.slice(rangeStart, rangeEnd + 1));
+      setSelectionAnchorId(anchorId);
+      return;
+    }
+
+    if (event.metaKey || event.ctrlKey) {
+      setSelectedBackerIds((current) =>
+        current.includes(backerId)
+          ? current.filter((id) => id !== backerId)
+          : [...current, backerId]
+      );
+      setSelectionAnchorId(backerId);
+      return;
+    }
+
+    setSelectedBackerIds([backerId]);
+    setSelectionAnchorId(backerId);
+  }
+
+  function toggleTierSelection(tierId) {
+    if (!detail?.backers?.length) {
+      return;
+    }
+
+    const tierBackerIds = detail.backers
+      .filter((backer) => backer.tierId === tierId)
+      .map((backer) => backer.id);
+    if (!tierBackerIds.length) {
+      return;
+    }
+
+    setSelectedBackerIds((current) => {
+      const allSelected = tierBackerIds.every((id) => current.includes(id));
+      if (allSelected) {
+        return current.filter((id) => !tierBackerIds.includes(id));
+      }
+      return [...new Set([...current, ...tierBackerIds])];
+    });
+    setSelectionAnchorId(tierBackerIds[0]);
   }
 
   function toggleTierExpanded(tierId) {
@@ -488,15 +542,15 @@ export default function DeliveryAdmin() {
     }
   }
 
-  async function handleMoveSelectedBackers() {
-    if (!selectedProjectId || !selectedBackerIds.length || !moveTierId) {
+  async function moveBackersToTier(backerIds, tierId) {
+    if (!selectedProjectId || !backerIds.length || !tierId) {
       setBackerStatus("Select backers and choose a tier first.");
       return;
     }
 
     setBackerStatus("Moving backers...");
     try {
-      await api.moveDeliveryBackers(selectedProjectId, selectedBackerIds, moveTierId);
+      await api.moveDeliveryBackers(selectedProjectId, backerIds, tierId);
       await loadDashboard();
       await loadProjectDetail(selectedProjectId);
       setBackerStatus("Backers moved.");
@@ -505,25 +559,50 @@ export default function DeliveryAdmin() {
     }
   }
 
-  async function handleDropBacker(backer, tierId) {
-    if (!selectedProjectId || !backer?.id || !tierId || backer.tierId === tierId) {
-      setDraggedBackerId("");
+  async function handleDropBackers(backer, tierId) {
+    const idsToMove =
+      backer && selectedBackerIds.includes(backer.id) ? selectedBackerIds : backer?.id ? [backer.id] : [];
+    const movableIds = detail?.backers
+      ?.filter((entry) => idsToMove.includes(entry.id) && entry.tierId !== tierId)
+      .map((entry) => entry.id) || [];
+    if (!selectedProjectId || !tierId || !movableIds.length) {
+      setDraggedBackerIds([]);
       setDragOverTierId("");
       return;
     }
 
-    setBackerStatus("Moving backer...");
+    setBackerStatus(movableIds.length > 1 ? "Moving backers..." : "Moving backer...");
     try {
-      await api.moveDeliveryBackers(selectedProjectId, [backer.id], tierId);
-      await loadDashboard();
-      await loadProjectDetail(selectedProjectId);
-      setBackerStatus("Backer moved.");
-    } catch (moveError) {
-      setBackerStatus(moveError.message || "Unable to move backer.");
+      await moveBackersToTier(movableIds, tierId);
+      setSelectedBackerIds(movableIds);
+      setSelectionAnchorId(movableIds[0] || "");
+      setBackerStatus(movableIds.length > 1 ? "Backers moved." : "Backer moved.");
+    } catch {
+      // handled in moveBackersToTier
     } finally {
-      setDraggedBackerId("");
+      setDraggedBackerIds([]);
       setDragOverTierId("");
     }
+  }
+
+  function handleBackerDragStart(backer, event) {
+    event.stopPropagation();
+    const idsToDrag = selectedBackerIds.includes(backer.id) ? selectedBackerIds : [backer.id];
+    if (!selectedBackerIds.includes(backer.id)) {
+      setSelectedBackerIds([backer.id]);
+      setSelectionAnchorId(backer.id);
+    }
+    setDraggedBackerIds(idsToDrag);
+    try {
+      event.dataTransfer.setData("text/plain", idsToDrag.join(","));
+    } catch {
+      // noop
+    }
+  }
+
+  function handleBackerDragEnd() {
+    setDraggedBackerIds([]);
+    setDragOverTierId("");
   }
 
   async function handleDeleteBacker(backer) {
@@ -541,6 +620,8 @@ export default function DeliveryAdmin() {
       await api.deleteDeliveryBacker(selectedProjectId, backer.id);
       await loadDashboard();
       await loadProjectDetail(selectedProjectId);
+      setSelectedBackerIds((current) => current.filter((id) => id !== backer.id));
+      setSelectionAnchorId((current) => (current === backer.id ? "" : current));
       setBackerStatus("Backer deleted.");
     } catch (deleteError) {
       setBackerStatus(deleteError.message || "Unable to delete backer.");
@@ -578,16 +659,7 @@ export default function DeliveryAdmin() {
         return draftTier ? { ...tier, name: draftTier.name || tier.name } : tier;
       })
     : [];
-  const hasAlternateTier = assignableTiers.length > 1;
   const selectedCount = selectedBackerIds.length;
-  const selectedBackers = detail
-    ? detail.backers.filter((backer) => selectedBackerIds.includes(backer.id))
-    : [];
-  const moveTargetTiers = assignableTiers.length
-    ? assignableTiers.filter(
-        (tier) => !selectedBackers.length || selectedBackers.some((backer) => backer.tierId !== tier.id)
-      )
-    : [];
 
   return (
     <section className="editor-shell delivery-workspace delivery-workspace--streamlined">
@@ -1019,34 +1091,21 @@ export default function DeliveryAdmin() {
                 <h2>Backers</h2>
               </div>
               <p className="delivery-summary-card__subtle">{detail.backers.length} total</p>
-              <div className="delivery-backers-card__toolbar">
-                <button className="button-secondary button-compact" type="button" onClick={toggleSelectAllBackers} disabled={!detail.backers.length}>
-                  {selectedCount && selectedCount === detail.backers.length ? "Clear all" : "Select all"}
-                </button>
-                <button
-                  className="button-secondary button-compact"
-                  type="button"
-                  onClick={() => {
-                    setMoveTierId(moveTargetTiers[0]?.id || "");
-                    setShowMoveModal(true);
-                  }}
-                  disabled={!selectedCount || !hasAlternateTier}
-                >
-                  Move to
-                </button>
-              </div>
               {detail.backers.length ? (
-                <div className="delivery-tier-groups">
+                <div className="delivery-tier-groups" ref={backersListRef}>
                   {tierGroups.map((tier) => {
                     const isExpanded = expandedTierIds.includes(tier.id);
                     const isDropTarget = dragOverTierId === tier.id;
+                    const tierBackerIds = tier.backers.map((backer) => backer.id);
+                    const tierSelectionCount = tierBackerIds.filter((id) => selectedBackerIds.includes(id)).length;
+                    const allTierSelected = Boolean(tierBackerIds.length) && tierSelectionCount === tierBackerIds.length;
                     return (
                       <section
                         key={tier.id}
                         className={`delivery-tier-group${isDropTarget ? " delivery-tier-group--drop" : ""}`}
                         onDragOver={(event) => {
                           event.preventDefault();
-                          if (draggedBackerId && tier.isPersisted) {
+                          if (draggedBackerIds.length && tier.isPersisted) {
                             setDragOverTierId(tier.id);
                           }
                         }}
@@ -1058,55 +1117,68 @@ export default function DeliveryAdmin() {
                         onDrop={(event) => {
                           event.preventDefault();
                           if (!tier.isPersisted) {
-                            setDraggedBackerId("");
+                            setDraggedBackerIds([]);
                             setDragOverTierId("");
                             return;
                           }
-                          const droppedBacker = detail.backers.find((backer) => backer.id === draggedBackerId);
-                          void handleDropBacker(droppedBacker, tier.id);
+                          const droppedBacker = detail.backers.find((backer) => draggedBackerIds.includes(backer.id));
+                          void handleDropBackers(droppedBacker, tier.id);
                         }}
                       >
-                        <button
-                          className="delivery-tier-group__toggle"
-                          type="button"
-                          onClick={() => toggleTierExpanded(tier.id)}
-                        >
-                          <span className={`delivery-tier-group__caret${isExpanded ? " is-open" : ""}`}>▾</span>
-                          <span className="delivery-tier-group__title">{tier.name}</span>
-                          <span className="delivery-tier-group__count">
-                            {tier.backers.length} backer{tier.backers.length === 1 ? "" : "s"}
-                          </span>
-                        </button>
+                        <div className="delivery-tier-group__toggle">
+                          <button
+                            className="delivery-tier-group__summary"
+                            type="button"
+                            onClick={() => toggleTierExpanded(tier.id)}
+                          >
+                            <span className={`delivery-tier-group__caret${isExpanded ? " is-open" : ""}`}>▾</span>
+                            <span className="delivery-tier-group__title">{tier.name}</span>
+                            <span className="delivery-tier-group__count">
+                              {tier.backers.length} backer{tier.backers.length === 1 ? "" : "s"}
+                            </span>
+                          </button>
+                          <button
+                            className="delivery-tier-group__select"
+                            type="button"
+                            onClick={() => toggleTierSelection(tier.id)}
+                            disabled={!tier.backers.length}
+                          >
+                            {allTierSelected ? "Clear" : "Select all"}
+                          </button>
+                        </div>
                         {isExpanded ? (
                           <div className="delivery-tier-group__list">
                             {tier.backers.length ? (
                               tier.backers.map((backer) => {
                                 const isEditing = editingBackerId === backer.id;
                                 const availableMoveTargets = detail.tiers.filter((entry) => entry.id !== backer.tierId);
+                                const isSelected = selectedBackerIds.includes(backer.id);
                                 return (
-                                  <article key={backer.id} className="delivery-backer-row">
+                                  <article
+                                    key={backer.id}
+                                    className={`delivery-backer-row${isSelected ? " is-selected" : ""}`}
+                                    onClick={(event) => {
+                                      if (isEditing) {
+                                        return;
+                                      }
+                                      handleBackerSelection(backer.id, event);
+                                    }}
+                                  >
                                     <div className="delivery-backer-row__lead">
-                                      <input
-                                        className="delivery-backer-row__checkbox"
-                                        type="checkbox"
-                                        checked={selectedBackerIds.includes(backer.id)}
-                                        onChange={() => toggleBackerSelection(backer.id)}
-                                        aria-label={`Select ${backer.email}`}
-                                      />
                                       <button
                                         className="delivery-backer-row__grab"
                                         type="button"
                                         disabled={!availableMoveTargets.length}
                                         draggable
-                                        onDragStart={() => setDraggedBackerId(backer.id)}
-                                        onDragEnd={() => {
-                                          setDraggedBackerId("");
-                                          setDragOverTierId("");
-                                        }}
+                                        onMouseDown={(event) => event.stopPropagation()}
+                                        onDragStart={(event) => handleBackerDragStart(backer, event)}
+                                        onDragEnd={handleBackerDragEnd}
                                         aria-label={`Drag ${backer.email} to another tier`}
                                         title={
                                           availableMoveTargets.length
-                                            ? "Drag to another tier"
+                                            ? isSelected && selectedCount > 1
+                                              ? `Drag ${selectedCount} selected backers`
+                                              : "Drag to another tier"
                                             : "Add another tier to move this backer"
                                         }
                                       >
@@ -1120,6 +1192,7 @@ export default function DeliveryAdmin() {
                                           onChange={(event) =>
                                             setBackerDraft((current) => ({ ...current, email: event.target.value }))
                                           }
+                                          onClick={(event) => event.stopPropagation()}
                                           aria-label="Backer email"
                                         />
                                         <select
@@ -1127,6 +1200,7 @@ export default function DeliveryAdmin() {
                                           onChange={(event) =>
                                             setBackerDraft((current) => ({ ...current, tierId: event.target.value }))
                                           }
+                                          onClick={(event) => event.stopPropagation()}
                                           aria-label="Backer tier"
                                         >
                                           {assignableTiers.map((entry) => (
@@ -1136,10 +1210,16 @@ export default function DeliveryAdmin() {
                                           ))}
                                         </select>
                                         <div className="delivery-backer-row__edit-actions">
-                                          <button className="button-primary button-compact" type="button" onClick={() => handleSaveBacker(backer.id)}>
+                                          <button className="button-primary button-compact" type="button" onClick={(event) => {
+                                            event.stopPropagation();
+                                            void handleSaveBacker(backer.id);
+                                          }}>
                                             Save
                                           </button>
-                                          <button className="button-secondary button-compact" type="button" onClick={() => setEditingBackerId("")}>
+                                          <button className="button-secondary button-compact" type="button" onClick={(event) => {
+                                            event.stopPropagation();
+                                            setEditingBackerId("");
+                                          }}>
                                             Cancel
                                           </button>
                                         </div>
@@ -1150,10 +1230,16 @@ export default function DeliveryAdmin() {
                                           <strong>{backer.email}</strong>
                                         </div>
                                         <div className="delivery-backer-row__actions">
-                                          <button className="delivery-icon-button" type="button" onClick={() => startEditingBacker(backer)} aria-label={`Edit ${backer.email}`}>
+                                          <button className="delivery-icon-button" type="button" onClick={(event) => {
+                                            event.stopPropagation();
+                                            startEditingBacker(backer);
+                                          }} aria-label={`Edit ${backer.email}`}>
                                             <PencilIcon />
                                           </button>
-                                          <button className="delivery-icon-button" type="button" onClick={() => handleDeleteBacker(backer)} aria-label={`Delete ${backer.email}`}>
+                                          <button className="delivery-icon-button" type="button" onClick={(event) => {
+                                            event.stopPropagation();
+                                            void handleDeleteBacker(backer);
+                                          }} aria-label={`Delete ${backer.email}`}>
                                             <TrashIcon />
                                           </button>
                                           <a
@@ -1161,6 +1247,7 @@ export default function DeliveryAdmin() {
                                             href={`/a/${backer.accessToken}`}
                                             target="_blank"
                                             rel="noreferrer"
+                                            onClick={(event) => event.stopPropagation()}
                                             aria-label={`Open page for ${backer.email}`}
                                           >
                                             <ExternalIcon />
@@ -1186,49 +1273,6 @@ export default function DeliveryAdmin() {
               {backerStatus ? <p className="status-line">{backerStatus}</p> : null}
             </section>
           </aside>
-        </div>
-      ) : null}
-
-      {showMoveModal ? (
-        <div className="delivery-move-modal" role="dialog" aria-modal="true" aria-labelledby="delivery-move-modal-title">
-          <button className="delivery-move-modal__backdrop" type="button" onClick={() => setShowMoveModal(false)} aria-label="Close move modal" />
-          <div className="delivery-move-modal__panel">
-            <h2 id="delivery-move-modal-title">Move selected backers</h2>
-            <p>Choose a destination tier for the {selectedCount} selected backer{selectedCount === 1 ? "" : "s"}.</p>
-            <div className="delivery-move-modal__options">
-              {moveTargetTiers.map((tier) => (
-                  <button
-                    key={tier.id}
-                    className={`delivery-move-modal__option${moveTierId === tier.id ? " is-selected" : ""}`}
-                    type="button"
-                    onClick={() => setMoveTierId(tier.id)}
-                  >
-                    <span>{tier.name}</span>
-                    <small>{tier.backerCount} backer{tier.backerCount === 1 ? "" : "s"}</small>
-                  </button>
-                ))}
-            </div>
-            <div className="delivery-move-modal__actions">
-              <button className="button-secondary button-compact" type="button" onClick={() => setShowMoveModal(false)}>
-                Cancel
-              </button>
-              <button
-                className="button-primary button-compact"
-                type="button"
-                onClick={async () => {
-                  await handleMoveSelectedBackers();
-                  setShowMoveModal(false);
-                }}
-                disabled={
-                  !selectedCount ||
-                  !hasAlternateTier ||
-                  !moveTargetTiers.some((tier) => tier.id === moveTierId)
-                }
-              >
-                Move
-              </button>
-            </div>
-          </div>
         </div>
       ) : null}
 
