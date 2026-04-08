@@ -210,6 +210,19 @@ export default function DeliveryAdmin() {
     load();
   }, []);
 
+  useEffect(() => {
+    setExpandedTierIds((current) => {
+      const tierIds = tiersDraft.map((tier) => tier.id);
+      if (!tierIds.length) {
+        return [];
+      }
+
+      const preserved = current.filter((tierId) => tierIds.includes(tierId));
+      const newIds = tierIds.filter((tierId) => !preserved.includes(tierId));
+      return [...preserved, ...newIds];
+    });
+  }, [tiersDraft]);
+
   async function handleCreateProject(event) {
     event.preventDefault();
     setProjectStatus("Creating campaign...");
@@ -548,18 +561,30 @@ export default function DeliveryAdmin() {
     detail?.backers?.some((backer) => backer.tierId === tier.id)
   );
   const tierGroups = detail
-    ? detail.tiers.map((tier) => ({
-        ...tier,
-        backers: detail.backers.filter((backer) => backer.tierId === tier.id),
-      }))
+    ? tiersDraft.map((tier, index) => {
+        const persistedTier = detail.tiers.find((entry) => entry.id === tier.id);
+        return {
+          ...persistedTier,
+          ...tier,
+          isPersisted: Boolean(persistedTier),
+          sortOrder: index,
+          backers: detail.backers.filter((backer) => backer.tierId === tier.id),
+        };
+      })
     : [];
-  const hasAlternateTier = detail ? detail.tiers.length > 1 : false;
+  const assignableTiers = detail
+    ? detail.tiers.map((tier) => {
+        const draftTier = tiersDraft.find((entry) => entry.id === tier.id);
+        return draftTier ? { ...tier, name: draftTier.name || tier.name } : tier;
+      })
+    : [];
+  const hasAlternateTier = assignableTiers.length > 1;
   const selectedCount = selectedBackerIds.length;
   const selectedBackers = detail
     ? detail.backers.filter((backer) => selectedBackerIds.includes(backer.id))
     : [];
-  const moveTargetTiers = detail
-    ? detail.tiers.filter(
+  const moveTargetTiers = assignableTiers.length
+    ? assignableTiers.filter(
         (tier) => !selectedBackers.length || selectedBackers.some((backer) => backer.tierId !== tier.id)
       )
     : [];
@@ -1021,7 +1046,7 @@ export default function DeliveryAdmin() {
                         className={`delivery-tier-group${isDropTarget ? " delivery-tier-group--drop" : ""}`}
                         onDragOver={(event) => {
                           event.preventDefault();
-                          if (draggedBackerId) {
+                          if (draggedBackerId && tier.isPersisted) {
                             setDragOverTierId(tier.id);
                           }
                         }}
@@ -1032,6 +1057,11 @@ export default function DeliveryAdmin() {
                         }}
                         onDrop={(event) => {
                           event.preventDefault();
+                          if (!tier.isPersisted) {
+                            setDraggedBackerId("");
+                            setDragOverTierId("");
+                            return;
+                          }
                           const droppedBacker = detail.backers.find((backer) => backer.id === draggedBackerId);
                           void handleDropBacker(droppedBacker, tier.id);
                         }}
@@ -1099,7 +1129,7 @@ export default function DeliveryAdmin() {
                                           }
                                           aria-label="Backer tier"
                                         >
-                                          {detail.tiers.map((entry) => (
+                                          {assignableTiers.map((entry) => (
                                             <option key={entry.id} value={entry.id}>
                                               {entry.name}
                                             </option>
