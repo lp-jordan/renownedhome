@@ -25,6 +25,7 @@ import {
 } from "./src/content/defaultSiteData.js";
 import {
   DeliveryFileStore,
+  DeliveryPgStore,
   parseBackerCsv,
 } from "./src/lib/deliveryStore.js";
 import {
@@ -867,7 +868,9 @@ validateRuntimeConfig();
 const repository = process.env.DATABASE_URL
   ? new PgRepository(process.env.DATABASE_URL, bootstrapAdminUser)
   : new FileRepository(runtimeFile, bootstrapAdminUser);
-const deliveryStore = new DeliveryFileStore(deliveryRuntimeFile);
+const deliveryStore = process.env.DATABASE_URL
+  ? new DeliveryPgStore(process.env.DATABASE_URL)
+  : new DeliveryFileStore(deliveryRuntimeFile);
 
 app.use(setSecurityHeaders);
 app.use(setCacheHeaders);
