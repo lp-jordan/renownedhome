@@ -895,6 +895,144 @@ export class DeliveryPgStore {
     this.pool = new Pool({ connectionString });
   }
 
+  async getProjectSnapshot(projectId, userId = null, client = this.pool) {
+    const projectResult = await client.query(
+      `
+        SELECT
+          p.id,
+          p.user_id AS "userId",
+          p.title,
+          p.slug,
+          p.creator_name AS "creatorName",
+          p.description,
+          p.short_message AS "shortMessage",
+          p.cover_file_id AS "coverFileId",
+          p.last_delivered_at AS "lastDeliveredAt",
+          p.archived_at AS "archivedAt",
+          p.created_at AS "createdAt",
+          p.updated_at AS "updatedAt"
+        FROM delivery_projects p
+        WHERE p.id = $1
+          ${userId ? "AND p.user_id = $2" : ""}
+      `,
+      userId ? [projectId, userId] : [projectId]
+    );
+    const project = projectResult.rows[0];
+    if (!project) {
+      return null;
+    }
+
+    const [filesResult, tiersResult, backersResult, downloadsResult] = await Promise.all([
+      client.query(
+        `
+          SELECT
+            id,
+            project_id AS "projectId",
+            kind,
+            storage_key AS "storageKey",
+            original_filename AS "originalFilename",
+            mime_type AS "mimeType",
+            file_size_bytes::INT AS "fileSizeBytes",
+            reader_pages AS "readerPages",
+            version_number AS "versionNumber",
+            is_active AS "isActive",
+            created_at AS "createdAt"
+          FROM delivery_files
+          WHERE project_id = $1
+          ORDER BY created_at DESC
+        `,
+        [projectId]
+      ),
+      client.query(
+        `
+          SELECT
+            t.id,
+            t.project_id AS "projectId",
+            t.name,
+            t.slug,
+            t.message_override AS "messageOverride",
+            t.additional_link_label AS "additionalLinkLabel",
+            t.additional_link_url AS "additionalLinkUrl",
+            t.sort_order AS "sortOrder",
+            t.created_at AS "createdAt",
+            t.updated_at AS "updatedAt",
+            COALESCE(ARRAY_AGG(tf.file_id ORDER BY f.created_at DESC) FILTER (WHERE tf.file_id IS NOT NULL), ARRAY[]::uuid[]) AS "fileIds",
+            COUNT(DISTINCT b.id)::INT AS "backerCount"
+          FROM delivery_tiers t
+          LEFT JOIN delivery_tier_files tf ON tf.tier_id = t.id
+          LEFT JOIN delivery_files f ON f.id = tf.file_id
+          LEFT JOIN delivery_backers b ON b.tier_id = t.id
+          WHERE t.project_id = $1
+          GROUP BY t.id
+          ORDER BY t.sort_order ASC, t.created_at ASC
+        `,
+        [projectId]
+      ),
+      client.query(
+        `
+          SELECT
+            b.id,
+            b.project_id AS "projectId",
+            b.tier_id AS "tierId",
+            b.email,
+            b.normalized_email AS "normalizedEmail",
+            b.access_token AS "accessToken",
+            b.last_emailed_at AS "lastEmailedAt",
+            b.created_at AS "createdAt",
+            b.updated_at AS "updatedAt",
+            t.name AS "tierName",
+            t.slug AS "tierSlug"
+          FROM delivery_backers b
+          LEFT JOIN delivery_tiers t ON t.id = b.tier_id
+          WHERE b.project_id = $1
+          ORDER BY b.created_at DESC
+        `,
+        [projectId]
+      ),
+      client.query(
+        `
+          SELECT COUNT(*)::INT AS "downloadCount"
+          FROM delivery_access_events
+          WHERE project_id = $1
+            AND event_type = 'file_download'
+        `,
+        [projectId]
+      ),
+    ]);
+
+    const files = filesResult.rows.map((file) => normalizeDeliveryFile(file));
+    const pdfFiles = files.filter((file) => file.kind === "pdf");
+    const currentCover =
+      files.find((file) => file.kind === "cover" && file.id === project.coverFileId) || null;
+    const tiers = tiersResult.rows.map((tier) => ({
+      ...normalizeTier(tier),
+      fileIds: Array.isArray(tier.fileIds) ? tier.fileIds.filter(Boolean) : [],
+      backerCount: Number(tier.backerCount || 0),
+    }));
+    const backers = backersResult.rows;
+    const downloadCount = Number(downloadsResult.rows[0]?.downloadCount || 0);
+
+    return {
+      project: {
+        ...project,
+        backerCount: backers.length,
+        emailedCount: backers.filter((backer) => backer.lastEmailedAt).length,
+        fileCount: pdfFiles.length,
+        tierCount: tiers.length,
+        downloadCount,
+        status: buildProjectStatus({
+          ...project,
+          backerCount: backers.length,
+          fileCount: pdfFiles.length,
+        }),
+      },
+      currentCover,
+      files: pdfFiles,
+      tiers,
+      backers,
+    };
+  }
+
   async init() {
     await this.pool.query(`
       CREATE TABLE IF NOT EXISTS delivery_projects (
@@ -951,12 +1089,20 @@ export class DeliveryPgStore {
         name TEXT NOT NULL,
         slug TEXT NOT NULL,
         message_override TEXT NOT NULL DEFAULT '',
+        additional_link_label TEXT NOT NULL DEFAULT '',
+        additional_link_url TEXT NOT NULL DEFAULT '',
         sort_order INT NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE (project_id, slug)
       );
     `);
+    await this.pool.query(
+      `ALTER TABLE delivery_tiers ADD COLUMN IF NOT EXISTS additional_link_label TEXT NOT NULL DEFAULT ''`
+    );
+    await this.pool.query(
+      `ALTER TABLE delivery_tiers ADD COLUMN IF NOT EXISTS additional_link_url TEXT NOT NULL DEFAULT ''`
+    );
 
     await this.pool.query(`
       CREATE TABLE IF NOT EXISTS delivery_tier_files (
@@ -1166,10 +1312,12 @@ export class DeliveryPgStore {
             name,
             slug,
             message_override,
+            additional_link_label,
+            additional_link_url,
             sort_order,
             created_at,
             updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         `,
         [
           tier.id,
@@ -1177,6 +1325,8 @@ export class DeliveryPgStore {
           tier.name,
           tier.slug,
           tier.messageOverride,
+          tier.additionalLinkLabel,
+          tier.additionalLinkUrl,
           tier.sortOrder,
           tier.createdAt,
           tier.updatedAt,
@@ -1224,6 +1374,611 @@ export class DeliveryPgStore {
     return normalizeDeliveryFile(result.rows[0]) || null;
   }
 
+  async getProject(userId, projectId) {
+    return this.getProjectSnapshot(projectId, userId);
+  }
+
+  async updateProject(userId, projectId, payload) {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const existingDetail = await this.getProjectSnapshot(projectId, userId, client);
+      if (!existingDetail) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+
+      const now = new Date().toISOString();
+      const project = existingDetail.project;
+      const existingFiles = existingDetail.files;
+      const existingTiers = existingDetail.tiers;
+      const submittedTiers =
+        Array.isArray(payload.tiers) && payload.tiers.length
+          ? ensureUniqueTierSlugs(
+              payload.tiers.map((tier, index) => ({
+                id: tier.id || createId(),
+                projectId,
+                name: String(tier.name || `Tier ${index + 1}`).trim(),
+                slug: tier.slug || tier.name,
+                messageOverride: String(tier.messageOverride || "").trim(),
+                additionalLinkLabel: String(tier.additionalLinkLabel || "").trim(),
+                additionalLinkUrl: String(tier.additionalLinkUrl || "").trim(),
+                sortOrder: index,
+                createdAt: existingTiers.find((entry) => entry.id === tier.id)?.createdAt || now,
+                updatedAt: now,
+              }))
+            )
+          : existingTiers;
+
+      const removedTierIds = existingTiers
+        .filter((tier) => !submittedTiers.some((entry) => entry.id === tier.id))
+        .map((tier) => tier.id);
+      const tierBackerConflict = existingDetail.backers.find((backer) =>
+        removedTierIds.includes(backer.tierId)
+      );
+      if (tierBackerConflict) {
+        throw new Error("Move backers out of a tier before removing it.");
+      }
+
+      await client.query(
+        `
+          UPDATE delivery_projects
+          SET
+            title = $3,
+            slug = $4,
+            creator_name = $5,
+            description = $6,
+            short_message = $7,
+            updated_at = $8
+          WHERE id = $1 AND user_id = $2
+        `,
+        [
+          projectId,
+          userId,
+          String(payload.title || project.title).trim(),
+          slugify(payload.slug || payload.title || project.slug),
+          String(payload.creatorName || project.creatorName).trim(),
+          String(payload.description ?? project.description).trim(),
+          String(payload.shortMessage ?? project.shortMessage).trim(),
+          now,
+        ]
+      );
+
+      if (removedTierIds.length) {
+        await client.query(`DELETE FROM delivery_tiers WHERE project_id = $1 AND id = ANY($2::uuid[])`, [
+          projectId,
+          removedTierIds,
+        ]);
+      }
+
+      for (const tier of submittedTiers) {
+        await client.query(
+          `
+            INSERT INTO delivery_tiers (
+              id,
+              project_id,
+              name,
+              slug,
+              message_override,
+              additional_link_label,
+              additional_link_url,
+              sort_order,
+              created_at,
+              updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            ON CONFLICT (id) DO UPDATE SET
+              name = EXCLUDED.name,
+              slug = EXCLUDED.slug,
+              message_override = EXCLUDED.message_override,
+              additional_link_label = EXCLUDED.additional_link_label,
+              additional_link_url = EXCLUDED.additional_link_url,
+              sort_order = EXCLUDED.sort_order,
+              updated_at = EXCLUDED.updated_at
+          `,
+          [
+            tier.id,
+            projectId,
+            tier.name,
+            tier.slug,
+            tier.messageOverride,
+            tier.additionalLinkLabel,
+            tier.additionalLinkUrl,
+            tier.sortOrder,
+            tier.createdAt,
+            tier.updatedAt,
+          ]
+        );
+      }
+
+      await client.query(`DELETE FROM delivery_tier_files WHERE project_id = $1`, [projectId]);
+      for (const tier of submittedTiers) {
+        const submittedTier = payload.tiers?.find((entry) => entry.id === tier.id) || null;
+        const fileIds = Array.isArray(submittedTier?.fileIds)
+          ? submittedTier.fileIds
+          : existingFiles.map((file) => file.id);
+        for (const fileId of fileIds) {
+          if (!existingFiles.some((file) => file.id === fileId)) {
+            continue;
+          }
+          await client.query(
+            `
+              INSERT INTO delivery_tier_files (
+                id,
+                project_id,
+                tier_id,
+                file_id,
+                created_at
+              ) VALUES ($1, $2, $3, $4, $5)
+            `,
+            [createId(), projectId, tier.id, fileId, now]
+          );
+        }
+      }
+
+      await client.query("COMMIT");
+      return this.getProject(userId, projectId);
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async attachFile(userId, projectId, payload) {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const projectResult = await client.query(
+        `SELECT id, cover_file_id AS "coverFileId" FROM delivery_projects WHERE id = $1 AND user_id = $2`,
+        [projectId, userId]
+      );
+      const project = projectResult.rows[0];
+      if (!project) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+
+      const previousFilesResult = await client.query(
+        `SELECT COUNT(*)::INT AS count FROM delivery_files WHERE project_id = $1 AND kind = $2`,
+        [projectId, payload.kind]
+      );
+      const nextVersion = payload.kind === "pdf" ? Number(previousFilesResult.rows[0]?.count || 0) + 1 : 1;
+      const now = new Date().toISOString();
+      const file = {
+        id: createId(),
+        projectId,
+        kind: payload.kind,
+        storageKey: payload.storageKey,
+        originalFilename: payload.originalFilename,
+        mimeType: payload.mimeType,
+        fileSizeBytes: payload.fileSizeBytes,
+        readerPages: normalizeReaderPages(payload.readerPages),
+        versionNumber: nextVersion,
+        isActive: true,
+        createdAt: now,
+      };
+
+      await client.query(
+        `
+          INSERT INTO delivery_files (
+            id,
+            project_id,
+            kind,
+            storage_key,
+            original_filename,
+            mime_type,
+            file_size_bytes,
+            reader_pages,
+            version_number,
+            is_active,
+            created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11)
+        `,
+        [
+          file.id,
+          file.projectId,
+          file.kind,
+          file.storageKey,
+          file.originalFilename,
+          file.mimeType,
+          file.fileSizeBytes,
+          JSON.stringify(file.readerPages),
+          file.versionNumber,
+          file.isActive,
+          file.createdAt,
+        ]
+      );
+
+      if (payload.kind === "cover") {
+        await client.query(
+          `
+            UPDATE delivery_projects
+            SET cover_file_id = $3, updated_at = $4
+            WHERE id = $1 AND user_id = $2
+          `,
+          [projectId, userId, file.id, now]
+        );
+      } else {
+        const tiersResult = await client.query(
+          `SELECT id FROM delivery_tiers WHERE project_id = $1 ORDER BY sort_order ASC, created_at ASC`,
+          [projectId]
+        );
+        for (const tier of tiersResult.rows) {
+          await client.query(
+            `
+              INSERT INTO delivery_tier_files (
+                id,
+                project_id,
+                tier_id,
+                file_id,
+                created_at
+              ) VALUES ($1, $2, $3, $4, $5)
+            `,
+            [createId(), projectId, tier.id, file.id, now]
+          );
+        }
+        await client.query(
+          `UPDATE delivery_projects SET updated_at = $3 WHERE id = $1 AND user_id = $2`,
+          [projectId, userId, now]
+        );
+      }
+
+      await client.query("COMMIT");
+      return normalizeDeliveryFile(file);
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async deleteProject(userId, projectId) {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const detail = await this.getProjectSnapshot(projectId, userId, client);
+      if (!detail) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+
+      await client.query(`DELETE FROM delivery_projects WHERE id = $1 AND user_id = $2`, [
+        projectId,
+        userId,
+      ]);
+      await client.query("COMMIT");
+      return {
+        projectId,
+        deletedFileKeys: detail.files.map((file) => file.storageKey).filter(Boolean),
+        projectPrefix: `delivery/projects/${projectId}/`,
+      };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async deleteFile(userId, projectId, fileId) {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const detail = await this.getProjectSnapshot(projectId, userId, client);
+      if (!detail) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+
+      const file =
+        detail.files.find((entry) => entry.id === fileId) ||
+        (detail.currentCover?.id === fileId ? detail.currentCover : null);
+      if (!file) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+
+      if (detail.project.coverFileId === fileId) {
+        await client.query(
+          `UPDATE delivery_projects SET cover_file_id = NULL, updated_at = $3 WHERE id = $1 AND user_id = $2`,
+          [projectId, userId, new Date().toISOString()]
+        );
+      }
+
+      await client.query(`DELETE FROM delivery_files WHERE id = $1 AND project_id = $2`, [fileId, projectId]);
+      await client.query("COMMIT");
+      return {
+        deletedFile: file,
+        nextCoverFileId: file.kind === "cover" ? null : detail.project.coverFileId,
+      };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async importBackers(userId, projectId, csvText) {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const projectResult = await client.query(
+        `SELECT id FROM delivery_projects WHERE id = $1 AND user_id = $2`,
+        [projectId, userId]
+      );
+      if (!projectResult.rows[0]) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+
+      const preview = parseBackerCsv(csvText);
+      const tiersResult = await client.query(
+        `
+          SELECT
+            id,
+            project_id AS "projectId",
+            name,
+            slug,
+            message_override AS "messageOverride",
+            additional_link_label AS "additionalLinkLabel",
+            additional_link_url AS "additionalLinkUrl",
+            sort_order AS "sortOrder",
+            created_at AS "createdAt",
+            updated_at AS "updatedAt"
+          FROM delivery_tiers
+          WHERE project_id = $1
+          ORDER BY sort_order ASC, created_at ASC
+        `,
+        [projectId]
+      );
+      const tiers = tiersResult.rows.map((tier) => normalizeTier(tier));
+      const defaultTier = tiers[0] || null;
+      const existingBackersResult = await client.query(
+        `SELECT normalized_email AS "normalizedEmail" FROM delivery_backers WHERE project_id = $1`,
+        [projectId]
+      );
+      const existingEmails = new Set(existingBackersResult.rows.map((row) => row.normalizedEmail));
+      const now = new Date().toISOString();
+      let importedCount = 0;
+      let skippedExistingCount = 0;
+      let skippedUnknownTierCount = 0;
+
+      for (const row of preview.validRows) {
+        if (existingEmails.has(row.email)) {
+          skippedExistingCount += 1;
+          continue;
+        }
+
+        const tier = row.tier ? findTierByLabel(tiers, row.tier) : defaultTier;
+        if (!tier) {
+          skippedUnknownTierCount += 1;
+          continue;
+        }
+
+        existingEmails.add(row.email);
+        importedCount += 1;
+        await client.query(
+          `
+            INSERT INTO delivery_backers (
+              id,
+              project_id,
+              tier_id,
+              email,
+              normalized_email,
+              access_token,
+              last_emailed_at,
+              created_at,
+              updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, NULL, $7, $7)
+          `,
+          [createId(), projectId, tier.id, row.email, row.email, createToken(), now]
+        );
+      }
+
+      await client.query(
+        `UPDATE delivery_projects SET updated_at = $3 WHERE id = $1 AND user_id = $2`,
+        [projectId, userId, now]
+      );
+      await client.query("COMMIT");
+
+      return {
+        summary: createImportSummary(
+          preview,
+          importedCount,
+          skippedExistingCount,
+          skippedUnknownTierCount
+        ),
+      };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async updateBacker(userId, projectId, backerId, payload) {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const projectResult = await client.query(
+        `SELECT id FROM delivery_projects WHERE id = $1 AND user_id = $2`,
+        [projectId, userId]
+      );
+      if (!projectResult.rows[0]) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+
+      const backerResult = await client.query(
+        `
+          SELECT
+            id,
+            project_id AS "projectId",
+            tier_id AS "tierId",
+            email,
+            normalized_email AS "normalizedEmail",
+            access_token AS "accessToken",
+            last_emailed_at AS "lastEmailedAt",
+            created_at AS "createdAt",
+            updated_at AS "updatedAt"
+          FROM delivery_backers
+          WHERE id = $1 AND project_id = $2
+        `,
+        [backerId, projectId]
+      );
+      const currentBacker = backerResult.rows[0];
+      if (!currentBacker) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+
+      const nextEmail = normalizeEmail(payload.email ?? currentBacker.email);
+      if (!nextEmail || !isEmailLike(nextEmail)) {
+        throw new Error("A valid email is required.");
+      }
+
+      const tierId = payload.tierId ?? currentBacker.tierId;
+      const tierResult = await client.query(
+        `SELECT id FROM delivery_tiers WHERE id = $1 AND project_id = $2`,
+        [tierId, projectId]
+      );
+      if (!tierResult.rows[0]) {
+        throw new Error("Choose a valid tier.");
+      }
+
+      const duplicateResult = await client.query(
+        `
+          SELECT id
+          FROM delivery_backers
+          WHERE project_id = $1
+            AND id <> $2
+            AND normalized_email = $3
+        `,
+        [projectId, backerId, nextEmail]
+      );
+      if (duplicateResult.rows[0]) {
+        throw new Error("That email is already in this campaign.");
+      }
+
+      const now = new Date().toISOString();
+      await client.query(
+        `
+          UPDATE delivery_backers
+          SET email = $3, normalized_email = $4, tier_id = $5, updated_at = $6
+          WHERE id = $1 AND project_id = $2
+        `,
+        [backerId, projectId, nextEmail, nextEmail, tierId, now]
+      );
+      await client.query("COMMIT");
+
+      const detail = await this.getProject(userId, projectId);
+      return detail?.backers.find((entry) => entry.id === backerId) || null;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async moveBackers(userId, projectId, backerIds, tierId) {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const projectResult = await client.query(
+        `SELECT id FROM delivery_projects WHERE id = $1 AND user_id = $2`,
+        [projectId, userId]
+      );
+      if (!projectResult.rows[0]) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+
+      const tierResult = await client.query(
+        `SELECT id FROM delivery_tiers WHERE id = $1 AND project_id = $2`,
+        [tierId, projectId]
+      );
+      if (!tierResult.rows[0]) {
+        throw new Error("Choose a valid tier.");
+      }
+
+      const ids = Array.isArray(backerIds) ? backerIds.filter(Boolean) : [];
+      const now = new Date().toISOString();
+      const moveResult = ids.length
+        ? await client.query(
+            `
+              UPDATE delivery_backers
+              SET tier_id = $3, updated_at = $4
+              WHERE project_id = $1 AND id = ANY($2::uuid[])
+            `,
+            [projectId, ids, tierId, now]
+          )
+        : { rowCount: 0 };
+      await client.query("COMMIT");
+      return { movedCount: moveResult.rowCount || 0, tierId };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async deleteBacker(userId, projectId, backerId) {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const projectResult = await client.query(
+        `SELECT id FROM delivery_projects WHERE id = $1 AND user_id = $2`,
+        [projectId, userId]
+      );
+      if (!projectResult.rows[0]) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+
+      const backerResult = await client.query(
+        `
+          SELECT
+            id,
+            project_id AS "projectId",
+            tier_id AS "tierId",
+            email,
+            normalized_email AS "normalizedEmail",
+            access_token AS "accessToken",
+            last_emailed_at AS "lastEmailedAt",
+            created_at AS "createdAt",
+            updated_at AS "updatedAt"
+          FROM delivery_backers
+          WHERE id = $1 AND project_id = $2
+        `,
+        [backerId, projectId]
+      );
+      const backer = backerResult.rows[0];
+      if (!backer) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+
+      await client.query(`DELETE FROM delivery_backers WHERE id = $1 AND project_id = $2`, [
+        backerId,
+        projectId,
+      ]);
+      await client.query("COMMIT");
+      return backer;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async getAccessByToken(token) {
     const result = await this.pool.query(
       `
@@ -1240,7 +1995,9 @@ export class DeliveryPgStore {
           t.id AS "tierId",
           t.name AS "tierName",
           t.slug AS "tierSlug",
-          t.message_override AS "messageOverride"
+          t.message_override AS "messageOverride",
+          t.additional_link_label AS "additionalLinkLabel",
+          t.additional_link_url AS "additionalLinkUrl"
         FROM delivery_backers b
         INNER JOIN delivery_projects p ON p.id = b.project_id
         LEFT JOIN delivery_tiers t ON t.id = b.tier_id
@@ -1317,6 +2074,8 @@ export class DeliveryPgStore {
         id: row.tierId,
         name: row.tierName,
         slug: row.tierSlug,
+        additionalLinkLabel: row.additionalLinkLabel || "",
+        additionalLinkUrl: row.additionalLinkUrl || "",
         message: row.messageOverride || row.shortMessage,
       },
       currentCover: normalizeDeliveryFile(coverResult.rows[0]) || null,
