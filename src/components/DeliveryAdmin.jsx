@@ -57,6 +57,49 @@ function SummaryRow({ label, value }) {
   );
 }
 
+function GrabIcon() {
+  return (
+    <svg viewBox="0 0 12 18" aria-hidden="true">
+      {[3, 9].map((x) =>
+        [3, 9, 15].map((y) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.2" fill="currentColor" />)
+      )}
+    </svg>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M4 20h4l10-10-4-4L4 16v4Zm12.8-12.8 1.2-1.2a1.7 1.7 0 0 1 2.4 0l1.6 1.6a1.7 1.7 0 0 1 0 2.4l-1.2 1.2-4-4Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M9 4h6l1 2h4v2H4V6h4l1-2Zm1 6h2v8h-2v-8Zm4 0h2v8h-2v-8ZM7 10h2v8H7v-8Zm1 10h8a2 2 0 0 0 2-2V8H6v10a2 2 0 0 0 2 2Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function ExternalIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M14 4h6v6h-2V7.4l-7.3 7.3-1.4-1.4L16.6 6H14V4ZM6 6h6v2H8v8h8v-4h2v6H6V6Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 export default function DeliveryAdmin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -79,6 +122,10 @@ export default function DeliveryAdmin() {
   const [backerStatus, setBackerStatus] = useState("");
   const [editingBackerId, setEditingBackerId] = useState("");
   const [backerDraft, setBackerDraft] = useState({ email: "", tierId: "" });
+  const [expandedTierIds, setExpandedTierIds] = useState([]);
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [draggedBackerId, setDraggedBackerId] = useState("");
+  const [dragOverTierId, setDragOverTierId] = useState("");
 
   async function loadDashboard() {
     const [nextSummary, nextProjects] = await Promise.all([
@@ -113,6 +160,14 @@ export default function DeliveryAdmin() {
     setMoveTierId(nextDetail.tiers?.[0]?.id || "");
     setEditingBackerId("");
     setBackerDraft({ email: "", tierId: nextDetail.tiers?.[0]?.id || "" });
+    setExpandedTierIds((current) => {
+      const tierIds = nextDetail.tiers?.map((tier) => tier.id) || [];
+      if (!tierIds.length) {
+        return [];
+      }
+      const preserved = current.filter((tierId) => tierIds.includes(tierId));
+      return preserved.length ? preserved : [tierIds[0]];
+    });
   }
 
   async function loadProjectDetail(projectId) {
@@ -392,6 +447,14 @@ export default function DeliveryAdmin() {
     );
   }
 
+  function toggleTierExpanded(tierId) {
+    setExpandedTierIds((current) =>
+      current.includes(tierId)
+        ? current.filter((id) => id !== tierId)
+        : [...current, tierId]
+    );
+  }
+
   async function handleSaveBacker(backerId) {
     if (!selectedProjectId) {
       return;
@@ -429,6 +492,27 @@ export default function DeliveryAdmin() {
     }
   }
 
+  async function handleDropBacker(backer, tierId) {
+    if (!selectedProjectId || !backer?.id || !tierId || backer.tierId === tierId) {
+      setDraggedBackerId("");
+      setDragOverTierId("");
+      return;
+    }
+
+    setBackerStatus("Moving backer...");
+    try {
+      await api.moveDeliveryBackers(selectedProjectId, [backer.id], tierId);
+      await loadDashboard();
+      await loadProjectDetail(selectedProjectId);
+      setBackerStatus("Backer moved.");
+    } catch (moveError) {
+      setBackerStatus(moveError.message || "Unable to move backer.");
+    } finally {
+      setDraggedBackerId("");
+      setDragOverTierId("");
+    }
+  }
+
   async function handleDeleteBacker(backer) {
     if (!selectedProjectId) {
       return;
@@ -463,6 +547,22 @@ export default function DeliveryAdmin() {
   const firstPreviewTier = tiersDraft.find((tier) =>
     detail?.backers?.some((backer) => backer.tierId === tier.id)
   );
+  const tierGroups = detail
+    ? detail.tiers.map((tier) => ({
+        ...tier,
+        backers: detail.backers.filter((backer) => backer.tierId === tier.id),
+      }))
+    : [];
+  const hasAlternateTier = detail ? detail.tiers.length > 1 : false;
+  const selectedCount = selectedBackerIds.length;
+  const selectedBackers = detail
+    ? detail.backers.filter((backer) => selectedBackerIds.includes(backer.id))
+    : [];
+  const moveTargetTiers = detail
+    ? detail.tiers.filter(
+        (tier) => !selectedBackers.length || selectedBackers.some((backer) => backer.tierId !== tier.id)
+      )
+    : [];
 
   return (
     <section className="editor-shell delivery-workspace delivery-workspace--streamlined">
@@ -814,100 +914,6 @@ export default function DeliveryAdmin() {
 
             <section className="editor-card delivery-section">
               <div className="delivery-section__header">
-                <h2>Manage Backers</h2>
-              </div>
-              {detail.backers.length ? (
-                <>
-                  <div className="delivery-inline-actions">
-                    <label className="delivery-project-picker">
-                      <span>Move selected to</span>
-                      <select value={moveTierId} onChange={(event) => setMoveTierId(event.target.value)}>
-                        {detail.tiers.map((tier) => (
-                          <option key={tier.id} value={tier.id}>
-                            {tier.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button className="button-secondary" type="button" onClick={toggleSelectAllBackers}>
-                      {selectedBackerIds.length === detail.backers.length ? "Clear Selection" : "Select All"}
-                    </button>
-                    <button className="button-primary" type="button" onClick={handleMoveSelectedBackers}>
-                      Move Selected
-                    </button>
-                  </div>
-                  <div className="delivery-mini-list">
-                    {detail.backers.map((backer) => {
-                      const isEditing = editingBackerId === backer.id;
-                      return (
-                        <div key={backer.id} className="delivery-mini-list__item">
-                          <label className="workspace-toggle">
-                            <input
-                              type="checkbox"
-                              checked={selectedBackerIds.includes(backer.id)}
-                              onChange={() => toggleBackerSelection(backer.id)}
-                            />
-                            <span>Select</span>
-                          </label>
-                          {isEditing ? (
-                            <>
-                              <input
-                                value={backerDraft.email}
-                                onChange={(event) =>
-                                  setBackerDraft((current) => ({ ...current, email: event.target.value }))
-                                }
-                              />
-                              <select
-                                value={backerDraft.tierId}
-                                onChange={(event) =>
-                                  setBackerDraft((current) => ({ ...current, tierId: event.target.value }))
-                                }
-                              >
-                                {detail.tiers.map((tier) => (
-                                  <option key={tier.id} value={tier.id}>
-                                    {tier.name}
-                                  </option>
-                                ))}
-                              </select>
-                              <div className="delivery-inline-actions">
-                                <button className="button-primary button-compact" type="button" onClick={() => handleSaveBacker(backer.id)}>
-                                  Save
-                                </button>
-                                <button className="button-secondary button-compact" type="button" onClick={() => setEditingBackerId("")}>
-                                  Cancel
-                                </button>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <strong>{backer.email}</strong>
-                              <span>{backer.tierName || "General Access"}</span>
-                              <div className="delivery-inline-actions">
-                                <button className="button-secondary button-compact" type="button" onClick={() => startEditingBacker(backer)}>
-                                  Edit
-                                </button>
-                                <button className="button-secondary button-compact" type="button" onClick={() => handleDeleteBacker(backer)}>
-                                  Delete
-                                </button>
-                                <a href={`/a/${backer.accessToken}`} target="_blank" rel="noreferrer">
-                                  Open page
-                                </a>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              ) : (
-                <p className="status-line">Import backers and they will appear here for reassignment.</p>
-              )}
-              {backerStatus ? <p className="status-line">{backerStatus}</p> : null}
-            </section>
-
-            <section className="editor-card delivery-section">
-              <div className="delivery-section__header">
                 <h2>Send Delivery</h2>
               </div>
               {detail.tiers.length ? (
@@ -987,23 +993,212 @@ export default function DeliveryAdmin() {
               <div className="delivery-section__header">
                 <h2>Backers</h2>
               </div>
-              <p className="status-line">{detail.backers.length} total</p>
-              <details className="delivery-disclosure">
-                <summary>View list</summary>
-                <div className="delivery-mini-list">
-                  {detail.backers.map((backer) => (
-                    <div key={backer.id} className="delivery-mini-list__item">
-                      <strong>{backer.email}</strong>
-                      <span>{backer.tierName || "Unassigned tier"}</span>
-                      <a href={`/a/${backer.accessToken}`} target="_blank" rel="noreferrer">
-                        Open page
-                      </a>
-                    </div>
-                  ))}
+              <p className="delivery-summary-card__subtle">{detail.backers.length} total</p>
+              <div className="delivery-backers-card__toolbar">
+                <button className="button-secondary button-compact" type="button" onClick={toggleSelectAllBackers} disabled={!detail.backers.length}>
+                  {selectedCount && selectedCount === detail.backers.length ? "Clear all" : "Select all"}
+                </button>
+                <button
+                  className="button-secondary button-compact"
+                  type="button"
+                  onClick={() => {
+                    setMoveTierId(moveTargetTiers[0]?.id || "");
+                    setShowMoveModal(true);
+                  }}
+                  disabled={!selectedCount || !hasAlternateTier}
+                >
+                  Move to
+                </button>
+              </div>
+              {detail.backers.length ? (
+                <div className="delivery-tier-groups">
+                  {tierGroups.map((tier) => {
+                    const isExpanded = expandedTierIds.includes(tier.id);
+                    const isDropTarget = dragOverTierId === tier.id;
+                    return (
+                      <section
+                        key={tier.id}
+                        className={`delivery-tier-group${isDropTarget ? " delivery-tier-group--drop" : ""}`}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          if (draggedBackerId) {
+                            setDragOverTierId(tier.id);
+                          }
+                        }}
+                        onDragLeave={() => {
+                          if (dragOverTierId === tier.id) {
+                            setDragOverTierId("");
+                          }
+                        }}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          const droppedBacker = detail.backers.find((backer) => backer.id === draggedBackerId);
+                          void handleDropBacker(droppedBacker, tier.id);
+                        }}
+                      >
+                        <button
+                          className="delivery-tier-group__toggle"
+                          type="button"
+                          onClick={() => toggleTierExpanded(tier.id)}
+                        >
+                          <span className={`delivery-tier-group__caret${isExpanded ? " is-open" : ""}`}>▾</span>
+                          <span className="delivery-tier-group__title">{tier.name}</span>
+                          <span className="delivery-tier-group__count">
+                            {tier.backers.length} backer{tier.backers.length === 1 ? "" : "s"}
+                          </span>
+                        </button>
+                        {isExpanded ? (
+                          <div className="delivery-tier-group__list">
+                            {tier.backers.length ? (
+                              tier.backers.map((backer) => {
+                                const isEditing = editingBackerId === backer.id;
+                                const availableMoveTargets = detail.tiers.filter((entry) => entry.id !== backer.tierId);
+                                return (
+                                  <article key={backer.id} className="delivery-backer-row">
+                                    <div className="delivery-backer-row__lead">
+                                      <input
+                                        className="delivery-backer-row__checkbox"
+                                        type="checkbox"
+                                        checked={selectedBackerIds.includes(backer.id)}
+                                        onChange={() => toggleBackerSelection(backer.id)}
+                                        aria-label={`Select ${backer.email}`}
+                                      />
+                                      <button
+                                        className="delivery-backer-row__grab"
+                                        type="button"
+                                        disabled={!availableMoveTargets.length}
+                                        draggable
+                                        onDragStart={() => setDraggedBackerId(backer.id)}
+                                        onDragEnd={() => {
+                                          setDraggedBackerId("");
+                                          setDragOverTierId("");
+                                        }}
+                                        aria-label={`Drag ${backer.email} to another tier`}
+                                        title={
+                                          availableMoveTargets.length
+                                            ? "Drag to another tier"
+                                            : "Add another tier to move this backer"
+                                        }
+                                      >
+                                        <GrabIcon />
+                                      </button>
+                                    </div>
+                                    {isEditing ? (
+                                      <div className="delivery-backer-row__edit">
+                                        <input
+                                          value={backerDraft.email}
+                                          onChange={(event) =>
+                                            setBackerDraft((current) => ({ ...current, email: event.target.value }))
+                                          }
+                                          aria-label="Backer email"
+                                        />
+                                        <select
+                                          value={backerDraft.tierId}
+                                          onChange={(event) =>
+                                            setBackerDraft((current) => ({ ...current, tierId: event.target.value }))
+                                          }
+                                          aria-label="Backer tier"
+                                        >
+                                          {detail.tiers.map((entry) => (
+                                            <option key={entry.id} value={entry.id}>
+                                              {entry.name}
+                                            </option>
+                                          ))}
+                                        </select>
+                                        <div className="delivery-backer-row__edit-actions">
+                                          <button className="button-primary button-compact" type="button" onClick={() => handleSaveBacker(backer.id)}>
+                                            Save
+                                          </button>
+                                          <button className="button-secondary button-compact" type="button" onClick={() => setEditingBackerId("")}>
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <div className="delivery-backer-row__content">
+                                          <strong>{backer.email}</strong>
+                                        </div>
+                                        <div className="delivery-backer-row__actions">
+                                          <button className="delivery-icon-button" type="button" onClick={() => startEditingBacker(backer)} aria-label={`Edit ${backer.email}`}>
+                                            <PencilIcon />
+                                          </button>
+                                          <button className="delivery-icon-button" type="button" onClick={() => handleDeleteBacker(backer)} aria-label={`Delete ${backer.email}`}>
+                                            <TrashIcon />
+                                          </button>
+                                          <a
+                                            className="delivery-icon-button"
+                                            href={`/a/${backer.accessToken}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            aria-label={`Open page for ${backer.email}`}
+                                          >
+                                            <ExternalIcon />
+                                          </a>
+                                        </div>
+                                      </>
+                                    )}
+                                  </article>
+                                );
+                              })
+                            ) : (
+                              <p className="status-line">No backers in this tier yet.</p>
+                            )}
+                          </div>
+                        ) : null}
+                      </section>
+                    );
+                  })}
                 </div>
-              </details>
+              ) : (
+                <p className="status-line">Import backers and they will appear here for reassignment.</p>
+              )}
+              {backerStatus ? <p className="status-line">{backerStatus}</p> : null}
             </section>
           </aside>
+        </div>
+      ) : null}
+
+      {showMoveModal ? (
+        <div className="delivery-move-modal" role="dialog" aria-modal="true" aria-labelledby="delivery-move-modal-title">
+          <button className="delivery-move-modal__backdrop" type="button" onClick={() => setShowMoveModal(false)} aria-label="Close move modal" />
+          <div className="delivery-move-modal__panel">
+            <h2 id="delivery-move-modal-title">Move selected backers</h2>
+            <p>Choose a destination tier for the {selectedCount} selected backer{selectedCount === 1 ? "" : "s"}.</p>
+            <div className="delivery-move-modal__options">
+              {moveTargetTiers.map((tier) => (
+                  <button
+                    key={tier.id}
+                    className={`delivery-move-modal__option${moveTierId === tier.id ? " is-selected" : ""}`}
+                    type="button"
+                    onClick={() => setMoveTierId(tier.id)}
+                  >
+                    <span>{tier.name}</span>
+                    <small>{tier.backerCount} backer{tier.backerCount === 1 ? "" : "s"}</small>
+                  </button>
+                ))}
+            </div>
+            <div className="delivery-move-modal__actions">
+              <button className="button-secondary button-compact" type="button" onClick={() => setShowMoveModal(false)}>
+                Cancel
+              </button>
+              <button
+                className="button-primary button-compact"
+                type="button"
+                onClick={async () => {
+                  await handleMoveSelectedBackers();
+                  setShowMoveModal(false);
+                }}
+                disabled={
+                  !selectedCount ||
+                  !hasAlternateTier ||
+                  !moveTargetTiers.some((tier) => tier.id === moveTierId)
+                }
+              >
+                Move
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 
