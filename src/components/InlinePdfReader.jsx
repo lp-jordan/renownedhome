@@ -29,16 +29,10 @@ export default function InlinePdfReader({
   }, [pages, pdfUrl]);
 
   useEffect(() => {
-    if (pages.length) {
-      setPdfFile(null);
-      setLoadError("");
-      setPageCount(pages.length);
-      return undefined;
-    }
-
     if (!pdfUrl) {
       setPdfFile(null);
-      setLoadError("PDF file is unavailable.");
+      setLoadError(pages.length ? "" : "PDF file is unavailable.");
+      setPageCount(pages.length);
       return undefined;
     }
 
@@ -59,21 +53,24 @@ export default function InlinePdfReader({
 
         const buffer = await response.arrayBuffer();
         setPdfFile({ data: new Uint8Array(buffer) });
+        setLoadError("");
       } catch (error) {
         if (controller.signal.aborted) {
           return;
         }
         setLoadError(error.message || "Failed to load PDF file.");
+        setPdfFile(null);
+        setPageCount(pages.length);
       }
     }
 
     loadPdfFile();
 
     return () => controller.abort();
-  }, [pages, pdfUrl]);
+  }, [pages.length, pdfUrl]);
 
   useEffect(() => {
-    if (!pages.length || !pages[currentPage]) {
+    if (pdfFile || !pages.length || !pages[currentPage]) {
       return undefined;
     }
 
@@ -113,23 +110,17 @@ export default function InlinePdfReader({
   }
 
   const preloadPageNumbers =
-    !pages.length && pageCount && currentPage < pageCount ? [currentPage + 1] : [];
+    pageCount && currentPage < pageCount ? [currentPage + 1] : [];
   const currentImagePage = pages[currentPage - 1] || null;
+  const shouldUseImageFallback =
+    !pdfFile && Boolean(currentImagePage?.url) && (!pdfUrl || Boolean(loadError));
 
   return (
     <div
       className={`inline-pdf-reader ${compact ? "inline-pdf-reader--compact" : ""} ${className}`.trim()}
     >
       <div className="inline-pdf-reader__frame" ref={stageRef}>
-        {loadError ? (
-          <div className="inline-pdf-reader__error">{loadError}</div>
-        ) : currentImagePage?.url ? (
-          <img
-            className="inline-pdf-reader__image"
-            src={currentImagePage.url}
-            alt={`Page ${currentPage}`}
-          />
-        ) : pdfFile ? (
+        {pdfFile ? (
           <Suspense fallback={<ReaderLoading />}>
             <ComicPdfPage
               pdfFile={pdfFile}
@@ -143,6 +134,14 @@ export default function InlinePdfReader({
               preloadPageNumbers={preloadPageNumbers}
             />
           </Suspense>
+        ) : shouldUseImageFallback ? (
+          <img
+            className="inline-pdf-reader__image"
+            src={currentImagePage.url}
+            alt={`Page ${currentPage}`}
+          />
+        ) : loadError ? (
+          <div className="inline-pdf-reader__error">{loadError}</div>
         ) : (
           <ReaderLoading />
         )}

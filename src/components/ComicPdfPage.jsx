@@ -12,6 +12,11 @@ export default function ComicPdfPage({
   onLoadError,
   preloadPageNumbers = [],
 }) {
+  const devicePixelRatio =
+    typeof window === "undefined"
+      ? 1.5
+      : Math.min(window.devicePixelRatio || 1, 2);
+
   return (
     <Document
       file={pdfFile}
@@ -24,7 +29,7 @@ export default function ComicPdfPage({
         key={currentPage}
         pageNumber={currentPage}
         width={width}
-        devicePixelRatio={1}
+        devicePixelRatio={devicePixelRatio}
         renderMode="canvas"
         renderAnnotationLayer={false}
         renderTextLayer={false}
@@ -37,7 +42,7 @@ export default function ComicPdfPage({
               key={`preload-${pageNumber}`}
               pageNumber={pageNumber}
               width={Math.min(width, 280)}
-              devicePixelRatio={1}
+              devicePixelRatio={devicePixelRatio}
               renderMode="canvas"
               renderAnnotationLayer={false}
               renderTextLayer={false}

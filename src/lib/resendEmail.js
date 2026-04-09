@@ -32,13 +32,14 @@ export function buildDeliveryEmail({
         <head>
           <meta charset="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <meta name="x-apple-disable-message-reformatting" />
           <title>${safeProjectTitle} is ready</title>
         </head>
-        <body style="margin:0;padding:0;background:#0b0f16;font-family:Arial,sans-serif;color:#f2f4f8;">
-          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;margin:0;padding:0;background:#0b0f16;">
+        <body style="margin:0;padding:0;background:#0b0f16;font-family:Arial,sans-serif;color:#f2f4f8;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;margin:0;padding:0;background:#0b0f16;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
             <tr>
               <td align="center" style="padding:24px 12px;">
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;max-width:600px;margin:0 auto;background:#10131c;border:1px solid #252b38;border-radius:24px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;max-width:600px;margin:0 auto;background:#10131c;border:1px solid #252b38;border-radius:24px;border-collapse:separate;mso-table-lspace:0pt;mso-table-rspace:0pt;">
                   <tr>
                     <td style="padding:28px 24px 18px;">
                       <div style="display:inline-block;margin:0 0 14px;padding:7px 12px;border:1px solid #303746;border-radius:999px;background:#171c27;color:#d5dbe6;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;">
@@ -91,11 +92,11 @@ export function buildDeliveryEmail({
                         <tr>
                           <td valign="top" width="100%" style="display:block;width:100%;padding:0;">
                             <p style="margin:0 0 14px;color:#d5dbe6;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;">A Note From The Creator</p>
-                            <div style="font-size:15px;line-height:1.8;color:#eef2f7;">
+                            <div style="font-size:15px;line-height:1.8;color:#eef2f7;font-style:italic;">
                               ${safeShortMessage
                                 .split(/\n+/)
                                 .filter(Boolean)
-                                .map((paragraph) => `<p style="margin:0 0 10px;">${paragraph}</p>`)
+                                .map((paragraph) => `<p style="margin:0 0 10px;font-style:italic;">${paragraph}</p>`)
                                 .join("")}
                             </div>
 
@@ -106,7 +107,7 @@ export function buildDeliveryEmail({
                                 <td align="center" bgcolor="#ffffff" style="border-radius:16px;">
                                   <a
                                     href="${safeAccessUrl}"
-                                    style="display:block;padding:16px 24px;border-radius:16px;background:#ffffff;color:#0b0f16;text-decoration:none;font-size:15px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;"
+                                    style="display:block;padding:16px 24px;border-radius:16px;background:#ffffff;color:#05070b;text-decoration:none;font-size:15px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;"
                                   >
                                     Open Your Copy
                                   </a>

@@ -139,7 +139,7 @@ textarea {
   padding: 1rem 1.45rem;
   border-radius: 14px;
   background: var(--accent);
-  color: #10151e;
+  color: #05070b;
   font-family: "Josefin Sans", sans-serif;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -751,6 +751,8 @@ textarea {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.06);
   cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .delivery-backer-row.is-selected {
@@ -846,6 +848,8 @@ textarea {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
   color: var(--text);
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .delivery-backer-row__edit-actions {
@@ -969,6 +973,7 @@ textarea {
 .delivery-card__message {
   font-size: clamp(1rem, 2.4vw, 1.18rem);
   line-height: 1.75;
+  font-style: italic;
 }
 
 .delivery-card__description {

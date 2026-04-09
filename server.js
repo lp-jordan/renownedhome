@@ -114,6 +114,10 @@ const uploadFileSizeLimitBytes =
   (parsePositiveInteger(process.env.UPLOAD_MAX_FILE_SIZE_MB || "300") || 300) *
   1024 *
   1024;
+const pdfPreviewDpi =
+  parsePositiveInteger(process.env.PDF_PREVIEW_DPI || "216") || 216;
+const pdfPreviewJpegQuality =
+  parsePositiveInteger(process.env.PDF_PREVIEW_JPEG_QUALITY || "90") || 90;
 const maxRasterImageDimension =
   parsePositiveInteger(process.env.IMAGE_MAX_DIMENSION_PX || "2560") || 2560;
 const upload = multer({
@@ -187,6 +191,41 @@ function getPublicSiteOrigin() {
   } catch {
     return defaultPublicSiteOrigin;
   }
+}
+
+function normalizeDeliveryLinkUrl(rawUrl, siteOrigin = getPublicSiteOrigin()) {
+  const value = String(rawUrl || "").trim();
+  if (!value) {
+    return "";
+  }
+
+  if (value.startsWith("//")) {
+    return `https:${value}`;
+  }
+
+  try {
+    return new URL(value).toString();
+  } catch {
+    // Fall through to relative/domain-like normalization.
+  }
+
+  try {
+    if (value.startsWith("/")) {
+      return new URL(value, siteOrigin).toString();
+    }
+
+    if (/^[a-z0-9][a-z0-9.-]+\.[a-z]{2,}(?:[/:?#]|$)/i.test(value)) {
+      return new URL(`https://${value}`).toString();
+    }
+
+    if (!/\s/.test(value)) {
+      return new URL(value.replace(/^\.?\//, ""), `${siteOrigin.replace(/\/$/, "")}/`).toString();
+    }
+  } catch {
+    // Keep the original value if normalization fails unexpectedly.
+  }
+
+  return value;
 }
 
 function getAllowedRequestOrigins() {
@@ -452,9 +491,9 @@ async function renderPdfPagesToImages(pdfPath, projectId) {
       [
         "-jpeg",
         "-r",
-        "144",
+        String(pdfPreviewDpi),
         "-jpegopt",
-        "quality=82,progressive=y,optimize=y",
+        `quality=${pdfPreviewJpegQuality},progressive=y,optimize=y`,
         pdfPath,
         outputPrefix,
       ],
@@ -2282,7 +2321,12 @@ app.get("/api/delivery/access/:token", async (req, res) => {
     backer: {
       email: access.backer.email,
     },
-    tier: access.tier,
+    tier: access.tier
+      ? {
+          ...access.tier,
+          additionalLinkUrl: normalizeDeliveryLinkUrl(access.tier.additionalLinkUrl, getPublicSiteOrigin()),
+        }
+      : null,
     assets: {
       coverUrl: access.currentCover
         ? `/api/delivery/files/${encodeURIComponent(access.currentCover.id)}`

@@ -23,11 +23,43 @@ function formatFileSize(bytes) {
   return `${size.toFixed(size >= 10 ? 0 : 1)} ${unit}`;
 }
 
+function normalizeLinkUrl(rawUrl) {
+  const value = String(rawUrl || "").trim();
+  if (!value) {
+    return "";
+  }
+
+  if (value.startsWith("//")) {
+    return `https:${value}`;
+  }
+
+  try {
+    return new URL(value).toString();
+  } catch {
+    // Fall through to site-relative normalization.
+  }
+
+  try {
+    if (value.startsWith("/")) {
+      return new URL(value, window.location.origin).toString();
+    }
+
+    if (/^[a-z0-9][a-z0-9.-]+\.[a-z]{2,}(?:[/:?#]|$)/i.test(value)) {
+      return new URL(`https://${value}`).toString();
+    }
+
+    return new URL(value.replace(/^\.?\//, ""), `${window.location.origin}/`).toString();
+  } catch {
+    return value;
+  }
+}
+
 export default function DeliveryAccessPage() {
   const { token = "" } = useParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [access, setAccess] = useState(null);
+  const additionalLinkUrl = normalizeLinkUrl(access?.tier?.additionalLinkUrl);
 
   useSeo(
     access ? `${access.project.title} - Delivery` : "Comic Delivery",
@@ -105,10 +137,10 @@ export default function DeliveryAccessPage() {
                     <Link className="button-secondary" to={file.actions.readUrl}>
                       Read In Browser
                     </Link>
-                    {access.tier?.additionalLinkUrl ? (
+                    {additionalLinkUrl ? (
                       <a
                         className="button-secondary"
-                        href={access.tier.additionalLinkUrl}
+                        href={additionalLinkUrl}
                         target="_blank"
                         rel="noreferrer"
                       >
