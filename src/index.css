@@ -459,6 +459,15 @@ textarea {
   align-content: start;
 }
 
+.delivery-secondary {
+  position: sticky;
+  top: 5rem;
+  align-self: start;
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
 .delivery-progress {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1133,6 +1142,22 @@ textarea {
   overflow: hidden;
 }
 
+.inline-pdf-reader__viewport {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+}
+
+.inline-pdf-reader__zoom-surface {
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  transform-origin: center center;
+  transition: transform 180ms ease;
+}
+
 .inline-pdf-reader--compact .inline-pdf-reader__frame {
   min-height: 320px;
   padding: 0;
@@ -1153,6 +1178,18 @@ textarea {
   display: grid;
   justify-items: center;
   gap: 1rem;
+}
+
+.inline-pdf-reader__image-spread {
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+}
+
+.inline-pdf-reader__image-spread--double {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
 }
 
 .comic-reader__spread--double {
@@ -1187,6 +1224,10 @@ textarea {
   object-fit: contain;
 }
 
+.inline-pdf-reader__image-spread--double .inline-pdf-reader__image {
+  max-width: 100%;
+}
+
 .inline-pdf-reader--compact .inline-pdf-reader__frame canvas {
   max-height: 300px;
   box-shadow: none;
@@ -1204,9 +1245,37 @@ textarea {
 .inline-pdf-reader--fullscreen .inline-pdf-reader__frame {
   min-height: 0;
   height: calc(100vh - max(1.8rem, env(safe-area-inset-top)) - max(1.8rem, env(safe-area-inset-bottom)));
-  padding: 0.35rem;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.02);
+  padding: 0;
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+}
+
+.inline-pdf-reader--fullscreen .inline-pdf-reader__viewport {
+  overflow: auto;
+}
+
+.inline-pdf-reader--fullscreen .inline-pdf-reader__zoom-surface {
+  min-width: min-content;
+  min-height: min-content;
+}
+
+.inline-pdf-reader--fullscreen .comic-reader__spread,
+.inline-pdf-reader--fullscreen .inline-pdf-reader__image-spread {
+  gap: 0;
+}
+
+.inline-pdf-reader--fullscreen .inline-pdf-reader__frame canvas,
+.inline-pdf-reader--fullscreen .inline-pdf-reader__image {
+  max-height: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.inline-pdf-reader--fullscreen .inline-pdf-reader__frame .comic-reader__document,
+.inline-pdf-reader--fullscreen .inline-pdf-reader__frame .react-pdf__Document,
+.inline-pdf-reader--fullscreen .inline-pdf-reader__frame .react-pdf__Page {
+  background: transparent;
 }
 
 .inline-pdf-reader__topbar {
@@ -1264,6 +1333,10 @@ textarea {
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
+}
+
+.inline-pdf-reader__zoom-indicator {
+  min-width: 4.2rem;
 }
 
 .inline-pdf-reader__meta {
@@ -1384,6 +1457,10 @@ textarea {
   flex: 0 0 auto;
   min-width: 10rem;
   font-size: 0.76rem;
+}
+
+.inline-pdf-reader--fullscreen .inline-pdf-reader__nav-button {
+  backdrop-filter: blur(10px);
 }
 
 .hero {
@@ -4220,6 +4297,13 @@ textarea {
   .delivery-upload-grid,
   .delivery-progress {
     grid-template-columns: 1fr;
+  }
+
+  .delivery-secondary {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
   }
 
   .panel-card--wide,

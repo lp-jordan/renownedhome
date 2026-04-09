@@ -1,6 +1,9 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 
 const ComicPdfPage = lazy(() => import("./ComicPdfPage"));
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 2.5;
+const ZOOM_STEP = 0.25;
 
 function ReaderLoading() {
   return (
@@ -27,12 +30,17 @@ export default function InlinePdfReader({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isChromeVisible, setIsChromeVisible] = useState(false);
   const [isWideSpread, setIsWideSpread] = useState(false);
-  const useImagePages = pages.length > 0 && !isFullscreen;
+  const [zoom, setZoom] = useState(MIN_ZOOM);
+  const useImagePages = pages.length > 0;
 
   useEffect(() => {
     setCurrentPage(1);
     setPageCount(0);
   }, [pages, pdfUrl]);
+
+  useEffect(() => {
+    setZoom(MIN_ZOOM);
+  }, [isFullscreen, currentPage, isWideSpread]);
 
   useEffect(() => {
     if (useImagePages) {
@@ -83,19 +91,24 @@ export default function InlinePdfReader({
   }, [isFullscreen, pages.length, pdfUrl, useImagePages]);
 
   useEffect(() => {
-    if (!useImagePages || !pages.length || !pages[currentPage]) {
+    if (!useImagePages || !pages.length) {
       return undefined;
     }
 
-    const preloadPage = pages[currentPage];
-    if (!preloadPage?.url) {
-      return undefined;
-    }
+    const preloadTargets = [pages[currentPage], pages[currentPage + 1]].filter(
+      (page) => page?.url,
+    );
 
-    const image = new window.Image();
-    image.src = preloadPage.url;
+    const images = preloadTargets.map((page) => {
+      const image = new window.Image();
+      image.src = page.url;
+      return image;
+    });
+
     return () => {
-      image.src = "";
+      images.forEach((image) => {
+        image.src = "";
+      });
     };
   }, [currentPage, pages, useImagePages]);
 
@@ -201,6 +214,7 @@ export default function InlinePdfReader({
   function toggleFullscreen() {
     setIsFullscreen((current) => !current);
     setIsChromeVisible(false);
+    setZoom(MIN_ZOOM);
   }
 
   function toggleChrome() {
@@ -233,7 +247,11 @@ export default function InlinePdfReader({
     const deltaY = touch.clientY - gestureRef.current.startY;
     gestureRef.current.active = false;
 
-    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
+    if (
+      zoom <= MIN_ZOOM &&
+      Math.abs(deltaX) > 50 &&
+      Math.abs(deltaX) > Math.abs(deltaY) * 1.4
+    ) {
       if (deltaX < 0) {
         goToNext();
       } else {
@@ -245,6 +263,18 @@ export default function InlinePdfReader({
     if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
       handleFrameToggle();
     }
+  }
+
+  function zoomIn() {
+    setZoom((current) => Math.min(MAX_ZOOM, Number((current + ZOOM_STEP).toFixed(2))));
+  }
+
+  function zoomOut() {
+    setZoom((current) => Math.max(MIN_ZOOM, Number((current - ZOOM_STEP).toFixed(2))));
+  }
+
+  function resetZoom() {
+    setZoom(MIN_ZOOM);
   }
 
   const visiblePageNumbers = (() => {
@@ -270,8 +300,17 @@ export default function InlinePdfReader({
           ].filter((pageNumber) => pageNumber <= pageCount)
         : [visiblePageNumbers[visiblePageNumbers.length - 1] + 1]
       : [];
-  const currentImagePage = pages[currentPage - 1] || null;
-  const shouldUseImagePages = useImagePages && Boolean(currentImagePage?.url);
+  const visibleImagePages = visiblePageNumbers
+    .map((pageNumber) => ({
+      pageNumber,
+      page: pages[pageNumber - 1] || null,
+    }))
+    .filter(({ page }) => page?.url);
+  const currentImagePage = visibleImagePages[0]?.page || pages[currentPage - 1] || null;
+  const shouldUseImagePages =
+    useImagePages &&
+    visibleImagePages.length === visiblePageNumbers.length &&
+    visibleImagePages.length > 0;
   const shouldUseImageFallback =
     !shouldUseImagePages &&
     !pdfFile &&
@@ -316,32 +355,67 @@ export default function InlinePdfReader({
           </button>
         ) : null}
         {shouldUseImagePages ? (
-          <img
-            className="inline-pdf-reader__image"
-            src={currentImagePage.url}
-            alt={pageLabel}
-          />
+          <div
+            className={`inline-pdf-reader__viewport ${
+              isFullscreen && zoom > MIN_ZOOM ? "is-zoomed" : ""
+            }`}
+          >
+            <div
+              className="inline-pdf-reader__zoom-surface"
+              style={isFullscreen ? { transform: `scale(${zoom})` } : undefined}
+            >
+              <div
+                className={`inline-pdf-reader__image-spread ${
+                  visibleImagePages.length > 1 ? "inline-pdf-reader__image-spread--double" : ""
+                }`}
+              >
+                {visibleImagePages.map(({ pageNumber, page }) => (
+                  <img
+                    key={pageNumber}
+                    className="inline-pdf-reader__image"
+                    src={page.url}
+                    alt={`Page ${pageNumber}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
         ) : pdfFile ? (
-          <Suspense fallback={<ReaderLoading />}>
-            <ComicPdfPage
-              pdfFile={pdfFile}
-              currentPage={currentPage}
-              pageNumbers={visiblePageNumbers}
-              width={stageWidth}
-              loading={<ReaderLoading />}
-              onLoadSuccess={setPageCount}
-              onLoadError={(error) =>
-                setLoadError(error?.message || "Failed to load PDF file.")
-              }
-              preloadPageNumbers={preloadPageNumbers}
-            />
-          </Suspense>
+          <div
+            className={`inline-pdf-reader__viewport ${
+              isFullscreen && zoom > MIN_ZOOM ? "is-zoomed" : ""
+            }`}
+          >
+            <div
+              className="inline-pdf-reader__zoom-surface"
+              style={isFullscreen ? { transform: `scale(${zoom})` } : undefined}
+            >
+              <Suspense fallback={<ReaderLoading />}>
+                <ComicPdfPage
+                  pdfFile={pdfFile}
+                  currentPage={currentPage}
+                  pageNumbers={visiblePageNumbers}
+                  width={stageWidth}
+                  loading={<ReaderLoading />}
+                  onLoadSuccess={setPageCount}
+                  onLoadError={(error) =>
+                    setLoadError(error?.message || "Failed to load PDF file.")
+                  }
+                  preloadPageNumbers={preloadPageNumbers}
+                />
+              </Suspense>
+            </div>
+          </div>
         ) : shouldUseImageFallback ? (
-          <img
-            className="inline-pdf-reader__image"
-            src={currentImagePage.url}
-            alt={pageLabel}
-          />
+          <div className="inline-pdf-reader__viewport">
+            <div className="inline-pdf-reader__zoom-surface">
+              <img
+                className="inline-pdf-reader__image"
+                src={currentImagePage.url}
+                alt={pageLabel}
+              />
+            </div>
+          </div>
         ) : loadError ? (
           <div className="inline-pdf-reader__error">{loadError}</div>
         ) : (
@@ -361,6 +435,37 @@ export default function InlinePdfReader({
           <span>{pageLabel}</span>
         </div>
         <div className="inline-pdf-reader__controls">
+          {isFullscreen ? (
+            <>
+              <button
+                type="button"
+                className="inline-pdf-reader__nav-button"
+                onClick={zoomOut}
+                disabled={zoom <= MIN_ZOOM}
+                aria-label="Zoom out"
+              >
+                -
+              </button>
+              <button
+                type="button"
+                className="inline-pdf-reader__nav-button inline-pdf-reader__zoom-indicator"
+                onClick={resetZoom}
+                disabled={zoom <= MIN_ZOOM}
+                aria-label="Reset zoom"
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <button
+                type="button"
+                className="inline-pdf-reader__nav-button"
+                onClick={zoomIn}
+                disabled={zoom >= MAX_ZOOM}
+                aria-label="Zoom in"
+              >
+                +
+              </button>
+            </>
+          ) : null}
           <button
             type="button"
             className="inline-pdf-reader__nav-button"
