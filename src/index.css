@@ -1109,6 +1109,7 @@ textarea {
 
 .inline-pdf-reader__frame canvas {
   width: 100% !important;
+  max-width: 100% !important;
   height: auto !important;
   max-height: 68vh;
   border-radius: 12px;
@@ -2134,6 +2135,14 @@ textarea {
   width: auto !important;
   height: auto !important;
   box-shadow: 0 28px 70px rgba(0, 0, 0, 0.4);
+}
+
+.inline-pdf-reader__frame .comic-reader__document canvas,
+.inline-pdf-reader__frame .comic-reader__image,
+.delivery-reader-page__reader .react-pdf__Page__canvas {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
 }
 
 .comic-reader__nav,
@@ -5146,6 +5155,59 @@ textarea {
   }
 
   .workspace-detail__actions > * {
+    width: 100%;
+  }
+
+  .delivery-reader-page {
+    padding: 1rem 0.75rem 1.5rem;
+    gap: 1rem;
+  }
+
+  .delivery-reader-page__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .delivery-reader-page__actions {
+    width: 100%;
+  }
+
+  .delivery-reader-page__actions > * {
+    flex: 1 1 100%;
+  }
+
+  .delivery-reader-page__reader {
+    width: 100%;
+  }
+
+  .inline-pdf-reader__frame {
+    min-height: 0;
+    padding: 0.5rem;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .inline-pdf-reader__frame canvas,
+  .inline-pdf-reader__image,
+  .inline-pdf-reader__frame .comic-reader__document canvas,
+  .inline-pdf-reader__frame .comic-reader__image,
+  .delivery-reader-page__reader .react-pdf__Page__canvas {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: none;
+  }
+
+  .inline-pdf-reader__footer {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .inline-pdf-reader__meta,
+  .inline-pdf-reader__controls {
+    justify-content: center;
+  }
+
+  .inline-pdf-reader__nav-button {
     width: 100%;
   }
 }
