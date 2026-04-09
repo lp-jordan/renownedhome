@@ -14,13 +14,11 @@ export function resendIsConfigured() {
 export function buildDeliveryEmail({
   projectTitle,
   creatorName,
-  shortMessage,
   accessUrl,
   coverImageUrl,
 }) {
   const safeProjectTitle = escapeHtml(projectTitle);
   const safeCreatorName = escapeHtml(creatorName);
-  const safeShortMessage = escapeHtml(shortMessage || "Your digital copy is ready.");
   const safeAccessUrl = escapeHtml(accessUrl);
   const safeCoverImageUrl = escapeHtml(coverImageUrl || "");
 
@@ -113,17 +111,6 @@ export function buildDeliveryEmail({
                             }
                           </td>
                           <td valign="top" class="delivery-stack__right" style="padding:0 0 0 2px;vertical-align:top;">
-                            <p style="margin:0 0 14px;color:#d5dbe6;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;">A Note From The Creator</p>
-                            <div style="font-size:15px;line-height:1.8;color:#eef2f7;font-style:italic;">
-                              ${safeShortMessage
-                                .split(/\n+/)
-                                .filter(Boolean)
-                                .map((paragraph) => `<p style="margin:0 0 10px;font-style:italic;">${paragraph}</p>`)
-                                .join("")}
-                            </div>
-
-                            <div style="margin:22px 0 18px;border-top:1px solid #252b38;font-size:0;line-height:0;">&nbsp;</div>
-
                             <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 12px;">
                               <tr>
                                 <td align="center" bgcolor="#ffffff" style="border-radius:16px;">
@@ -192,7 +179,7 @@ export function buildDeliveryEmail({
         </body>
       </html>
     `,
-    text: `${projectTitle} is ready\n\n${shortMessage || "Your digital copy is ready."}\n\nAccess your copy here:\n${accessUrl}\n`,
+    text: `${projectTitle} is ready\n\nAccess your copy here:\n${accessUrl}\n`,
   };
 }
 

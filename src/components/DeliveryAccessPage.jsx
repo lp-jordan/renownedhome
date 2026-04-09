@@ -122,7 +122,9 @@ export default function DeliveryAccessPage() {
             </p>
           ) : null}
           {access.project.description ? (
-            <p className="delivery-card__description">{access.project.description}</p>
+            <p className="delivery-card__description">
+              <em>{access.project.description}</em>
+            </p>
           ) : null}
           {access.files?.length ? (
             <div className="delivery-mini-list">
