@@ -1083,7 +1083,7 @@ textarea {
     max(0.9rem, env(safe-area-inset-bottom))
     max(0.75rem, env(safe-area-inset-left));
   background: rgba(7, 9, 14, 0.98);
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  display: block;
 }
 
 .inline-pdf-reader__frame {
@@ -1152,13 +1152,18 @@ textarea {
 
 .inline-pdf-reader--fullscreen .inline-pdf-reader__frame {
   min-height: 0;
-  height: 100%;
+  height: calc(100vh - max(1.8rem, env(safe-area-inset-top)) - max(1.8rem, env(safe-area-inset-bottom)));
   padding: 0.35rem;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.02);
 }
 
 .inline-pdf-reader__topbar {
+  position: absolute;
+  top: max(0.9rem, env(safe-area-inset-top));
+  left: max(0.75rem, env(safe-area-inset-left));
+  right: max(0.75rem, env(safe-area-inset-right));
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1207,6 +1212,25 @@ textarea {
   white-space: nowrap;
 }
 
+.inline-pdf-reader__corner-button {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  z-index: 2;
+  padding: 0.5rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(7, 9, 14, 0.72);
+  color: rgba(242, 244, 248, 0.92);
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+
 .inline-pdf-reader__footer,
 .inline-pdf-reader__controls,
 .inline-pdf-reader__meta {
@@ -1215,6 +1239,11 @@ textarea {
 }
 
 .inline-pdf-reader__footer {
+  position: absolute;
+  left: max(0.75rem, env(safe-area-inset-left));
+  right: max(0.75rem, env(safe-area-inset-right));
+  bottom: max(0.9rem, env(safe-area-inset-bottom));
+  z-index: 2;
   display: grid;
   grid-template-columns: auto 1fr auto;
   justify-content: space-between;
@@ -5300,6 +5329,11 @@ textarea {
 
   .inline-pdf-reader__topbar {
     gap: 0.6rem;
+  }
+
+  .inline-pdf-reader__corner-button {
+    top: 0.65rem;
+    right: 0.65rem;
   }
 
   .inline-pdf-reader__topbar .inline-pdf-reader__nav-button {

@@ -239,6 +239,15 @@ export default function InlinePdfReader({
         </div>
       ) : null}
       <div className="inline-pdf-reader__frame" ref={stageRef}>
+        {!isFullscreen ? (
+          <button
+            type="button"
+            className="inline-pdf-reader__corner-button"
+            onClick={toggleFullscreen}
+          >
+            Fullscreen
+          </button>
+        ) : null}
         {pdfFile ? (
           <Suspense fallback={<ReaderLoading />}>
             <ComicPdfPage
@@ -311,13 +320,6 @@ export default function InlinePdfReader({
           </span>
         </div>
         <div className="inline-pdf-reader__controls">
-          <button
-            type="button"
-            className="inline-pdf-reader__nav-button"
-            onClick={toggleFullscreen}
-          >
-            {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-          </button>
           <button
             type="button"
             className="inline-pdf-reader__nav-button"
