@@ -27,6 +27,7 @@ export default function InlinePdfReader({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isChromeVisible, setIsChromeVisible] = useState(false);
   const [isWideSpread, setIsWideSpread] = useState(false);
+  const useImagePages = pages.length > 0 && !isFullscreen;
 
   useEffect(() => {
     setCurrentPage(1);
@@ -34,6 +35,13 @@ export default function InlinePdfReader({
   }, [pages, pdfUrl]);
 
   useEffect(() => {
+    if (useImagePages) {
+      setPdfFile(null);
+      setLoadError("");
+      setPageCount(pages.length);
+      return undefined;
+    }
+
     if (!pdfUrl) {
       setPdfFile(null);
       setLoadError(pages.length ? "" : "PDF file is unavailable.");
@@ -72,10 +80,10 @@ export default function InlinePdfReader({
     loadPdfFile();
 
     return () => controller.abort();
-  }, [pages.length, pdfUrl]);
+  }, [isFullscreen, pages.length, pdfUrl, useImagePages]);
 
   useEffect(() => {
-    if (pdfFile || !pages.length || !pages[currentPage]) {
+    if (!useImagePages || !pages.length || !pages[currentPage]) {
       return undefined;
     }
 
@@ -89,7 +97,7 @@ export default function InlinePdfReader({
     return () => {
       image.src = "";
     };
-  }, [currentPage, pages]);
+  }, [currentPage, pages, useImagePages]);
 
   useEffect(() => {
     function updateStageWidth() {
@@ -263,8 +271,12 @@ export default function InlinePdfReader({
         : [visiblePageNumbers[visiblePageNumbers.length - 1] + 1]
       : [];
   const currentImagePage = pages[currentPage - 1] || null;
+  const shouldUseImagePages = useImagePages && Boolean(currentImagePage?.url);
   const shouldUseImageFallback =
-    !pdfFile && Boolean(currentImagePage?.url) && (!pdfUrl || Boolean(loadError));
+    !shouldUseImagePages &&
+    !pdfFile &&
+    Boolean(currentImagePage?.url) &&
+    (!pdfUrl || Boolean(loadError));
   const pageLabel =
     visiblePageNumbers.length > 1
       ? `Pages ${visiblePageNumbers[0]}-${visiblePageNumbers[visiblePageNumbers.length - 1]}${pageCount ? ` of ${pageCount}` : ""}`
@@ -303,7 +315,13 @@ export default function InlinePdfReader({
             Fullscreen
           </button>
         ) : null}
-        {pdfFile ? (
+        {shouldUseImagePages ? (
+          <img
+            className="inline-pdf-reader__image"
+            src={currentImagePage.url}
+            alt={pageLabel}
+          />
+        ) : pdfFile ? (
           <Suspense fallback={<ReaderLoading />}>
             <ComicPdfPage
               pdfFile={pdfFile}

@@ -5,7 +5,7 @@ export const defaultSiteData = {
     siteTitleSuffix: "Renowned",
     footer: {
       copyright: "© 2026 Storyhat. All rights reserved.",
-      email: "renownedcomicbook@gmail.com",
+      email: "howdy@renownedcomic.com",
     },
     defaultOgImage:
       "https://renownedcomic.com/wp-content/uploads/2025/09/logowhite_nodrop-small.png",

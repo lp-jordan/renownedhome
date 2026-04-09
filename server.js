@@ -116,8 +116,8 @@ const uploadFileSizeLimitBytes =
   1024;
 const pdfPreviewDpi =
   parsePositiveInteger(process.env.PDF_PREVIEW_DPI || "216") || 216;
-const pdfPreviewJpegQuality =
-  parsePositiveInteger(process.env.PDF_PREVIEW_JPEG_QUALITY || "90") || 90;
+const pdfPreviewWebpQuality =
+  parsePositiveInteger(process.env.PDF_PREVIEW_WEBP_QUALITY || "88") || 88;
 const maxRasterImageDimension =
   parsePositiveInteger(process.env.IMAGE_MAX_DIMENSION_PX || "2560") || 2560;
 const upload = multer({
@@ -489,11 +489,9 @@ async function renderPdfPagesToImages(pdfPath, projectId) {
     await execFile(
       "pdftoppm",
       [
-        "-jpeg",
+        "-png",
         "-r",
         String(pdfPreviewDpi),
-        "-jpegopt",
-        `quality=${pdfPreviewJpegQuality},progressive=y,optimize=y`,
         pdfPath,
         outputPrefix,
       ],
@@ -501,18 +499,38 @@ async function renderPdfPagesToImages(pdfPath, projectId) {
     );
 
     const entries = await fs.readdir(renderDirectory, { withFileTypes: true });
-    return entries
-      .filter((entry) => entry.isFile() && /^page-\d+\.jpe?g$/i.test(entry.name))
-      .map((entry) => {
-        const pageNumber = Number(entry.name.match(/(\d+)/)?.[1] || 0);
-        return {
-          pageNumber,
-          filePath: path.join(renderDirectory, entry.name),
-          fileName: entry.name,
-        };
-      })
+    const pngPages = entries
+      .filter((entry) => entry.isFile() && /^page-\d+\.png$/i.test(entry.name))
+      .map((entry) => ({
+        pageNumber: Number(entry.name.match(/(\d+)/)?.[1] || 0),
+        filePath: path.join(renderDirectory, entry.name),
+        fileName: entry.name,
+      }))
       .filter((page) => page.pageNumber > 0)
       .sort((a, b) => a.pageNumber - b.pageNumber);
+
+    const renderedPages = [];
+    for (const page of pngPages) {
+      const webpPath = page.filePath.replace(/\.png$/i, ".webp");
+      const { info } = await sharp(page.filePath, { failOn: "none" })
+        .webp({
+          quality: pdfPreviewWebpQuality,
+          effort: 4,
+        })
+        .toFile(webpPath);
+
+      await fs.unlink(page.filePath).catch(() => {});
+      renderedPages.push({
+        pageNumber: page.pageNumber,
+        filePath: webpPath,
+        fileName: path.basename(webpPath),
+        mimeType: "image/webp",
+        width: info.width || null,
+        height: info.height || null,
+      });
+    }
+
+    return renderedPages;
   } catch (error) {
     await removeTempDirectory(renderDirectory);
     throw error;
@@ -618,6 +636,16 @@ async function prepareUploadedAsset(file) {
 
 function getReaderPageStorageKeys(file) {
   return (file?.readerPages || []).map((page) => page.storageKey).filter(Boolean);
+}
+
+function getReaderPageFilename(file, readerPage) {
+  const extension =
+    readerPage?.mimeType === "image/webp"
+      ? "webp"
+      : readerPage?.mimeType === "image/png"
+        ? "png"
+        : "jpg";
+  return `${path.parse(file.originalFilename).name}-page-${readerPage?.pageNumber || 1}.${extension}`;
 }
 
 function serializeDeliveryFile(file, options = {}) {
@@ -2004,21 +2032,23 @@ app.post(
         renderDirectory = renderedPages[0] ? path.dirname(renderedPages[0].filePath) : null;
 
         for (const page of renderedPages) {
-          const pageStorageKey = `delivery/projects/${req.params.id}/reader/${objectId}/page-${String(page.pageNumber).padStart(3, "0")}.jpg`;
+          const pageStorageKey = `delivery/projects/${req.params.id}/reader/${objectId}/page-${String(page.pageNumber).padStart(3, "0")}.webp`;
           const pageStat = await fs.stat(page.filePath);
           await client.send(
             new PutObjectCommand({
               Bucket: getStorageEnv().bucket,
               Key: pageStorageKey,
               Body: createReadStream(page.filePath),
-              ContentType: "image/jpeg",
+              ContentType: page.mimeType,
               ContentLength: pageStat.size,
             })
           );
           readerPages.push({
             pageNumber: page.pageNumber,
             storageKey: pageStorageKey,
-            mimeType: "image/jpeg",
+            mimeType: page.mimeType,
+            width: page.width,
+            height: page.height,
           });
         }
       } else {
@@ -2336,7 +2366,7 @@ app.get("/api/delivery/files/:id/pages/:pageNumber", requireAdmin, async (req, r
       key: readerPage.storageKey,
       contentType: readerPage.mimeType,
       disposition: "inline",
-      filename: `${path.parse(file.originalFilename).name}-page-${pageNumber}.jpg`,
+      filename: getReaderPageFilename(file, readerPage),
     });
   } catch (error) {
     console.error("Delivery page stream failed", error);
@@ -2551,7 +2581,7 @@ app.get("/api/delivery/access/:token/files/:fileId/read/pages/:pageNumber", asyn
       key: readerPage.storageKey,
       contentType: readerPage.mimeType,
       disposition: "inline",
-      filename: `${path.parse(file.originalFilename).name}-page-${pageNumber}.jpg`,
+      filename: getReaderPageFilename(file, readerPage),
     });
   } catch (error) {
     console.error("Delivery read page stream failed", error);
@@ -2586,7 +2616,7 @@ app.get("/api/delivery/access/:token/read/pages/:pageNumber", async (req, res) =
       key: readerPage.storageKey,
       contentType: readerPage.mimeType,
       disposition: "inline",
-      filename: `${path.parse(file.originalFilename).name}-page-${pageNumber}.jpg`,
+      filename: getReaderPageFilename(file, readerPage),
     });
   } catch (error) {
     console.error("Delivery read page stream failed", error);

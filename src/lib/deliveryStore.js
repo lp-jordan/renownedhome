@@ -88,7 +88,7 @@ function normalizeReaderPages(readerPages) {
     .map((page, index) => ({
       pageNumber: Number(page?.pageNumber || index + 1),
       storageKey: String(page?.storageKey || "").trim(),
-      mimeType: String(page?.mimeType || "image/jpeg").trim() || "image/jpeg",
+      mimeType: String(page?.mimeType || "image/webp").trim() || "image/webp",
       width: Number(page?.width || 0) || null,
       height: Number(page?.height || 0) || null,
     }))

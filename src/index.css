@@ -564,7 +564,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 14px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.03);
+  background: transparent;
 }
 
 .button-compact {
@@ -990,6 +990,41 @@ textarea {
   font-style: italic;
 }
 
+.delivery-card__description-block {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.delivery-card__description {
+  line-height: 1.7;
+}
+
+.delivery-card__description:not(.is-expanded) {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.delivery-card__description-copy {
+  display: inline;
+  font-style: italic;
+}
+
+.delivery-card__description-toggle {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
 .delivery-card__actions {
   display: flex;
   gap: 1rem;
@@ -1100,10 +1135,11 @@ textarea {
 
 .inline-pdf-reader--compact .inline-pdf-reader__frame {
   min-height: 320px;
-  padding: 0.75rem;
-  border-radius: 14px;
+  padding: 0;
+  border-radius: inherit;
   border: 0;
   background: transparent;
+  overflow: hidden;
 }
 
 .inline-pdf-reader__frame .comic-reader__document,
@@ -1154,11 +1190,15 @@ textarea {
 .inline-pdf-reader--compact .inline-pdf-reader__frame canvas {
   max-height: 300px;
   box-shadow: none;
+  border-radius: inherit;
 }
 
 .inline-pdf-reader--compact .inline-pdf-reader__image {
+  display: block;
+  max-width: 100%;
   max-height: 300px;
   box-shadow: none;
+  border-radius: inherit;
 }
 
 .inline-pdf-reader--fullscreen .inline-pdf-reader__frame {

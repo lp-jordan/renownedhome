@@ -59,7 +59,10 @@ export default function DeliveryAccessPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [access, setAccess] = useState(null);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const additionalLinkUrl = normalizeLinkUrl(access?.tier?.additionalLinkUrl);
+  const descriptionText = String(access?.project?.description || "").trim();
+  const shouldClampDescription = descriptionText.length > 180;
 
   useSeo(
     access ? `${access.project.title} - Delivery` : "Comic Delivery",
@@ -74,6 +77,7 @@ export default function DeliveryAccessPage() {
       try {
         setLoading(true);
         setError("");
+        setIsDescriptionExpanded(false);
         const result = await api.getDeliveryAccess(token);
         setAccess(result);
       } catch (loadError) {
@@ -121,10 +125,23 @@ export default function DeliveryAccessPage() {
               <em>{access.tier.message}</em>
             </p>
           ) : null}
-          {access.project.description ? (
-            <p className="delivery-card__description">
-              <em>{access.project.description}</em>
-            </p>
+          {descriptionText ? (
+            <div className="delivery-card__description-block">
+              <p
+                className={`delivery-card__description${isDescriptionExpanded ? " is-expanded" : ""}`}
+              >
+                <span className="delivery-card__description-copy">{descriptionText}</span>
+              </p>
+              {shouldClampDescription ? (
+                <button
+                  type="button"
+                  className="delivery-card__description-toggle"
+                  onClick={() => setIsDescriptionExpanded((current) => !current)}
+                >
+                  {isDescriptionExpanded ? "Show Less" : "Read More"}
+                </button>
+              ) : null}
+            </div>
           ) : null}
           {access.files?.length ? (
             <div className="delivery-mini-list">
