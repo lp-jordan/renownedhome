@@ -167,6 +167,13 @@ function getTierFileIds(tierFiles, tierId) {
     .map((entry) => entry.fileId);
 }
 
+function getUniqueFileIds(fileIds, existingFiles) {
+  const allowedFileIds = new Set(existingFiles.map((file) => file.id));
+  return [...new Set(Array.isArray(fileIds) ? fileIds.filter(Boolean) : [])].filter((fileId) =>
+    allowedFileIds.has(fileId)
+  );
+}
+
 function buildProjectDetail(data, project) {
   const files = getProjectFiles(data.files, project.id);
   const pdfFiles = sortByCreatedDesc(files.filter((file) => file.kind === "pdf"));
@@ -503,13 +510,13 @@ export class DeliveryFileStore {
     const nextTierFiles = [];
     for (const tier of submittedTiers) {
       const submittedTier = payload.tiers?.find((entry) => entry.id === tier.id) || null;
-      const fileIds = Array.isArray(submittedTier?.fileIds)
-        ? submittedTier.fileIds
-        : existingFiles.map((file) => file.id);
+      const fileIds = getUniqueFileIds(
+        Array.isArray(submittedTier?.fileIds)
+          ? submittedTier.fileIds
+          : existingFiles.map((file) => file.id),
+        existingFiles
+      );
       for (const fileId of fileIds) {
-        if (!existingFiles.some((file) => file.id === fileId)) {
-          continue;
-        }
         nextTierFiles.push({
           id: createId(),
           projectId,
@@ -1527,13 +1534,13 @@ export class DeliveryPgStore {
       await client.query(`DELETE FROM delivery_tier_files WHERE project_id = $1`, [projectId]);
       for (const tier of submittedTiers) {
         const submittedTier = payload.tiers?.find((entry) => entry.id === tier.id) || null;
-        const fileIds = Array.isArray(submittedTier?.fileIds)
-          ? submittedTier.fileIds
-          : existingFiles.map((file) => file.id);
+        const fileIds = getUniqueFileIds(
+          Array.isArray(submittedTier?.fileIds)
+            ? submittedTier.fileIds
+            : existingFiles.map((file) => file.id),
+          existingFiles
+        );
         for (const fileId of fileIds) {
-          if (!existingFiles.some((file) => file.id === fileId)) {
-            continue;
-          }
           await client.query(
             `
               INSERT INTO delivery_tier_files (

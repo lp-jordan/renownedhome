@@ -1113,6 +1113,17 @@ textarea {
   justify-items: center;
 }
 
+.comic-reader__spread {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+}
+
+.comic-reader__spread--double {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
 .comic-reader__preload {
   position: absolute;
   width: 1px;
@@ -1175,43 +1186,6 @@ textarea {
   transition: opacity 180ms ease, transform 180ms ease;
 }
 
-.inline-pdf-reader__topbar-meta {
-  margin-left: auto;
-  color: rgba(242, 244, 248, 0.92);
-  font-family: "Josefin Sans", sans-serif;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.inline-pdf-reader__tap-zones {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-columns: 1fr 0.6fr 1fr;
-}
-
-.inline-pdf-reader__tap-zone {
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  color: transparent;
-}
-
-.inline-pdf-reader__tap-zone:disabled {
-  cursor: default;
-}
-
-.inline-pdf-reader__tap-zone span {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-}
-
 .inline-pdf-reader__corner-button {
   position: absolute;
   top: 0.85rem;
@@ -1239,11 +1213,6 @@ textarea {
 }
 
 .inline-pdf-reader__footer {
-  position: absolute;
-  left: max(0.75rem, env(safe-area-inset-left));
-  right: max(0.75rem, env(safe-area-inset-right));
-  bottom: max(0.9rem, env(safe-area-inset-bottom));
-  z-index: 2;
   display: grid;
   grid-template-columns: auto 1fr auto;
   justify-content: space-between;
@@ -1261,7 +1230,11 @@ textarea {
   flex: 1;
   justify-content: center;
   color: var(--text-dim);
+  font-family: "Josefin Sans", sans-serif;
   font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   text-align: center;
 }
 
@@ -1335,6 +1308,42 @@ textarea {
 
 .inline-pdf-reader--fullscreen.inline-pdf-reader--chrome-hidden .inline-pdf-reader__footer {
   transform: translateY(8px);
+}
+
+.inline-pdf-reader--fullscreen .inline-pdf-reader__footer {
+  position: absolute;
+  left: 50%;
+  bottom: max(0.9rem, env(safe-area-inset-bottom));
+  z-index: 2;
+  width: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(7, 9, 14, 0.8);
+  backdrop-filter: blur(10px);
+  transform: translateX(-50%);
+}
+
+.inline-pdf-reader--fullscreen.inline-pdf-reader--chrome-visible .inline-pdf-reader__footer {
+  transform: translateX(-50%) translateY(0);
+}
+
+.inline-pdf-reader--fullscreen.inline-pdf-reader--chrome-hidden .inline-pdf-reader__footer {
+  transform: translateX(-50%) translateY(8px);
+}
+
+.inline-pdf-reader--fullscreen .inline-pdf-reader__controls {
+  justify-content: center;
+}
+
+.inline-pdf-reader--fullscreen .inline-pdf-reader__meta {
+  flex: 0 0 auto;
+  min-width: 10rem;
+  font-size: 0.76rem;
 }
 
 .hero {
@@ -5334,6 +5343,25 @@ textarea {
   .inline-pdf-reader__corner-button {
     top: 0.65rem;
     right: 0.65rem;
+  }
+
+  .inline-pdf-reader--fullscreen .inline-pdf-reader__footer {
+    left: max(0.75rem, env(safe-area-inset-left));
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(0.9rem, env(safe-area-inset-bottom));
+    width: auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    border-radius: 18px;
+    transform: translateY(0);
+  }
+
+  .inline-pdf-reader--fullscreen.inline-pdf-reader--chrome-visible .inline-pdf-reader__footer {
+    transform: translateY(0);
+  }
+
+  .inline-pdf-reader--fullscreen.inline-pdf-reader--chrome-hidden .inline-pdf-reader__footer {
+    transform: translateY(8px);
   }
 
   .inline-pdf-reader__topbar .inline-pdf-reader__nav-button {

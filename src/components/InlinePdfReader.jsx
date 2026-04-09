@@ -18,14 +18,15 @@ export default function InlinePdfReader({
 }) {
   const readerRef = useRef(null);
   const stageRef = useRef(null);
-  const chromeTimerRef = useRef(null);
+  const gestureRef = useRef({ startX: 0, startY: 0, active: false });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageCount, setPageCount] = useState(0);
   const [stageWidth, setStageWidth] = useState(compact ? 360 : 720);
   const [pdfFile, setPdfFile] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isChromeVisible, setIsChromeVisible] = useState(true);
+  const [isChromeVisible, setIsChromeVisible] = useState(false);
+  const [isWideSpread, setIsWideSpread] = useState(false);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -97,7 +98,11 @@ export default function InlinePdfReader({
       }
 
       const padding = isFullscreen ? 12 : compact ? 20 : 28;
-      setStageWidth(Math.max(220, stageRef.current.clientWidth - padding));
+      const availableWidth = Math.max(220, stageRef.current.clientWidth - padding);
+      const nextWideSpread =
+        !compact && isFullscreen && stageRef.current.clientWidth >= 960;
+      setIsWideSpread(nextWideSpread);
+      setStageWidth(nextWideSpread ? Math.max(160, Math.floor((availableWidth - 18) / 2)) : availableWidth);
     }
 
     updateStageWidth();
@@ -107,7 +112,7 @@ export default function InlinePdfReader({
 
   useEffect(() => {
     if (!isFullscreen) {
-      setIsChromeVisible(true);
+      setIsChromeVisible(false);
       return undefined;
     }
 
@@ -160,63 +165,113 @@ export default function InlinePdfReader({
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, [isFullscreen]);
 
-  useEffect(() => {
-    window.clearTimeout(chromeTimerRef.current);
-    if (!isFullscreen || !isChromeVisible) {
-      return undefined;
-    }
-
-    chromeTimerRef.current = window.setTimeout(() => {
-      setIsChromeVisible(false);
-    }, 2200);
-
-    return () => window.clearTimeout(chromeTimerRef.current);
-  }, [currentPage, isChromeVisible, isFullscreen]);
-
   function revealChrome() {
     setIsChromeVisible(true);
   }
 
   function goToPrevious() {
-    revealChrome();
-    setCurrentPage((page) => Math.max(page - 1, 1));
+    setCurrentPage((page) => {
+      const step = isWideSpread ? 2 : 1;
+      if (isWideSpread && page <= 2) {
+        return 1;
+      }
+      return Math.max(page - step, 1);
+    });
   }
 
   function goToNext() {
-    revealChrome();
-    setCurrentPage((page) => Math.min(page + 1, pageCount || page + 1));
+    setCurrentPage((page) => {
+      const step = isWideSpread ? 2 : 1;
+      const nextPage = page + step;
+      if (isWideSpread && page === 1) {
+        return Math.min(2, pageCount || 2);
+      }
+      return Math.min(nextPage, pageCount || nextPage);
+    });
   }
 
   function toggleFullscreen() {
     setIsFullscreen((current) => !current);
-    setIsChromeVisible(true);
+    setIsChromeVisible(false);
   }
 
   function toggleChrome() {
     setIsChromeVisible((current) => !current);
   }
 
-  function handleTapZone(direction) {
-    if (direction === "prev") {
-      goToPrevious();
-      return;
-    }
-
-    if (direction === "next") {
-      goToNext();
-      return;
-    }
-
+  function handleFrameToggle() {
     toggleChrome();
   }
 
+  function handleTouchStart(event) {
+    const touch = event.touches?.[0];
+    if (!touch) {
+      return;
+    }
+    gestureRef.current = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      active: true,
+    };
+  }
+
+  function handleTouchEnd(event) {
+    const touch = event.changedTouches?.[0];
+    if (!touch || !gestureRef.current.active) {
+      return;
+    }
+
+    const deltaX = touch.clientX - gestureRef.current.startX;
+    const deltaY = touch.clientY - gestureRef.current.startY;
+    gestureRef.current.active = false;
+
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
+      if (deltaX < 0) {
+        goToNext();
+      } else {
+        goToPrevious();
+      }
+      return;
+    }
+
+    if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
+      handleFrameToggle();
+    }
+  }
+
+  const visiblePageNumbers = (() => {
+    if (!isWideSpread || pageCount <= 1) {
+      return [currentPage];
+    }
+
+    if (currentPage <= 1) {
+      return [1];
+    }
+
+    const leftPage = currentPage % 2 === 0 ? currentPage : Math.max(currentPage - 1, 2);
+    const rightPage = leftPage + 1;
+    return rightPage <= pageCount ? [leftPage, rightPage] : [leftPage];
+  })();
+
   const preloadPageNumbers =
-    pageCount && currentPage < pageCount ? [currentPage + 1] : [];
+    pageCount && visiblePageNumbers[visiblePageNumbers.length - 1] < pageCount
+      ? isWideSpread
+        ? [
+            visiblePageNumbers[visiblePageNumbers.length - 1] + 1,
+            visiblePageNumbers[visiblePageNumbers.length - 1] + 2,
+          ].filter((pageNumber) => pageNumber <= pageCount)
+        : [visiblePageNumbers[visiblePageNumbers.length - 1] + 1]
+      : [];
   const currentImagePage = pages[currentPage - 1] || null;
   const shouldUseImageFallback =
     !pdfFile && Boolean(currentImagePage?.url) && (!pdfUrl || Boolean(loadError));
+  const pageLabel =
+    visiblePageNumbers.length > 1
+      ? `Pages ${visiblePageNumbers[0]}-${visiblePageNumbers[visiblePageNumbers.length - 1]}${pageCount ? ` of ${pageCount}` : ""}`
+      : `Page ${visiblePageNumbers[0]}${pageCount ? ` of ${pageCount}` : ""}`;
   const rootClassName = `inline-pdf-reader ${compact ? "inline-pdf-reader--compact" : ""} ${
     isFullscreen ? "inline-pdf-reader--fullscreen" : ""
+  } ${isWideSpread ? "inline-pdf-reader--spread" : ""}
   } ${isChromeVisible ? "inline-pdf-reader--chrome-visible" : "inline-pdf-reader--chrome-hidden"} ${className}`.trim();
 
   return (
@@ -230,15 +285,15 @@ export default function InlinePdfReader({
           >
             Back
           </button>
-          <div className="inline-pdf-reader__topbar-meta" aria-live="polite">
-            <span>
-              Page {currentPage}
-              {pageCount ? ` of ${pageCount}` : ""}
-            </span>
-          </div>
         </div>
       ) : null}
-      <div className="inline-pdf-reader__frame" ref={stageRef}>
+      <div
+        className="inline-pdf-reader__frame"
+        ref={stageRef}
+        onClick={isFullscreen ? handleFrameToggle : undefined}
+        onTouchStart={isFullscreen ? handleTouchStart : undefined}
+        onTouchEnd={isFullscreen ? handleTouchEnd : undefined}
+      >
         {!isFullscreen ? (
           <button
             type="button"
@@ -253,6 +308,7 @@ export default function InlinePdfReader({
             <ComicPdfPage
               pdfFile={pdfFile}
               currentPage={currentPage}
+              pageNumbers={visiblePageNumbers}
               width={stageWidth}
               loading={<ReaderLoading />}
               onLoadSuccess={setPageCount}
@@ -266,65 +322,32 @@ export default function InlinePdfReader({
           <img
             className="inline-pdf-reader__image"
             src={currentImagePage.url}
-            alt={`Page ${currentPage}`}
+            alt={pageLabel}
           />
         ) : loadError ? (
           <div className="inline-pdf-reader__error">{loadError}</div>
         ) : (
           <ReaderLoading />
         )}
-        {isFullscreen && !loadError ? (
-          <div className="inline-pdf-reader__tap-zones" aria-hidden="true">
-            <button
-              type="button"
-              className="inline-pdf-reader__tap-zone inline-pdf-reader__tap-zone--prev"
-              onClick={() => handleTapZone("prev")}
-              disabled={currentPage <= 1}
-              tabIndex={-1}
-            >
-              <span>Prev</span>
-            </button>
-            <button
-              type="button"
-              className="inline-pdf-reader__tap-zone inline-pdf-reader__tap-zone--center"
-              onClick={() => handleTapZone("toggle")}
-              tabIndex={-1}
-            >
-              <span>Menu</span>
-            </button>
-            <button
-              type="button"
-              className="inline-pdf-reader__tap-zone inline-pdf-reader__tap-zone--next"
-              onClick={() => handleTapZone("next")}
-              disabled={pageCount ? currentPage >= pageCount : false}
-              tabIndex={-1}
-            >
-              <span>Next</span>
-            </button>
-          </div>
-        ) : null}
       </div>
       <div className="inline-pdf-reader__footer">
         <button
           type="button"
           className="inline-pdf-reader__nav-button"
           onClick={goToPrevious}
-          disabled={currentPage <= 1}
+          disabled={visiblePageNumbers[0] <= 1}
         >
           Prev
         </button>
         <div className="inline-pdf-reader__meta" aria-live="polite">
-          <span>
-            Page {currentPage}
-            {pageCount ? ` of ${pageCount}` : ""}
-          </span>
+          <span>{pageLabel}</span>
         </div>
         <div className="inline-pdf-reader__controls">
           <button
             type="button"
             className="inline-pdf-reader__nav-button"
             onClick={goToNext}
-            disabled={pageCount ? currentPage >= pageCount : false}
+            disabled={pageCount ? visiblePageNumbers[visiblePageNumbers.length - 1] >= pageCount : false}
           >
             Next
           </button>

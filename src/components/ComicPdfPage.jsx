@@ -6,6 +6,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 export default function ComicPdfPage({
   pdfFile,
   currentPage,
+  pageNumbers,
   width,
   onLoadSuccess,
   loading,
@@ -25,16 +26,20 @@ export default function ComicPdfPage({
       onLoadError={onLoadError}
       className="comic-reader__document"
     >
-      <Page
-        key={currentPage}
-        pageNumber={currentPage}
-        width={width}
-        devicePixelRatio={devicePixelRatio}
-        renderMode="canvas"
-        renderAnnotationLayer={false}
-        renderTextLayer={false}
-        loading={loading}
-      />
+      <div className={`comic-reader__spread${(pageNumbers || []).length > 1 ? " comic-reader__spread--double" : ""}`}>
+        {(pageNumbers?.length ? pageNumbers : [currentPage]).map((pageNumber) => (
+          <Page
+            key={pageNumber}
+            pageNumber={pageNumber}
+            width={width}
+            devicePixelRatio={devicePixelRatio}
+            renderMode="canvas"
+            renderAnnotationLayer={false}
+            renderTextLayer={false}
+            loading={loading}
+          />
+        ))}
+      </div>
       {preloadPageNumbers.length ? (
         <div className="comic-reader__preload" aria-hidden="true">
           {preloadPageNumbers.map((pageNumber) => (
