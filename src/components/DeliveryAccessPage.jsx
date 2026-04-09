@@ -117,7 +117,9 @@ export default function DeliveryAccessPage() {
           <h1 className="delivery-card__title">{access.project.title}</h1>
           <p className="delivery-card__byline">from {access.project.creatorName}</p>
           {access.tier?.message ? (
-            <p className="delivery-card__message">{access.tier.message}</p>
+            <p className="delivery-card__message">
+              <em>{access.tier.message}</em>
+            </p>
           ) : null}
           {access.project.description ? (
             <p className="delivery-card__description">{access.project.description}</p>

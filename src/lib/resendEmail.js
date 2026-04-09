@@ -34,6 +34,30 @@ export function buildDeliveryEmail({
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
           <meta name="x-apple-disable-message-reformatting" />
           <title>${safeProjectTitle} is ready</title>
+          <style>
+            @media only screen and (max-width: 620px) {
+              .delivery-stack,
+              .delivery-stack tbody,
+              .delivery-stack tr,
+              .delivery-stack td {
+                display: block !important;
+                width: 100% !important;
+              }
+
+              .delivery-stack__left {
+                padding-right: 0 !important;
+                padding-bottom: 18px !important;
+              }
+
+              .delivery-stack__right {
+                padding-left: 0 !important;
+              }
+
+              .delivery-cover {
+                max-width: 220px !important;
+              }
+            }
+          </style>
         </head>
         <body style="margin:0;padding:0;background:#0b0f16;font-family:Arial,sans-serif;color:#f2f4f8;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;margin:0;padding:0;background:#0b0f16;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
@@ -60,13 +84,13 @@ export function buildDeliveryEmail({
 
                   <tr>
                     <td style="padding:20px 24px 22px;">
-                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="delivery-stack" style="width:100%;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
                         <tr>
-                          <td valign="top" width="100%" style="display:block;width:100%;padding:0 0 18px;">
+                          <td valign="top" width="236" class="delivery-stack__left" style="width:236px;padding:0 22px 0 0;vertical-align:top;">
                             ${
                               safeCoverImageUrl
                                 ? `
-                                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;max-width:220px;">
+                                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="220" class="delivery-cover" style="width:220px;max-width:220px;">
                                     <tr>
                                       <td style="overflow:hidden;border-radius:18px;border:1px solid #252b38;background:#1a2230;">
                                         <img
@@ -80,7 +104,7 @@ export function buildDeliveryEmail({
                                   </table>
                                 `
                                 : `
-                                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;max-width:220px;">
+                                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="220" class="delivery-cover" style="width:220px;max-width:220px;">
                                     <tr>
                                       <td height="300" style="height:300px;border-radius:18px;border:1px solid #252b38;background:#1a2230;font-size:0;line-height:0;">&nbsp;</td>
                                     </tr>
@@ -88,9 +112,7 @@ export function buildDeliveryEmail({
                                 `
                             }
                           </td>
-                        </tr>
-                        <tr>
-                          <td valign="top" width="100%" style="display:block;width:100%;padding:0;">
+                          <td valign="top" class="delivery-stack__right" style="padding:0 0 0 2px;vertical-align:top;">
                             <p style="margin:0 0 14px;color:#d5dbe6;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;">A Note From The Creator</p>
                             <div style="font-size:15px;line-height:1.8;color:#eef2f7;font-style:italic;">
                               ${safeShortMessage
