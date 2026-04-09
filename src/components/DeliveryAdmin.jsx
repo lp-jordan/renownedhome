@@ -336,20 +336,35 @@ export default function DeliveryAdmin() {
     }
   }
 
-  async function handleSendEmails() {
+  async function handleSendEmails({ resendAll = false } = {}) {
     if (!selectedProjectId) {
       setSendStatus("Choose a campaign first.");
       return;
     }
 
-    setSendStatus("Sending delivery emails...");
-    try {
-      const result = await api.sendDeliveryEmails(selectedProjectId);
-      setSendStatus(
-        `Sent ${result.sentCount} email${result.sentCount === 1 ? "" : "s"}.${
-          result.failedCount ? ` ${result.failedCount} failed.` : ""
-        }`
+    if (resendAll) {
+      const confirmed = window.confirm(
+        "Resend delivery emails to every backer in this campaign, including people who have already been emailed?"
       );
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    setSendStatus(resendAll ? "Resending delivery emails..." : "Sending unsent delivery emails...");
+    try {
+      const result = await api.sendDeliveryEmails(selectedProjectId, { resendAll });
+      if (!result.targetedCount) {
+        setSendStatus("No unsent backers left to email.");
+      } else {
+        setSendStatus(
+          `${resendAll ? "Sent" : "Sent"} ${result.sentCount} email${result.sentCount === 1 ? "" : "s"}${
+            result.skippedCount && !resendAll
+              ? `, skipped ${result.skippedCount} already-sent`
+              : ""
+          }.${result.failedCount ? ` ${result.failedCount} failed.` : ""}`
+        );
+      }
       await loadDashboard();
       await loadProjectDetail(selectedProjectId);
     } catch (sendError) {
@@ -1029,12 +1044,22 @@ export default function DeliveryAdmin() {
               <button
                 className="button-primary"
                 type="button"
-                onClick={handleSendEmails}
+                onClick={() => handleSendEmails()}
                 disabled={!detail.backers.length || !detail.files.length}
               >
-                Send Emails To Backers
+                Send Unsent Emails
               </button>
-              <p className="status-line">Each backer gets one private campaign link filtered by their tier.</p>
+              <button
+                className="button-secondary"
+                type="button"
+                onClick={() => handleSendEmails({ resendAll: true })}
+                disabled={!detail.backers.length || !detail.files.length}
+              >
+                Resend All
+              </button>
+              <p className="status-line">
+                Each backer gets one private campaign link filtered by their tier. By default, only backers who have not been emailed yet will be sent.
+              </p>
               {sendStatus ? <p className="status-line">{sendStatus}</p> : null}
             </section>
 

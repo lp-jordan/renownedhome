@@ -653,6 +653,10 @@ function buildAccessFilePayload(file, accessToken) {
   };
 }
 
+function buildAccessCoverUrl(accessToken) {
+  return `/api/delivery/access/${encodeURIComponent(accessToken)}/cover`;
+}
+
 function findAccessibleFile(access, fileId) {
   if (!access?.files?.length) {
     return null;
@@ -2154,6 +2158,7 @@ app.post(
   requireTrustedOrigin,
   requireAdmin,
   async (req, res) => {
+    const resendAll = req.body?.resendAll === true;
     if (!resendIsConfigured()) {
       res.status(501).json({
         error:
@@ -2179,14 +2184,30 @@ app.post(
     }
 
     const siteOrigin = getPublicSiteOrigin();
-    const coverImageUrl = detail.currentCover
-      ? `${siteOrigin}/api/delivery/files/${encodeURIComponent(detail.currentCover.id)}`
-      : "";
+    const backersToSend = resendAll
+      ? detail.backers
+      : detail.backers.filter((backer) => !backer.lastEmailedAt);
+
+    if (!backersToSend.length) {
+      res.json({
+        ok: true,
+        sentCount: 0,
+        failedCount: 0,
+        skippedCount: detail.backers.length,
+        targetedCount: 0,
+        failures: [],
+      });
+      return;
+    }
+
     const sentBackerIds = [];
     const failures = [];
 
-    for (const backer of detail.backers) {
+    for (const backer of backersToSend) {
       const accessUrl = `${siteOrigin}/a/${backer.accessToken}`;
+      const coverImageUrl = detail.currentCover
+        ? `${siteOrigin}${buildAccessCoverUrl(backer.accessToken)}`
+        : "";
       const tier =
         detail.tiers.find((entry) => entry.id === backer.tierId) || detail.tiers[0] || null;
       const email = buildDeliveryEmail({
@@ -2225,6 +2246,8 @@ app.post(
       ok: failures.length === 0,
       sentCount: sentBackerIds.length,
       failedCount: failures.length,
+      skippedCount: Math.max(detail.backers.length - backersToSend.length, 0),
+      targetedCount: backersToSend.length,
       failures,
     });
   }
@@ -2235,6 +2258,19 @@ app.get("/api/delivery/files/:id", async (req, res) => {
   if (!file) {
     res.status(404).json({ error: "File not found." });
     return;
+  }
+
+  if (file.kind !== "cover") {
+    const session = await readSession(req);
+    if (!session) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    if (session.user?.role !== "admin") {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
   }
 
   if (!storageIsConfigured() || !file.storageKey) {
@@ -2251,7 +2287,7 @@ app.get("/api/delivery/files/:id", async (req, res) => {
   res.redirect(302, signedUrl);
 });
 
-app.get("/api/delivery/files/:id/content", async (req, res) => {
+app.get("/api/delivery/files/:id/content", requireAdmin, async (req, res) => {
   const file = await deliveryStore.getFile(req.params.id);
   if (!file) {
     res.status(404).json({ error: "File not found." });
@@ -2276,7 +2312,7 @@ app.get("/api/delivery/files/:id/content", async (req, res) => {
   }
 });
 
-app.get("/api/delivery/files/:id/pages/:pageNumber", async (req, res) => {
+app.get("/api/delivery/files/:id/pages/:pageNumber", requireAdmin, async (req, res) => {
   const file = await deliveryStore.getFile(req.params.id);
   if (!file) {
     res.status(404).json({ error: "File not found." });
@@ -2329,11 +2365,36 @@ app.get("/api/delivery/access/:token", async (req, res) => {
       : null,
     assets: {
       coverUrl: access.currentCover
-        ? `/api/delivery/files/${encodeURIComponent(access.currentCover.id)}`
+        ? buildAccessCoverUrl(req.params.token)
         : "",
     },
     files: access.files.map((file) => buildAccessFilePayload(file, req.params.token)),
   });
+});
+
+app.get("/api/delivery/access/:token/cover", async (req, res) => {
+  const access = await deliveryStore.getAccessByToken(req.params.token);
+  if (!access?.currentCover) {
+    res.status(404).json({ error: "Cover is unavailable." });
+    return;
+  }
+
+  if (!storageIsConfigured() || !access.currentCover.storageKey) {
+    res.status(404).json({ error: "Cover is unavailable." });
+    return;
+  }
+
+  try {
+    await streamStorageFile(res, {
+      key: access.currentCover.storageKey,
+      contentType: access.currentCover.mimeType,
+      disposition: "inline",
+      filename: access.currentCover.originalFilename,
+    });
+  } catch (error) {
+    console.error("Delivery cover stream failed", error);
+    res.status(500).json({ error: "Cover is unavailable." });
+  }
 });
 
 app.get("/api/delivery/access/:token/download", async (req, res) => {

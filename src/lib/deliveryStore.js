@@ -252,7 +252,7 @@ export function parseBackerCsv(csvText) {
     };
   }
 
-  const firstColumns = lines[0].split(",").map((cell) => cell.trim().toLowerCase());
+  const firstColumns = parseCsvRow(lines[0]).map((cell) => cell.trim().toLowerCase());
   const emailIndex = firstColumns.findIndex((cell) => cell === "email");
   const tierIndex = firstColumns.findIndex((cell) => cell === "tier");
   const hasHeader = emailIndex >= 0;
@@ -264,7 +264,7 @@ export function parseBackerCsv(csvText) {
 
   for (let index = hasHeader ? 1 : 0; index < lines.length; index += 1) {
     const raw = lines[index];
-    const columns = raw.split(",").map((cell) => cell.trim());
+    const columns = parseCsvRow(raw).map((cell) => cell.trim());
     const email = normalizeEmail(hasHeader ? columns[emailIndex] : columns[0]);
     const tier = String(
       hasHeader && tierIndex >= 0 ? columns[tierIndex] || "" : columns[1] || ""
@@ -308,6 +308,39 @@ export function parseBackerCsv(csvText) {
       duplicateCount: duplicateRows.length,
     },
   };
+}
+
+function parseCsvRow(row) {
+  const input = String(row || "");
+  const columns = [];
+  let current = "";
+  let insideQuotes = false;
+
+  for (let index = 0; index < input.length; index += 1) {
+    const character = input[index];
+    const nextCharacter = input[index + 1];
+
+    if (character === '"') {
+      if (insideQuotes && nextCharacter === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        insideQuotes = !insideQuotes;
+      }
+      continue;
+    }
+
+    if (character === "," && !insideQuotes) {
+      columns.push(current);
+      current = "";
+      continue;
+    }
+
+    current += character;
+  }
+
+  columns.push(current);
+  return columns;
 }
 
 export class DeliveryFileStore {

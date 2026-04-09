@@ -185,10 +185,10 @@ export const api = {
       }
     );
   },
-  sendDeliveryEmails(projectId) {
+  sendDeliveryEmails(projectId, options = {}) {
     return request(`/api/admin/delivery/projects/${encodeURIComponent(projectId)}/send-emails`, {
       method: "POST",
-      body: JSON.stringify({}),
+      body: JSON.stringify(options),
     });
   },
   async uploadDeliveryCover(projectId, file) {

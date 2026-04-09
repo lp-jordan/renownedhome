@@ -16,12 +16,16 @@ export default function InlinePdfReader({
   className = "",
   compact = false,
 }) {
+  const readerRef = useRef(null);
   const stageRef = useRef(null);
+  const chromeTimerRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageCount, setPageCount] = useState(0);
   const [stageWidth, setStageWidth] = useState(compact ? 360 : 720);
   const [pdfFile, setPdfFile] = useState(null);
   const [loadError, setLoadError] = useState("");
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isChromeVisible, setIsChromeVisible] = useState(true);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -92,21 +96,118 @@ export default function InlinePdfReader({
         return;
       }
 
-      const padding = compact ? 20 : 28;
+      const padding = isFullscreen ? 12 : compact ? 20 : 28;
       setStageWidth(Math.max(220, stageRef.current.clientWidth - padding));
     }
 
     updateStageWidth();
     window.addEventListener("resize", updateStageWidth);
     return () => window.removeEventListener("resize", updateStageWidth);
-  }, [compact]);
+  }, [compact, isFullscreen]);
+
+  useEffect(() => {
+    if (!isFullscreen) {
+      setIsChromeVisible(true);
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    async function syncNativeFullscreen() {
+      if (!readerRef.current) {
+        return;
+      }
+
+      if (!isFullscreen) {
+        if (document.fullscreenElement === readerRef.current) {
+          try {
+            await document.exitFullscreen();
+          } catch {
+            // Ignore browser fullscreen exit failures.
+          }
+        }
+        return;
+      }
+
+      if (!document.fullscreenEnabled || document.fullscreenElement === readerRef.current) {
+        return;
+      }
+
+      try {
+        await readerRef.current.requestFullscreen();
+      } catch {
+        // CSS fullscreen fallback remains active.
+      }
+    }
+
+    syncNativeFullscreen();
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    function handleFullscreenChange() {
+      if (!document.fullscreenElement && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    }
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    window.clearTimeout(chromeTimerRef.current);
+    if (!isFullscreen || !isChromeVisible) {
+      return undefined;
+    }
+
+    chromeTimerRef.current = window.setTimeout(() => {
+      setIsChromeVisible(false);
+    }, 2200);
+
+    return () => window.clearTimeout(chromeTimerRef.current);
+  }, [currentPage, isChromeVisible, isFullscreen]);
+
+  function revealChrome() {
+    setIsChromeVisible(true);
+  }
 
   function goToPrevious() {
+    revealChrome();
     setCurrentPage((page) => Math.max(page - 1, 1));
   }
 
   function goToNext() {
+    revealChrome();
     setCurrentPage((page) => Math.min(page + 1, pageCount || page + 1));
+  }
+
+  function toggleFullscreen() {
+    setIsFullscreen((current) => !current);
+    setIsChromeVisible(true);
+  }
+
+  function toggleChrome() {
+    setIsChromeVisible((current) => !current);
+  }
+
+  function handleTapZone(direction) {
+    if (direction === "prev") {
+      goToPrevious();
+      return;
+    }
+
+    if (direction === "next") {
+      goToNext();
+      return;
+    }
+
+    toggleChrome();
   }
 
   const preloadPageNumbers =
@@ -114,11 +215,29 @@ export default function InlinePdfReader({
   const currentImagePage = pages[currentPage - 1] || null;
   const shouldUseImageFallback =
     !pdfFile && Boolean(currentImagePage?.url) && (!pdfUrl || Boolean(loadError));
+  const rootClassName = `inline-pdf-reader ${compact ? "inline-pdf-reader--compact" : ""} ${
+    isFullscreen ? "inline-pdf-reader--fullscreen" : ""
+  } ${isChromeVisible ? "inline-pdf-reader--chrome-visible" : "inline-pdf-reader--chrome-hidden"} ${className}`.trim();
 
   return (
-    <div
-      className={`inline-pdf-reader ${compact ? "inline-pdf-reader--compact" : ""} ${className}`.trim()}
-    >
+    <div className={rootClassName} ref={readerRef}>
+      {isFullscreen ? (
+        <div className="inline-pdf-reader__topbar">
+          <button
+            type="button"
+            className="inline-pdf-reader__nav-button"
+            onClick={toggleFullscreen}
+          >
+            Back
+          </button>
+          <div className="inline-pdf-reader__topbar-meta" aria-live="polite">
+            <span>
+              Page {currentPage}
+              {pageCount ? ` of ${pageCount}` : ""}
+            </span>
+          </div>
+        </div>
+      ) : null}
       <div className="inline-pdf-reader__frame" ref={stageRef}>
         {pdfFile ? (
           <Suspense fallback={<ReaderLoading />}>
@@ -145,6 +264,36 @@ export default function InlinePdfReader({
         ) : (
           <ReaderLoading />
         )}
+        {isFullscreen && !loadError ? (
+          <div className="inline-pdf-reader__tap-zones" aria-hidden="true">
+            <button
+              type="button"
+              className="inline-pdf-reader__tap-zone inline-pdf-reader__tap-zone--prev"
+              onClick={() => handleTapZone("prev")}
+              disabled={currentPage <= 1}
+              tabIndex={-1}
+            >
+              <span>Prev</span>
+            </button>
+            <button
+              type="button"
+              className="inline-pdf-reader__tap-zone inline-pdf-reader__tap-zone--center"
+              onClick={() => handleTapZone("toggle")}
+              tabIndex={-1}
+            >
+              <span>Menu</span>
+            </button>
+            <button
+              type="button"
+              className="inline-pdf-reader__tap-zone inline-pdf-reader__tap-zone--next"
+              onClick={() => handleTapZone("next")}
+              disabled={pageCount ? currentPage >= pageCount : false}
+              tabIndex={-1}
+            >
+              <span>Next</span>
+            </button>
+          </div>
+        ) : null}
       </div>
       <div className="inline-pdf-reader__footer">
         <button
@@ -162,6 +311,13 @@ export default function InlinePdfReader({
           </span>
         </div>
         <div className="inline-pdf-reader__controls">
+          <button
+            type="button"
+            className="inline-pdf-reader__nav-button"
+            onClick={toggleFullscreen}
+          >
+            {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+          </button>
           <button
             type="button"
             className="inline-pdf-reader__nav-button"
