@@ -1230,7 +1230,9 @@ function AssetsEditor({
   onDeleteVariant,
 }) {
   const [uploadStatus, setUploadStatus] = useState("");
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [uploadPhase, setUploadPhase] = useState("idle");
+  const [uploadFileLabel, setUploadFileLabel] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [variantAssetId, setVariantAssetId] = useState("");
   const imageAssets = assets.filter(isImageAsset);
@@ -1241,26 +1243,57 @@ function AssetsEditor({
     const files = Array.from(fileList || []).filter((file) => file instanceof File && file.size);
     if (!files.length) {
       setUploadStatus("Choose at least one file first.");
-      setUploadProgress(0);
+      setUploadProgress(null);
+      setUploadPhase("idle");
+      setUploadFileLabel("");
       return;
     }
 
     setUploadStatus(`Uploading ${files.length} file${files.length === 1 ? "" : "s"}...`);
-    setUploadProgress(0);
+    setUploadProgress(null);
+    setUploadPhase("uploading");
+    setUploadFileLabel("");
     try {
       await onUpload({
         files,
-        onProgress: ({ percent }) => {
-          setUploadProgress(percent);
+        onFileChange: ({ file, fileIndex, fileCount }) => {
+          setUploadFileLabel(file?.name || "");
           setUploadStatus(
-            `Uploading ${files.length} file${files.length === 1 ? "" : "s"}... ${percent}%`
+            `Uploading file ${fileIndex + 1} of ${fileCount}: ${file?.name || "image"}`
           );
         },
+        onProgress: ({ percent, filePercent, file, fileIndex, fileCount }) => {
+          setUploadFileLabel(file?.name || "");
+          setUploadProgress(percent);
+          if (typeof filePercent === "number" && typeof percent === "number") {
+            setUploadStatus(
+              `Uploading file ${fileIndex + 1} of ${fileCount}: ${file?.name || "image"} (${filePercent}% file, ${percent}% batch)`
+            );
+          } else {
+            setUploadStatus(
+              `Uploading file ${fileIndex + 1} of ${fileCount}: ${file?.name || "image"}`
+            );
+          }
+        },
+        onPhaseChange: ({ phase, file, fileIndex, fileCount }) => {
+          setUploadPhase(phase);
+          setUploadFileLabel(file?.name || "");
+          if (phase === "processing") {
+            setUploadProgress(100);
+            setUploadStatus(
+              `Processing file ${fileIndex + 1} of ${fileCount}: ${file?.name || "image"}`
+            );
+          }
+        },
       });
-      setUploadProgress(100);
+      setUploadProgress(null);
+      setUploadPhase("done");
+      setUploadFileLabel("");
       setUploadStatus(`Uploaded ${files.length} file${files.length === 1 ? "" : "s"}.`);
     } catch (error) {
-      setUploadProgress(0);
+      setUploadProgress(null);
+      setUploadPhase("idle");
+      setUploadFileLabel("");
       setUploadStatus(error.message || "Upload failed.");
     }
   }
@@ -1278,7 +1311,9 @@ function AssetsEditor({
 
   async function handleDeleteAsset(asset) {
     setUploadStatus(`Deleting ${asset.label}...`);
-    setUploadProgress(0);
+    setUploadProgress(null);
+    setUploadPhase("idle");
+    setUploadFileLabel("");
     try {
       await onDelete(asset.id);
       setUploadStatus(`${asset.label} deleted.`);
@@ -1307,11 +1342,20 @@ function AssetsEditor({
           <span className="upload-dropzone__copy">Or click to browse files from your computer. Uploads start immediately.</span>
         </label>
         {uploadStatus ? <p className="status-line">{uploadStatus}</p> : null}
-        {uploadProgress > 0 && uploadProgress < 100 ? (
-          <div className="asset-upload-progress" aria-label={`Upload progress ${uploadProgress}%`}>
+        {uploadPhase !== "idle" && uploadPhase !== "done" ? (
+          <div
+            className="asset-upload-progress"
+            aria-label={
+              typeof uploadProgress === "number"
+                ? `Upload progress ${uploadProgress}%`
+                : uploadFileLabel
+                  ? `Uploading ${uploadFileLabel}`
+                  : "Upload in progress"
+            }
+          >
             <div
-              className="asset-upload-progress__bar"
-              style={{ width: `${uploadProgress}%` }}
+              className={`asset-upload-progress__bar ${typeof uploadProgress === "number" ? "" : "is-indeterminate"}`}
+              style={typeof uploadProgress === "number" ? { width: `${uploadProgress}%` } : undefined}
             />
           </div>
         ) : null}

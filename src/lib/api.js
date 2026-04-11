@@ -26,15 +26,31 @@ async function request(url, options = {}) {
   return response.json();
 }
 
-function uploadWithProgress(url, formData, onProgress) {
+function uploadWithProgress(url, formData, options = {}) {
+  const { onProgress, onPhaseChange } = options;
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", url);
     xhr.withCredentials = true;
 
+    if (typeof onPhaseChange === "function") {
+      xhr.upload.onloadstart = () => {
+        onPhaseChange("uploading");
+      };
+
+      xhr.upload.onload = () => {
+        onPhaseChange("processing");
+      };
+    }
+
     if (typeof onProgress === "function") {
       xhr.upload.onprogress = (event) => {
-        if (!event.lengthComputable) {
+        if (!event.lengthComputable || !event.total) {
+          onProgress({
+            loaded: event.loaded || 0,
+            total: event.total || 0,
+            percent: null,
+          });
           return;
         }
         onProgress({
@@ -50,6 +66,9 @@ function uploadWithProgress(url, formData, onProgress) {
     };
 
     xhr.onload = () => {
+      if (typeof onPhaseChange === "function") {
+        onPhaseChange("done");
+      }
       let payload = null;
       try {
         payload = xhr.responseText ? JSON.parse(xhr.responseText) : null;
@@ -66,6 +85,16 @@ function uploadWithProgress(url, formData, onProgress) {
     };
 
     xhr.send(formData);
+  });
+}
+
+async function uploadSingleAsset(file, options = {}) {
+  const { onProgress, onPhaseChange } = options;
+  const formData = new FormData();
+  formData.append("files", file);
+  return uploadWithProgress("/api/admin/assets/upload", formData, {
+    onProgress,
+    onPhaseChange,
   });
 }
 
@@ -311,13 +340,74 @@ export const api = {
       headers: {},
     });
   },
-  async uploadAssets({ files, onProgress }) {
-    const formData = new FormData();
-    files.forEach((file) => {
-      formData.append("files", file);
-    });
+  async uploadAssets({ files, onProgress, onPhaseChange, onFileChange }) {
+    const uploadFiles = Array.from(files || []).filter(Boolean);
+    const totalBytes = uploadFiles.reduce((sum, file) => sum + (file.size || 0), 0);
+    let uploadedBytes = 0;
+    let lastResponse = null;
 
-    return uploadWithProgress("/api/admin/assets/upload", formData, onProgress);
+    for (let index = 0; index < uploadFiles.length; index += 1) {
+      const file = uploadFiles[index];
+      if (typeof onFileChange === "function") {
+        onFileChange({
+          file,
+          fileIndex: index,
+          fileCount: uploadFiles.length,
+        });
+      }
+
+      lastResponse = await uploadSingleAsset(file, {
+        onPhaseChange: (phase) => {
+          if (typeof onPhaseChange === "function") {
+            onPhaseChange({
+              phase,
+              file,
+              fileIndex: index,
+              fileCount: uploadFiles.length,
+            });
+          }
+        },
+        onProgress: ({ loaded, total, percent }) => {
+          if (typeof onProgress !== "function") {
+            return;
+          }
+
+          const currentLoaded = typeof loaded === "number" ? loaded : 0;
+          const aggregateLoaded = uploadedBytes + currentLoaded;
+          const aggregatePercent =
+            totalBytes > 0 ? Math.min(100, Math.round((aggregateLoaded / totalBytes) * 100)) : percent;
+
+          onProgress({
+            loaded: aggregateLoaded,
+            total: totalBytes || total,
+            percent: aggregatePercent,
+            fileLoaded: currentLoaded,
+            fileTotal: total,
+            filePercent: percent,
+            file,
+            fileIndex: index,
+            fileCount: uploadFiles.length,
+          });
+        },
+      });
+
+      uploadedBytes += file.size || 0;
+      if (typeof onProgress === "function") {
+        onProgress({
+          loaded: uploadedBytes,
+          total: totalBytes,
+          percent: totalBytes > 0 ? Math.min(100, Math.round((uploadedBytes / totalBytes) * 100)) : 100,
+          fileLoaded: file.size || 0,
+          fileTotal: file.size || 0,
+          filePercent: 100,
+          file,
+          fileIndex: index,
+          fileCount: uploadFiles.length,
+        });
+      }
+    }
+
+    return lastResponse;
   },
   async uploadAsset(payload) {
     return api.uploadAssets({

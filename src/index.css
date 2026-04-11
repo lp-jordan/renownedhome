@@ -3161,6 +3161,21 @@ textarea {
   transition: width 120ms ease;
 }
 
+.asset-upload-progress__bar.is-indeterminate {
+  width: 38%;
+  animation: asset-upload-indeterminate 1.15s ease-in-out infinite;
+}
+
+@keyframes asset-upload-indeterminate {
+  0% {
+    transform: translateX(-110%);
+  }
+
+  100% {
+    transform: translateX(290%);
+  }
+}
+
 .asset-picker__search {
   display: grid;
   gap: 0.5rem;
