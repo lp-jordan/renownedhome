@@ -209,6 +209,118 @@ function buildProjectDetail(data, project) {
   };
 }
 
+function getIsoDateKey(dateString) {
+  const value = new Date(dateString);
+  if (Number.isNaN(value.getTime())) {
+    return "";
+  }
+
+  return value.toISOString().slice(0, 10);
+}
+
+function buildDeliveryTimeline(events, days = 14) {
+  const safeDays = Math.max(1, Number(days) || 14);
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+  const today = new Date();
+  const series = [];
+  const countsByDate = new Map();
+
+  for (const event of events) {
+    const dateKey = getIsoDateKey(event.createdAt);
+    if (!dateKey) {
+      continue;
+    }
+
+    const current = countsByDate.get(dateKey) || { pageViews: 0, downloads: 0 };
+    if (event.eventType === "access_page_view") {
+      current.pageViews += 1;
+    }
+    if (event.eventType === "file_download") {
+      current.downloads += 1;
+    }
+    countsByDate.set(dateKey, current);
+  }
+
+  for (let offset = safeDays - 1; offset >= 0; offset -= 1) {
+    const date = new Date(today);
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - offset);
+    const dateKey = date.toISOString().slice(0, 10);
+    const counts = countsByDate.get(dateKey) || { pageViews: 0, downloads: 0 };
+    series.push({
+      date: dateKey,
+      label: formatter.format(date),
+      pageViews: counts.pageViews,
+      downloads: counts.downloads,
+    });
+  }
+
+  return series;
+}
+
+function buildProjectAnalytics(project, backers, accessEvents, days = 14) {
+  const projectEvents = accessEvents.filter((event) => event.projectId === project.id);
+  const analyticsBackers = backers.map((backer) => {
+    const backerEvents = projectEvents.filter((event) => event.backerId === backer.id);
+    const pageViewEvents = backerEvents.filter((event) => event.eventType === "access_page_view");
+    const downloadEvents = backerEvents.filter((event) => event.eventType === "file_download");
+    const lastOpenedAt = pageViewEvents[0]?.createdAt || null;
+    const lastDownloadedAt = downloadEvents[0]?.createdAt || null;
+    const lastActivityAt = backerEvents[0]?.createdAt || null;
+
+    return {
+      id: backer.id,
+      email: backer.email,
+      tierId: backer.tierId || "",
+      tierName: backer.tierName || "",
+      lastEmailedAt: backer.lastEmailedAt || null,
+      pageViewCount: pageViewEvents.length,
+      downloadCount: downloadEvents.length,
+      hasOpened: pageViewEvents.length > 0,
+      hasDownloaded: downloadEvents.length > 0,
+      lastOpenedAt,
+      lastDownloadedAt,
+      lastActivityAt,
+    };
+  });
+
+  analyticsBackers.sort((left, right) => {
+    if (right.pageViewCount !== left.pageViewCount) {
+      return right.pageViewCount - left.pageViewCount;
+    }
+    if (right.downloadCount !== left.downloadCount) {
+      return right.downloadCount - left.downloadCount;
+    }
+    return left.email.localeCompare(right.email);
+  });
+
+  const uniqueOpeners = analyticsBackers.filter((backer) => backer.hasOpened).length;
+  const uniqueDownloaders = analyticsBackers.filter((backer) => backer.hasDownloaded).length;
+  const totalPageViews = projectEvents.filter((event) => event.eventType === "access_page_view").length;
+  const totalDownloads = projectEvents.filter((event) => event.eventType === "file_download").length;
+
+  return {
+    project: {
+      id: project.id,
+      title: project.title,
+    },
+    windowDays: Math.max(1, Number(days) || 14),
+    totals: {
+      backerCount: analyticsBackers.length,
+      uniqueOpeners,
+      unopenedBackers: Math.max(analyticsBackers.length - uniqueOpeners, 0),
+      uniqueDownloaders,
+      totalPageViews,
+      totalDownloads,
+    },
+    timeline: buildDeliveryTimeline(projectEvents, days),
+    backers: analyticsBackers,
+  };
+}
+
 function ensureUniqueTierSlugs(tiers) {
   const seen = new Set();
   return tiers.map((tier, index) => {
@@ -901,6 +1013,33 @@ export class DeliveryFileStore {
       totalBackers: projects.reduce((sum, project) => sum + project.backerCount, 0),
       totalDownloads: projects.reduce((sum, project) => sum + project.downloadCount, 0),
     };
+  }
+
+  async getProjectAnalytics(userId, projectId, days = 14) {
+    const data = await this.read();
+    const project = data.projects.find(
+      (entry) => entry.id === projectId && entry.userId === userId
+    );
+
+    if (!project) {
+      return null;
+    }
+
+    const tiersById = new Map(
+      data.tiers
+        .filter((tier) => tier.projectId === projectId)
+        .map((tier) => [tier.id, normalizeTier(tier)])
+    );
+    const backers = sortByCreatedDesc(
+      data.backers
+        .filter((backer) => backer.projectId === projectId)
+        .map((backer) => ({
+          ...backer,
+          tierName: tiersById.get(backer.tierId)?.name || "",
+        }))
+    );
+
+    return buildProjectAnalytics(project, backers, data.accessEvents, days);
   }
 
   async markBackersEmailed(userId, projectId, backerIds) {
@@ -2188,5 +2327,56 @@ export class DeliveryPgStore {
       totalBackers: projects.reduce((sum, project) => sum + project.backerCount, 0),
       totalDownloads: projects.reduce((sum, project) => sum + project.downloadCount, 0),
     };
+  }
+
+  async getProjectAnalytics(userId, projectId, days = 14) {
+    const projectResult = await this.pool.query(
+      `
+        SELECT id, title
+        FROM delivery_projects
+        WHERE id = $1 AND user_id = $2
+      `,
+      [projectId, userId]
+    );
+    const project = projectResult.rows[0];
+    if (!project) {
+      return null;
+    }
+
+    const [backersResult, eventsResult] = await Promise.all([
+      this.pool.query(
+        `
+          SELECT
+            b.id,
+            b.project_id AS "projectId",
+            b.tier_id AS "tierId",
+            b.email,
+            b.last_emailed_at AS "lastEmailedAt",
+            t.name AS "tierName",
+            b.created_at AS "createdAt"
+          FROM delivery_backers b
+          LEFT JOIN delivery_tiers t ON t.id = b.tier_id
+          WHERE b.project_id = $1
+          ORDER BY b.created_at DESC
+        `,
+        [projectId]
+      ),
+      this.pool.query(
+        `
+          SELECT
+            project_id AS "projectId",
+            backer_id AS "backerId",
+            file_id AS "fileId",
+            event_type AS "eventType",
+            created_at AS "createdAt"
+          FROM delivery_access_events
+          WHERE project_id = $1
+          ORDER BY created_at DESC
+        `,
+        [projectId]
+      ),
+    ]);
+
+    return buildProjectAnalytics(project, backersResult.rows, eventsResult.rows, days);
   }
 }

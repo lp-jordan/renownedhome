@@ -122,6 +122,30 @@ export const api = {
       body: JSON.stringify({}),
     });
   },
+  createAssetVariant(assetId, variant) {
+    return request(`/api/admin/assets/${encodeURIComponent(assetId)}/variants`, {
+      method: "POST",
+      body: JSON.stringify({ variant }),
+    });
+  },
+  updateAssetVariant(assetId, variantId, variant) {
+    return request(
+      `/api/admin/assets/${encodeURIComponent(assetId)}/variants/${encodeURIComponent(variantId)}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ variant }),
+      }
+    );
+  },
+  deleteAssetVariant(assetId, variantId) {
+    return request(
+      `/api/admin/assets/${encodeURIComponent(assetId)}/variants/${encodeURIComponent(variantId)}`,
+      {
+        method: "DELETE",
+        body: JSON.stringify({}),
+      }
+    );
+  },
   getDeliverySummary() {
     return request("/api/admin/delivery/summary");
   },
@@ -130,6 +154,11 @@ export const api = {
   },
   getDeliveryProject(projectId) {
     return request(`/api/admin/delivery/projects/${encodeURIComponent(projectId)}`);
+  },
+  getDeliveryAnalytics(projectId, days = 14) {
+    return request(
+      `/api/admin/delivery/projects/${encodeURIComponent(projectId)}/analytics?days=${encodeURIComponent(days)}`
+    );
   },
   createDeliveryProject(payload) {
     return request("/api/admin/delivery/projects", {

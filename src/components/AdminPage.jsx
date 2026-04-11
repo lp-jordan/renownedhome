@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
+import AssetVariantEditorModal from "./AssetVariantEditorModal";
 import DeliveryAdmin from "./DeliveryAdmin";
 import { usePageSeo } from "../lib/seo";
 import { useAutosave } from "../hooks/useAutosave";
@@ -55,7 +56,7 @@ function formatRelativeTime(dateString) {
 
 function formatAssetMeta(asset) {
   const parts = [];
-  const fileName = asset.metadata?.fileName || asset.metadata?.category || "Uploaded asset";
+  const fileName = asset.metadata?.fileName || asset.label || asset.metadata?.category || "Uploaded asset";
   const width = asset.metadata?.width;
   const height = asset.metadata?.height;
 
@@ -94,6 +95,29 @@ function isImageAsset(asset) {
   return /\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(asset?.url || "");
 }
 
+function getAssetSelectionItems(assets) {
+  return assets.flatMap((asset) => {
+    const sourceItem = {
+      key: `${asset.id}:source`,
+      url: asset.url,
+      label: asset.label,
+      meta: `${formatAssetMeta(asset)} | Original`,
+      previewUrl: asset.url,
+      sourceLabel: asset.label,
+    };
+    const variantItems = (asset.variants || []).map((variant) => ({
+      key: `${asset.id}:variant:${variant.id}`,
+      url: variant.url,
+      label: `${asset.label} - ${variant.label}`,
+      meta: `${formatAssetMeta(variant)} | Version of ${asset.label}`,
+      previewUrl: variant.url,
+      sourceLabel: asset.label,
+    }));
+
+    return [sourceItem, ...variantItems];
+  });
+}
+
 function AssetPickerModal({ title, assets, isOpen, onClose, onPick }) {
   const [search, setSearch] = useState("");
 
@@ -107,8 +131,8 @@ function AssetPickerModal({ title, assets, isOpen, onClose, onPick }) {
     return null;
   }
 
-  const filteredAssets = assets.filter((asset) =>
-    [asset.label, asset.url, asset.metadata?.fileName, asset.metadata?.category]
+  const filteredAssets = getAssetSelectionItems(assets).filter((asset) =>
+    [asset.label, asset.url, asset.meta, asset.sourceLabel]
       .filter(Boolean)
       .join(" ")
       .toLowerCase()
@@ -140,7 +164,7 @@ function AssetPickerModal({ title, assets, isOpen, onClose, onPick }) {
         <div className="asset-gallery-grid">
           {filteredAssets.map((asset) => (
             <button
-              key={asset.id}
+              key={asset.key}
               className="asset-gallery-card"
               type="button"
               onClick={() => {
@@ -148,10 +172,10 @@ function AssetPickerModal({ title, assets, isOpen, onClose, onPick }) {
                 onClose();
               }}
             >
-              <img src={asset.url} alt={asset.label} className="asset-gallery-card__image" />
+              <img src={asset.previewUrl} alt={asset.label} className="asset-gallery-card__image" />
               <span className="asset-gallery-card__title">{asset.label}</span>
               <span className="asset-gallery-card__meta">
-                {formatAssetMeta(asset)}
+                {asset.meta}
               </span>
             </button>
           ))}
@@ -1201,11 +1225,16 @@ function AssetsEditor({
   assets,
   onUpload,
   onDelete,
-  storage,
+  onCreateVariant,
+  onUpdateVariant,
+  onDeleteVariant,
 }) {
   const [uploadStatus, setUploadStatus] = useState("");
   const [dragActive, setDragActive] = useState(false);
+  const [variantAssetId, setVariantAssetId] = useState("");
   const imageAssets = assets.filter(isImageAsset);
+  const activeVariantAsset =
+    imageAssets.find((asset) => asset.id === variantAssetId) || null;
 
   async function uploadFiles(fileList) {
     const files = Array.from(fileList || []).filter((file) => file instanceof File && file.size);
@@ -1279,15 +1308,26 @@ function AssetsEditor({
                   <div className="asset-gallery-card__overlay">
                     <div className="asset-gallery-card__copy">
                     <span className="asset-gallery-card__title">{asset.label}</span>
-                    <span className="asset-gallery-card__meta">{formatAssetMeta(asset)}</span>
+                    <span className="asset-gallery-card__meta">
+                      {formatAssetMeta(asset)} | {(asset.variants || []).length} version{(asset.variants || []).length === 1 ? "" : "s"}
+                    </span>
                       </div>
-                    <button
-                      className="button-secondary asset-gallery-card__delete"
-                      type="button"
-                      onClick={() => handleDeleteAsset(asset)}
-                    >
-                      Delete
-                    </button>
+                    <div className="asset-gallery-card__actions">
+                      <button
+                        className="button-secondary asset-gallery-card__delete"
+                        type="button"
+                        onClick={() => setVariantAssetId(asset.id)}
+                      >
+                        Versions
+                      </button>
+                      <button
+                        className="button-secondary asset-gallery-card__delete"
+                        type="button"
+                        onClick={() => handleDeleteAsset(asset)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1296,6 +1336,14 @@ function AssetsEditor({
           </div>
         </div>
       </div>
+      <AssetVariantEditorModal
+        asset={activeVariantAsset}
+        isOpen={Boolean(activeVariantAsset)}
+        onClose={() => setVariantAssetId("")}
+        onCreateVariant={onCreateVariant}
+        onUpdateVariant={onUpdateVariant}
+        onDeleteVariant={onDeleteVariant}
+      />
     </section>
   );
 }
@@ -1542,7 +1590,22 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
             ]}
           />
         ) : null}
-        {activeTab === "assets" ? <AssetsEditor assets={adminData.assets} onUpload={async (payload) => syncAfterSave(await api.uploadAssets(payload))} onDelete={async (assetId) => syncAfterSave(await api.deleteAsset(assetId))} storage={adminData.storage} /> : null}
+        {activeTab === "assets" ? (
+          <AssetsEditor
+            assets={adminData.assets}
+            onUpload={async (payload) => syncAfterSave(await api.uploadAssets(payload))}
+            onDelete={async (assetId) => syncAfterSave(await api.deleteAsset(assetId))}
+            onCreateVariant={async (assetId, variant) =>
+              syncAfterSave(await api.createAssetVariant(assetId, variant))
+            }
+            onUpdateVariant={async (assetId, variantId, variant) =>
+              syncAfterSave(await api.updateAssetVariant(assetId, variantId, variant))
+            }
+            onDeleteVariant={async (assetId, variantId) =>
+              syncAfterSave(await api.deleteAssetVariant(assetId, variantId))
+            }
+          />
+        ) : null}
         {activeTab === "general" ? <SettingsEditor siteSettings={adminData.siteSettings} assets={adminData.assets} onSave={async (siteSettings) => syncAfterSave(await api.saveSiteSettings(siteSettings))} title="Settings" /> : null}
       </section>
     </main>

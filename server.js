@@ -977,14 +977,16 @@ function sanitizePublicData(data) {
         return rest;
       })
       .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)),
-    assets: data.assets,
+    assets: normalizeAssets(data.assets),
   };
 }
 
 function sanitizeAdminData(data) {
   return {
     ...data,
-    assets: data.assets.filter((asset) => asset.storageType === "s3-bucket"),
+    assets: normalizeAssets(
+      data.assets.filter((asset) => asset.storageType === "s3-bucket")
+    ),
     users: data.users.map((user) => ({
       id: user.id,
       username: user.username,
@@ -1113,9 +1115,44 @@ function getAssetUrl(assetId) {
   return `/api/assets/${encodeURIComponent(assetId)}`;
 }
 
+function getAssetVariantUrl(assetId, variantId) {
+  return `/api/assets/${encodeURIComponent(assetId)}/variants/${encodeURIComponent(
+    variantId
+  )}`;
+}
+
+function normalizeAssetVariant(assetId, variant) {
+  if (!variant || typeof variant !== "object") {
+    return null;
+  }
+
+  return {
+    ...variant,
+    url: getAssetVariantUrl(assetId, variant.id),
+  };
+}
+
+function normalizeAsset(asset) {
+  if (!asset || typeof asset !== "object") {
+    return asset;
+  }
+
+  return {
+    ...asset,
+    url: getAssetUrl(asset.id),
+    variants: (asset.variants || [])
+      .map((variant) => normalizeAssetVariant(asset.id, variant))
+      .filter(Boolean),
+  };
+}
+
+function normalizeAssets(assets) {
+  return (assets || []).map((asset) => normalizeAsset(asset));
+}
+
 function collectAssetUsagePaths(value, target, path = [], matches = []) {
   if (typeof value === "string") {
-    if (value === target) {
+    if (target.has(value)) {
       matches.push(path.join(".").replace(/\.\[/g, "["));
     }
     return matches;
@@ -1137,7 +1174,12 @@ function collectAssetUsagePaths(value, target, path = [], matches = []) {
   return matches;
 }
 
-function getAssetUsageReferences(data, assetUrl) {
+function getAssetUsageReferences(data, assetUrls) {
+  const targetUrls = new Set((assetUrls || []).filter(Boolean));
+  if (!targetUrls.size) {
+    return [];
+  }
+
   const targets = [
     ["siteSettings", data.siteSettings],
     ["pages", data.pages],
@@ -1147,8 +1189,178 @@ function getAssetUsageReferences(data, assetUrl) {
   ];
 
   return targets.flatMap(([label, value]) =>
-    collectAssetUsagePaths(value, assetUrl, [label])
+    collectAssetUsagePaths(value, targetUrls, [label])
   );
+}
+
+function getAssetVariantById(asset, variantId) {
+  return (asset?.variants || []).find((variant) => variant.id === variantId) || null;
+}
+
+function getAssetUrls(asset) {
+  const normalizedAsset = normalizeAsset(asset);
+  return [
+    normalizedAsset?.url,
+    ...(normalizedAsset?.variants || []).map((variant) => variant.url),
+  ].filter(Boolean);
+}
+
+function getAssetStorageKeys(asset) {
+  return [
+    asset?.metadata?.objectKey,
+    ...((asset?.variants || []).map((variant) => variant?.metadata?.objectKey)),
+  ].filter(Boolean);
+}
+
+function clampNumber(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function normalizeCropRect(crop) {
+  if (!crop || typeof crop !== "object") {
+    return null;
+  }
+
+  const x = Number(crop.x);
+  const y = Number(crop.y);
+  const width = Number(crop.width);
+  const height = Number(crop.height);
+
+  if (![x, y, width, height].every((entry) => Number.isFinite(entry))) {
+    return null;
+  }
+
+  const normalizedX = clampNumber(x, 0, 0.99);
+  const normalizedY = clampNumber(y, 0, 0.99);
+  const normalizedWidth = clampNumber(width, 0.01, 1 - normalizedX);
+  const normalizedHeight = clampNumber(height, 0.01, 1 - normalizedY);
+
+  return {
+    x: normalizedX,
+    y: normalizedY,
+    width: normalizedWidth,
+    height: normalizedHeight,
+  };
+}
+
+async function readStorageObjectBuffer(key) {
+  const client = createStorageClient();
+  const response = await client.send(
+    new GetObjectCommand({
+      Bucket: getStorageEnv().bucket,
+      Key: key,
+    })
+  );
+
+  if (response.Body?.transformToByteArray) {
+    const bytes = await response.Body.transformToByteArray();
+    return Buffer.from(bytes);
+  }
+
+  if (response.Body?.pipe || response.Body?.on) {
+    const chunks = [];
+    for await (const chunk of response.Body) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+  }
+
+  if (response.Body?.transformToWebStream) {
+    const reader = response.Body.transformToWebStream().getReader();
+    const chunks = [];
+    let done = false;
+    while (!done) {
+      const result = await reader.read();
+      done = result.done;
+      if (!done && result.value) {
+        chunks.push(Buffer.from(result.value));
+      }
+    }
+    return Buffer.concat(chunks);
+  }
+
+  throw new Error("Unable to read asset file from storage.");
+}
+
+function buildVariantStorageKey(assetId, variantId, contentType) {
+  const extension =
+    contentType === "image/png"
+      ? "png"
+      : contentType === "image/webp"
+        ? "webp"
+        : "jpg";
+  return `uploads/variants/${assetId}/${variantId}.${extension}`;
+}
+
+async function prepareAssetVariantUpload(asset, variantInput, variantId) {
+  const sourceContentType = asset?.metadata?.contentType || "";
+  const objectKey = asset?.metadata?.objectKey || "";
+  if (!normalizedRasterMimeTypes.has(sourceContentType) || !objectKey) {
+    throw new Error("Only JPG, PNG, or WEBP source images can create cropped versions.");
+  }
+
+  const label = String(variantInput?.label || "").trim();
+  if (!label) {
+    throw new Error("Variant name is required.");
+  }
+
+  const crop = normalizeCropRect(variantInput?.crop);
+  if (!crop) {
+    throw new Error("A valid crop selection is required.");
+  }
+
+  const sourceBuffer = await readStorageObjectBuffer(objectKey);
+  const sourceMetadata = await sharp(sourceBuffer, { failOn: "none" })
+    .rotate()
+    .metadata();
+
+  if (!sourceMetadata.width || !sourceMetadata.height) {
+    throw new Error("Unable to read source image dimensions.");
+  }
+
+  const sourceWidth = sourceMetadata.width;
+  const sourceHeight = sourceMetadata.height;
+  const left = clampNumber(Math.round(crop.x * sourceWidth), 0, sourceWidth - 1);
+  const top = clampNumber(Math.round(crop.y * sourceHeight), 0, sourceHeight - 1);
+  const width = clampNumber(
+    Math.round(crop.width * sourceWidth),
+    1,
+    sourceWidth - left
+  );
+  const height = clampNumber(
+    Math.round(crop.height * sourceHeight),
+    1,
+    sourceHeight - top
+  );
+
+  const output = getImageOutputOptions(sourceContentType);
+  const pipeline = sharp(sourceBuffer, { failOn: "none" })
+    .rotate()
+    .extract({ left, top, width, height });
+  const { data, info } = await output.apply(pipeline).toBuffer({ resolveWithObject: true });
+  const storageKey = buildVariantStorageKey(asset.id, variantId, output.contentType);
+
+  return {
+    body: data,
+    contentType: output.contentType,
+    storageKey,
+    variant: {
+      id: variantId,
+      label,
+      url: getAssetVariantUrl(asset.id, variantId),
+      metadata: {
+        contentType: output.contentType,
+        objectKey: storageKey,
+        size: data.length,
+        width: info.width || width,
+        height: info.height || height,
+        sourceAssetId: asset.id,
+        crop,
+        sourceWidth,
+        sourceHeight,
+      },
+    },
+  };
 }
 
 function getAssetUrlTtlSeconds() {
@@ -1624,7 +1836,7 @@ app.delete("/api/admin/assets/:id", requireTrustedOrigin, requireAdmin, async (r
     return;
   }
 
-  const usage = getAssetUsageReferences(currentData, asset.url);
+  const usage = getAssetUsageReferences(currentData, getAssetUrls(asset));
   if (usage.length) {
     res.status(409).json({
       error: "Asset is still in use and cannot be deleted.",
@@ -1633,15 +1845,8 @@ app.delete("/api/admin/assets/:id", requireTrustedOrigin, requireAdmin, async (r
     return;
   }
 
-  const objectKey = asset.metadata?.objectKey;
-  if (asset.storageType === "s3-bucket" && objectKey && storageIsConfigured()) {
-    const client = createStorageClient();
-    await client.send(
-      new DeleteObjectCommand({
-        Bucket: getStorageEnv().bucket,
-        Key: objectKey,
-      })
-    );
+  if (asset.storageType === "s3-bucket" && storageIsConfigured()) {
+    await deleteStorageKeys(getAssetStorageKeys(asset));
   }
 
   const next = await withData((data) => ({
@@ -1650,6 +1855,175 @@ app.delete("/api/admin/assets/:id", requireTrustedOrigin, requireAdmin, async (r
   }));
   res.json(sanitizeAdminData(next));
 });
+
+app.post(
+  "/api/admin/assets/:id/variants",
+  requireTrustedOrigin,
+  requireAdmin,
+  async (req, res) => {
+    if (!storageIsConfigured()) {
+      res.status(501).json({
+        error:
+          "Bucket storage is not configured. Set the required S3_* variables before using uploads.",
+      });
+      return;
+    }
+
+    const currentData = await repository.getAllData();
+    const asset = currentData.assets.find((entry) => entry.id === req.params.id);
+    if (!asset) {
+      res.status(404).json({ error: "Asset not found." });
+      return;
+    }
+
+    try {
+      const variantId = crypto.randomUUID();
+      const preparedVariant = await prepareAssetVariantUpload(
+        asset,
+        req.body?.variant,
+        variantId
+      );
+
+      const client = createStorageClient();
+      await client.send(
+        new PutObjectCommand({
+          Bucket: getStorageEnv().bucket,
+          Key: preparedVariant.storageKey,
+          Body: preparedVariant.body,
+          ContentType: preparedVariant.contentType,
+        })
+      );
+
+      const next = await withData((data) => ({
+        ...data,
+        assets: data.assets.map((entry) =>
+          entry.id === req.params.id
+            ? {
+                ...entry,
+                variants: [preparedVariant.variant, ...(entry.variants || [])],
+              }
+            : entry
+        ),
+      }));
+      res.json(sanitizeAdminData(next));
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Unable to create variant." });
+    }
+  }
+);
+
+app.put(
+  "/api/admin/assets/:id/variants/:variantId",
+  requireTrustedOrigin,
+  requireAdmin,
+  async (req, res) => {
+    if (!storageIsConfigured()) {
+      res.status(501).json({
+        error:
+          "Bucket storage is not configured. Set the required S3_* variables before using uploads.",
+      });
+      return;
+    }
+
+    const currentData = await repository.getAllData();
+    const asset = currentData.assets.find((entry) => entry.id === req.params.id);
+    if (!asset) {
+      res.status(404).json({ error: "Asset not found." });
+      return;
+    }
+
+    const existingVariant = getAssetVariantById(asset, req.params.variantId);
+    if (!existingVariant) {
+      res.status(404).json({ error: "Variant not found." });
+      return;
+    }
+
+    try {
+      const preparedVariant = await prepareAssetVariantUpload(
+        asset,
+        req.body?.variant,
+        req.params.variantId
+      );
+
+      const client = createStorageClient();
+      await client.send(
+        new PutObjectCommand({
+          Bucket: getStorageEnv().bucket,
+          Key: preparedVariant.storageKey,
+          Body: preparedVariant.body,
+          ContentType: preparedVariant.contentType,
+        })
+      );
+
+      const next = await withData((data) => ({
+        ...data,
+        assets: data.assets.map((entry) =>
+          entry.id === req.params.id
+            ? {
+                ...entry,
+                variants: (entry.variants || []).map((variant) =>
+                  variant.id === req.params.variantId ? preparedVariant.variant : variant
+                ),
+              }
+            : entry
+        ),
+      }));
+      res.json(sanitizeAdminData(next));
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Unable to update variant." });
+    }
+  }
+);
+
+app.delete(
+  "/api/admin/assets/:id/variants/:variantId",
+  requireTrustedOrigin,
+  requireAdmin,
+  async (req, res) => {
+    const currentData = await repository.getAllData();
+    const asset = currentData.assets.find((entry) => entry.id === req.params.id);
+    if (!asset) {
+      res.status(404).json({ error: "Asset not found." });
+      return;
+    }
+
+    const variant = getAssetVariantById(asset, req.params.variantId);
+    if (!variant) {
+      res.status(404).json({ error: "Variant not found." });
+      return;
+    }
+
+    const usage = getAssetUsageReferences(currentData, [
+      getAssetVariantUrl(req.params.id, req.params.variantId),
+    ]);
+    if (usage.length) {
+      res.status(409).json({
+        error: "Variant is still in use and cannot be deleted.",
+        usage,
+      });
+      return;
+    }
+
+    if (variant.metadata?.objectKey && storageIsConfigured()) {
+      await deleteStorageKeys([variant.metadata.objectKey]);
+    }
+
+    const next = await withData((data) => ({
+      ...data,
+      assets: data.assets.map((entry) =>
+        entry.id === req.params.id
+          ? {
+              ...entry,
+              variants: (entry.variants || []).filter(
+                (item) => item.id !== req.params.variantId
+              ),
+            }
+          : entry
+      ),
+    }));
+    res.json(sanitizeAdminData(next));
+  }
+);
 
 app.post(
   "/api/admin/assets/upload",
@@ -1763,6 +2137,36 @@ app.get("/api/assets/:id", async (req, res) => {
   res.redirect(302, signedUrl);
 });
 
+app.get("/api/assets/:id/variants/:variantId", async (req, res) => {
+  const data = await repository.getAllData();
+  const asset = data.assets.find((entry) => entry.id === req.params.id);
+
+  if (!asset) {
+    res.status(404).json({ error: "Asset not found." });
+    return;
+  }
+
+  const variant = getAssetVariantById(asset, req.params.variantId);
+  const objectKey = variant?.metadata?.objectKey;
+  if (!variant || !storageIsConfigured() || !objectKey) {
+    res.status(404).json({ error: "Asset variant not found." });
+    return;
+  }
+
+  const client = createStorageClient();
+  const signedUrl = await getSignedUrl(
+    client,
+    new GetObjectCommand({
+      Bucket: getStorageEnv().bucket,
+      Key: objectKey,
+      ResponseContentType: variant.metadata?.contentType || undefined,
+    }),
+    { expiresIn: getAssetUrlTtlSeconds() }
+  );
+
+  res.redirect(302, signedUrl);
+});
+
 app.get("/api/admin/letters", requireAdmin, async (_req, res) => {
   const data = await repository.getAllData();
   const enriched = data.lettersSubmissions
@@ -1804,6 +2208,20 @@ app.get("/api/admin/delivery/projects/:id", requireAdmin, async (req, res) => {
     currentCover: serializeDeliveryFile(detail.currentCover),
     files: detail.files.map((file) => serializeDeliveryFile(file)),
   });
+});
+
+app.get("/api/admin/delivery/projects/:id/analytics", requireAdmin, async (req, res) => {
+  const analytics = await deliveryStore.getProjectAnalytics(
+    req.session.user.id,
+    req.params.id,
+    req.query.days
+  );
+  if (!analytics) {
+    res.status(404).json({ error: "Delivery project not found." });
+    return;
+  }
+
+  res.json({ analytics });
 });
 
 app.put(

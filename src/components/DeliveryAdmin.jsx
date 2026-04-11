@@ -57,6 +57,27 @@ function SummaryRow({ label, value }) {
   );
 }
 
+function formatDateTime(dateString) {
+  if (!dateString) {
+    return "Not yet";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(dateString));
+}
+
+function formatRate(count, total) {
+  if (!total) {
+    return "0%";
+  }
+
+  return `${Math.round((count / total) * 100)}%`;
+}
+
 function GrabIcon() {
   return (
     <svg viewBox="0 0 12 18" aria-hidden="true">
@@ -104,6 +125,8 @@ export default function DeliveryAdmin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [summary, setSummary] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsStatus, setAnalyticsStatus] = useState("");
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [detail, setDetail] = useState(null);
@@ -173,18 +196,31 @@ export default function DeliveryAdmin() {
     if (!projectId) {
       setDetail(null);
       setTiersDraft([]);
+      setAnalytics(null);
       return;
     }
 
     setDetailStatus("Loading campaign...");
+    setAnalyticsStatus("Loading analytics...");
     try {
       const nextDetail = await api.getDeliveryProject(projectId);
       setDetail(nextDetail);
       syncConfig(nextDetail);
       setDetailStatus("");
+
+      try {
+        const nextAnalytics = await api.getDeliveryAnalytics(projectId, 14);
+        setAnalytics(nextAnalytics.analytics);
+        setAnalyticsStatus("");
+      } catch (analyticsError) {
+        setAnalytics(null);
+        setAnalyticsStatus(analyticsError.message || "Unable to load analytics.");
+      }
     } catch (loadError) {
       setDetailStatus(loadError.message || "Unable to load campaign detail.");
       setDetail(null);
+      setAnalytics(null);
+      setAnalyticsStatus("");
     }
   }
 
@@ -653,6 +689,13 @@ export default function DeliveryAdmin() {
 
   const selectedProject = projects.find((project) => project.id === selectedProjectId) || null;
   const coverUrl = detail?.currentCover ? fileRoute(detail.currentCover.id) : "";
+  const analyticsTimeline = analytics?.timeline || [];
+  const analyticsBackers = analytics?.backers || [];
+  const analyticsTotals = analytics?.totals || null;
+  const analyticsMaxCount = analyticsTimeline.reduce(
+    (max, day) => Math.max(max, day.pageViews, day.downloads),
+    0
+  );
   const firstPreviewTier = tiersDraft.find((tier) =>
     detail?.backers?.some((backer) => backer.tierId === tier.id)
   );
@@ -920,6 +963,109 @@ export default function DeliveryAdmin() {
 
             <section className="editor-card delivery-section">
               <div className="delivery-section__header">
+                <h2>Analytics</h2>
+              </div>
+              {analyticsTotals ? (
+                <>
+                  <div className="delivery-inline-stats delivery-analytics-stats">
+                    <div>
+                      <span>Unique Openers</span>
+                      <strong>
+                        {analyticsTotals.uniqueOpeners} / {analyticsTotals.backerCount}
+                      </strong>
+                      <small>{formatRate(analyticsTotals.uniqueOpeners, analyticsTotals.backerCount)} opened</small>
+                    </div>
+                    <div>
+                      <span>Total Page Views</span>
+                      <strong>{analyticsTotals.totalPageViews}</strong>
+                      <small>{analytics.windowDays} day trend</small>
+                    </div>
+                    <div>
+                      <span>Unique Downloaders</span>
+                      <strong>{analyticsTotals.uniqueDownloaders}</strong>
+                      <small>{formatRate(analyticsTotals.uniqueDownloaders, analyticsTotals.backerCount)} downloaded</small>
+                    </div>
+                    <div>
+                      <span>Total Downloads</span>
+                      <strong>{analyticsTotals.totalDownloads}</strong>
+                      <small>{analyticsTotals.unopenedBackers} still unopened</small>
+                    </div>
+                  </div>
+
+                  <div className="delivery-analytics-grid">
+                    <div className="delivery-analytics-card">
+                      <div className="delivery-mini-list__item-header">
+                        <strong>Page Views Over Time</strong>
+                        <span>Last {analytics.windowDays} days</span>
+                      </div>
+                      <div className="delivery-analytics-legend">
+                        <span><i className="delivery-analytics-swatch delivery-analytics-swatch--views" /> Views</span>
+                        <span><i className="delivery-analytics-swatch delivery-analytics-swatch--downloads" /> Downloads</span>
+                      </div>
+                      <div className="delivery-analytics-trend">
+                        {analyticsTimeline.map((day) => (
+                          <div key={day.date} className="delivery-analytics-trend__row">
+                            <span className="delivery-analytics-trend__label">{day.label}</span>
+                            <div className="delivery-analytics-trend__bars">
+                              <div
+                                className="delivery-analytics-trend__bar delivery-analytics-trend__bar--views"
+                                style={{
+                                  width: `${analyticsMaxCount ? (day.pageViews / analyticsMaxCount) * 100 : 0}%`,
+                                }}
+                              />
+                              <div
+                                className="delivery-analytics-trend__bar delivery-analytics-trend__bar--downloads"
+                                style={{
+                                  width: `${analyticsMaxCount ? (day.downloads / analyticsMaxCount) * 100 : 0}%`,
+                                }}
+                              />
+                            </div>
+                            <strong>{day.pageViews}</strong>
+                            <span>{day.downloads}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="delivery-analytics-card">
+                      <div className="delivery-mini-list__item-header">
+                        <strong>Backer Activity</strong>
+                        <span>Opens and downloads</span>
+                      </div>
+                      <div className="delivery-analytics-backers">
+                        {analyticsBackers.length ? (
+                          analyticsBackers.map((backer) => (
+                            <article key={backer.id} className="delivery-analytics-backer">
+                              <div className="delivery-analytics-backer__main">
+                                <strong>{backer.email}</strong>
+                                <span>{backer.tierName || "General Access"}</span>
+                              </div>
+                              <div className="delivery-analytics-backer__stats">
+                                <span>Opened {backer.pageViewCount}x</span>
+                                <span>Downloaded {backer.downloadCount}x</span>
+                              </div>
+                              <div className="delivery-analytics-backer__meta">
+                                <span>Last open: {formatDateTime(backer.lastOpenedAt)}</span>
+                                <span>Last download: {formatDateTime(backer.lastDownloadedAt)}</span>
+                              </div>
+                            </article>
+                          ))
+                        ) : (
+                          <p className="status-line">No backer analytics yet.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : analyticsStatus ? (
+                <p className="status-line">{analyticsStatus}</p>
+              ) : (
+                <p className="status-line">Analytics will appear after this campaign has activity.</p>
+              )}
+            </section>
+
+            <section className="editor-card delivery-section">
+              <div className="delivery-section__header">
                 <h2>Tiers</h2>
               </div>
               <p className="status-line">
@@ -1106,6 +1252,12 @@ export default function DeliveryAdmin() {
               <SummaryRow label="Backers" value={detail.backers.length} />
               <SummaryRow label="PDFs" value={detail.files.length} />
               <SummaryRow label="Tiers" value={detail.tiers.length} />
+              {analyticsTotals ? (
+                <>
+                  <SummaryRow label="Opened" value={`${analyticsTotals.uniqueOpeners}/${analyticsTotals.backerCount}`} />
+                  <SummaryRow label="Downloaded" value={analyticsTotals.uniqueDownloaders} />
+                </>
+              ) : null}
               <button className="button-secondary button-compact" type="button" onClick={handleDeleteProject}>
                 Delete Campaign
               </button>
