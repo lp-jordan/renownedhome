@@ -48,28 +48,6 @@ function fileRoute(fileId) {
   return `/api/delivery/files/${encodeURIComponent(fileId)}`;
 }
 
-function SummaryRow({ label, value }) {
-  return (
-    <div className="delivery-summary-card__row">
-      <span className="delivery-summary-card__row-label">{label}</span>
-      <strong className="delivery-summary-card__row-value">{value}</strong>
-    </div>
-  );
-}
-
-function formatDateTime(dateString) {
-  if (!dateString) {
-    return "Not yet";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(dateString));
-}
-
 function formatRate(count, total) {
   if (!total) {
     return "0%";
@@ -137,8 +115,8 @@ export default function DeliveryAdmin() {
   const [projectStatus, setProjectStatus] = useState("");
   const [configStatus, setConfigStatus] = useState("");
   const [showProjectForm, setShowProjectForm] = useState(false);
-  const [csvText, setCsvText] = useState("");
-  const [importStatus, setImportStatus] = useState("");
+  const [tierImportTexts, setTierImportTexts] = useState({});
+  const [tierImportStatuses, setTierImportStatuses] = useState({});
   const [sendStatus, setSendStatus] = useState("");
   const [selectedBackerIds, setSelectedBackerIds] = useState([]);
   const [backerStatus, setBackerStatus] = useState("");
@@ -182,6 +160,8 @@ export default function DeliveryAdmin() {
     setSelectedBackerIds([]);
     setEditingBackerId("");
     setBackerDraft({ email: "", tierId: nextDetail.tiers?.[0]?.id || "" });
+    setTierImportTexts({});
+    setTierImportStatuses({});
     setExpandedTierIds((current) => {
       const tierIds = nextDetail.tiers?.map((tier) => tier.id) || [];
       if (!tierIds.length) {
@@ -321,23 +301,41 @@ export default function DeliveryAdmin() {
     }
   }
 
-  async function handleImportBackers() {
-    if (!selectedProjectId || !csvText.trim()) {
-      setImportStatus("Paste at least one email first.");
+  async function handleImportBackersToTier(tier) {
+    const importText = tierImportTexts[tier.id] || "";
+    const emails = importText
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (!selectedProjectId || !emails.length) {
+      setTierImportStatuses((current) => ({
+        ...current,
+        [tier.id]: "Paste at least one email first.",
+      }));
       return;
     }
 
-    setImportStatus("Importing backers...");
+    const csvForTier = ["email,tier", ...emails.map((email) => `${email},${tier.name}`)].join("\n");
+    setTierImportStatuses((current) => ({
+      ...current,
+      [tier.id]: `Importing into ${tier.name}...`,
+    }));
+
     try {
-      const result = await api.importDeliveryBackers(selectedProjectId, csvText);
-      setImportStatus(
-        `Imported ${result.summary.importedCount}. Skipped ${result.summary.skippedExistingCount} existing and ${result.summary.skippedUnknownTierCount} unknown-tier row${result.summary.skippedUnknownTierCount === 1 ? "" : "s"}. Rows without a tier were added to General Access.`
-      );
-      setCsvText("");
+      const result = await api.importDeliveryBackers(selectedProjectId, csvForTier);
+      setTierImportTexts((current) => ({ ...current, [tier.id]: "" }));
+      setTierImportStatuses((current) => ({
+        ...current,
+        [tier.id]: `Imported ${result.summary.importedCount}. Skipped ${result.summary.skippedExistingCount} existing and ${result.summary.skippedUnknownTierCount} unmatched row${result.summary.skippedUnknownTierCount === 1 ? "" : "s"}.`,
+      }));
       await loadDashboard();
       await loadProjectDetail(selectedProjectId);
     } catch (importError) {
-      setImportStatus(importError.message || "Backer import failed.");
+      setTierImportStatuses((current) => ({
+        ...current,
+        [tier.id]: importError.message || "Backer import failed.",
+      }));
     }
   }
 
@@ -427,8 +425,6 @@ export default function DeliveryAdmin() {
       const nextProjects = await loadDashboard();
       const nextProjectId = nextProjects[0]?.id || "";
       setSelectedProjectId(nextProjectId);
-      setCsvText("");
-      setImportStatus("");
       setSendStatus("");
       setConfigStatus("");
       if (nextProjectId) {
@@ -687,17 +683,12 @@ export default function DeliveryAdmin() {
     return <div className="state-shell">{error}</div>;
   }
 
-  const selectedProject = projects.find((project) => project.id === selectedProjectId) || null;
   const coverUrl = detail?.currentCover ? fileRoute(detail.currentCover.id) : "";
   const analyticsTimeline = analytics?.timeline || [];
-  const analyticsBackers = analytics?.backers || [];
   const analyticsTotals = analytics?.totals || null;
   const analyticsMaxCount = analyticsTimeline.reduce(
     (max, day) => Math.max(max, day.pageViews, day.downloads),
     0
-  );
-  const firstPreviewTier = tiersDraft.find((tier) =>
-    detail?.backers?.some((backer) => backer.tierId === tier.id)
   );
   const tierGroups = detail
     ? tiersDraft.map((tier, index) => {
@@ -820,8 +811,7 @@ export default function DeliveryAdmin() {
       ) : null}
 
       {detail ? (
-        <div className="delivery-layout">
-          <div className="delivery-primary">
+        <div className="delivery-sections">
             <section className="editor-card delivery-section">
               <div className="delivery-section__header">
                 <h2>Campaign Setup</h2>
@@ -872,6 +862,80 @@ export default function DeliveryAdmin() {
                 </button>
               </div>
               {configStatus ? <p className="status-line">{configStatus}</p> : null}
+            </section>
+
+            <section className="editor-card delivery-section">
+              <div className="delivery-section__header">
+                <h2>Summary</h2>
+              </div>
+              <div className="delivery-summary-strip">
+                <div>
+                  <span>Status</span>
+                  <strong>{detail.project.status || "draft"}</strong>
+                </div>
+                <div>
+                  <span>Backers</span>
+                  <strong>{detail.backers.length}</strong>
+                </div>
+                <div>
+                  <span>PDFs</span>
+                  <strong>{detail.files.length}</strong>
+                </div>
+                <div>
+                  <span>Tiers</span>
+                  <strong>{detail.tiers.length}</strong>
+                </div>
+                {analyticsTotals ? (
+                  <>
+                    <div>
+                      <span>Opened</span>
+                      <strong>{analyticsTotals.uniqueOpeners}/{analyticsTotals.backerCount}</strong>
+                    </div>
+                    <div>
+                      <span>Downloaded</span>
+                      <strong>{analyticsTotals.uniqueDownloaders}</strong>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+              {detail.tiers.length ? (
+                <div className="delivery-mini-list">
+                  {detail.tiers.map((tier) => (
+                    <div key={tier.id} className="delivery-mini-list__item">
+                      <strong>{tier.name}</strong>
+                      <span>{tier.backerCount} backer{tier.backerCount === 1 ? "" : "s"}</span>
+                      <span>{(tier.fileIds || []).length} accessible PDF{(tier.fileIds || []).length === 1 ? "" : "s"}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="status-line">Add tiers first.</p>
+              )}
+              <div className="delivery-inline-actions">
+                <button
+                  className="button-primary"
+                  type="button"
+                  onClick={() => handleSendEmails()}
+                  disabled={!detail.backers.length || !detail.files.length}
+                >
+                  Send Unsent Emails
+                </button>
+                <button
+                  className="button-secondary"
+                  type="button"
+                  onClick={() => handleSendEmails({ resendAll: true })}
+                  disabled={!detail.backers.length || !detail.files.length}
+                >
+                  Resend All
+                </button>
+                <button className="button-secondary" type="button" onClick={handleDeleteProject}>
+                  Delete Campaign
+                </button>
+              </div>
+              <p className="status-line">
+                Each backer gets one private campaign link filtered by their tier. By default, only backers who have not been emailed yet will be sent.
+              </p>
+              {sendStatus ? <p className="status-line">{sendStatus}</p> : null}
             </section>
 
             <section className="editor-card delivery-section">
@@ -992,275 +1056,48 @@ export default function DeliveryAdmin() {
                     </div>
                   </div>
 
-                  <div className="delivery-analytics-grid">
-                    <div className="delivery-analytics-card">
-                      <div className="delivery-mini-list__item-header">
-                        <strong>Page Views Over Time</strong>
-                        <span>Last {analytics.windowDays} days</span>
-                      </div>
-                      <div className="delivery-analytics-legend">
-                        <span><i className="delivery-analytics-swatch delivery-analytics-swatch--views" /> Views</span>
-                        <span><i className="delivery-analytics-swatch delivery-analytics-swatch--downloads" /> Downloads</span>
-                      </div>
-                      <div className="delivery-analytics-trend">
-                        {analyticsTimeline.map((day) => (
-                          <div key={day.date} className="delivery-analytics-trend__row">
-                            <span className="delivery-analytics-trend__label">{day.label}</span>
-                            <div className="delivery-analytics-trend__bars">
-                              <div
-                                className="delivery-analytics-trend__bar delivery-analytics-trend__bar--views"
-                                style={{
-                                  width: `${analyticsMaxCount ? (day.pageViews / analyticsMaxCount) * 100 : 0}%`,
-                                }}
-                              />
-                              <div
-                                className="delivery-analytics-trend__bar delivery-analytics-trend__bar--downloads"
-                                style={{
-                                  width: `${analyticsMaxCount ? (day.downloads / analyticsMaxCount) * 100 : 0}%`,
-                                }}
-                              />
-                            </div>
-                            <strong>{day.pageViews}</strong>
-                            <span>{day.downloads}</span>
-                          </div>
-                        ))}
-                      </div>
+                  <div className="delivery-analytics-card">
+                    <div className="delivery-mini-list__item-header">
+                      <strong>Page Views Over Time</strong>
+                      <span>Last {analytics.windowDays} days</span>
                     </div>
-
-                    <div className="delivery-analytics-card">
-                      <div className="delivery-mini-list__item-header">
-                        <strong>Backer Activity</strong>
-                        <span>Opens and downloads</span>
-                      </div>
-                      <div className="delivery-analytics-backers">
-                        {analyticsBackers.length ? (
-                          analyticsBackers.map((backer) => (
-                            <article key={backer.id} className="delivery-analytics-backer">
-                              <div className="delivery-analytics-backer__main">
-                                <strong>{backer.email}</strong>
-                                <span>{backer.tierName || "General Access"}</span>
-                              </div>
-                              <div className="delivery-analytics-backer__stats">
-                                <span>Opened {backer.pageViewCount}x</span>
-                                <span>Downloaded {backer.downloadCount}x</span>
-                              </div>
-                              <div className="delivery-analytics-backer__meta">
-                                <span>Last open: {formatDateTime(backer.lastOpenedAt)}</span>
-                                <span>Last download: {formatDateTime(backer.lastDownloadedAt)}</span>
-                              </div>
-                            </article>
-                          ))
-                        ) : (
-                          <p className="status-line">No backer analytics yet.</p>
-                        )}
-                      </div>
+                    <div className="delivery-analytics-legend">
+                      <span><i className="delivery-analytics-swatch delivery-analytics-swatch--views" /> Views</span>
+                      <span><i className="delivery-analytics-swatch delivery-analytics-swatch--downloads" /> Downloads</span>
+                    </div>
+                    <div className="delivery-analytics-trend">
+                      {analyticsTimeline.map((day) => (
+                        <div key={day.date} className="delivery-analytics-trend__row">
+                          <span className="delivery-analytics-trend__label">{day.label}</span>
+                          <div className="delivery-analytics-trend__bars">
+                            <div
+                              className="delivery-analytics-trend__bar delivery-analytics-trend__bar--views"
+                              style={{
+                                width: `${analyticsMaxCount ? (day.pageViews / analyticsMaxCount) * 100 : 0}%`,
+                              }}
+                            />
+                            <div
+                              className="delivery-analytics-trend__bar delivery-analytics-trend__bar--downloads"
+                              style={{
+                                width: `${analyticsMaxCount ? (day.downloads / analyticsMaxCount) * 100 : 0}%`,
+                              }}
+                            />
+                          </div>
+                          <strong>{day.pageViews}</strong>
+                          <span>{day.downloads}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
+                  <p className="status-line">
+                    Backer-level activity lives in the backer list, where each person can be opened directly from their row.
+                  </p>
                 </>
               ) : analyticsStatus ? (
                 <p className="status-line">{analyticsStatus}</p>
               ) : (
                 <p className="status-line">Analytics will appear after this campaign has activity.</p>
               )}
-            </section>
-
-            <section className="editor-card delivery-section">
-              <div className="delivery-section__header">
-                <h2>Tiers</h2>
-              </div>
-              <p className="status-line">
-                Each tier can override the campaign message and choose which PDFs appear behind its private link.
-              </p>
-              <div className="delivery-mini-list">
-                {tiersDraft.map((tier, index) => (
-                  <div key={tier.id} className="delivery-mini-list__item">
-                    <div className="delivery-mini-list__item-header">
-                      <strong>Tier {index + 1}</strong>
-                      <button
-                        className="button-secondary button-compact"
-                        type="button"
-                        onClick={() => removeTier(index)}
-                        disabled={tiersDraft.length <= 1 || tier.backerCount > 0}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                    <label>
-                      <span>Name</span>
-                      <input
-                        value={tier.name}
-                        onChange={(event) => handleTierChange(index, "name", event.target.value)}
-                      />
-                    </label>
-                    <label>
-                      <span>Tier-specific message override</span>
-                      <textarea
-                        rows={3}
-                        value={tier.messageOverride}
-                        onChange={(event) =>
-                          handleTierChange(index, "messageOverride", event.target.value)
-                        }
-                      />
-                    </label>
-                    <label>
-                      <span>Additional link label</span>
-                      <input
-                        value={tier.additionalLinkLabel || ""}
-                        onChange={(event) =>
-                          handleTierChange(index, "additionalLinkLabel", event.target.value)
-                        }
-                        placeholder="Leave a Letter"
-                      />
-                    </label>
-                    <label>
-                      <span>Additional link URL</span>
-                      <input
-                        value={tier.additionalLinkUrl || ""}
-                        onChange={(event) =>
-                          handleTierChange(index, "additionalLinkUrl", event.target.value)
-                        }
-                        placeholder="https://example.com"
-                      />
-                    </label>
-                    <div className="delivery-mini-list">
-                      {detail.files.map((file) => (
-                        <label key={file.id} className="workspace-toggle">
-                          <input
-                            type="checkbox"
-                            checked={tier.fileIds.includes(file.id)}
-                            onChange={() => toggleTierFile(index, file.id)}
-                          />
-                          <span>{file.originalFilename}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <span>{tier.backerCount || 0} backer{tier.backerCount === 1 ? "" : "s"} in this tier</span>
-                  </div>
-                ))}
-              </div>
-              <div className="delivery-inline-actions">
-                <button className="button-secondary" type="button" onClick={addTier}>
-                  Add Tier
-                </button>
-                <button className="button-primary" type="button" onClick={handleSaveConfig}>
-                  Save Tier Setup
-                </button>
-              </div>
-            </section>
-
-            <section className="editor-card delivery-section">
-              <div className="delivery-section__header">
-                <h2>Import Backers</h2>
-              </div>
-              <p className="status-line">Use `email,tier` rows. If tier is omitted, the backer goes to General Access and can be moved later.</p>
-              <label>
-                <span>Backer CSV</span>
-                <textarea
-                  rows={9}
-                  value={csvText}
-                  onChange={(event) => setCsvText(event.target.value)}
-                  placeholder={"email,tier\nreader@example.com,Issue 2 only\ncollector@example.com,Issues 1 + 2"}
-                />
-              </label>
-              <div className="delivery-inline-actions">
-                <button className="button-primary" type="button" onClick={handleImportBackers}>
-                  Import
-                </button>
-              </div>
-              {importStatus ? <p className="status-line">{importStatus}</p> : null}
-            </section>
-
-            <section className="editor-card delivery-section">
-              <div className="delivery-section__header">
-                <h2>Send Delivery</h2>
-              </div>
-              {detail.tiers.length ? (
-                <div className="delivery-mini-list">
-                  {detail.tiers.map((tier) => (
-                    <div key={tier.id} className="delivery-mini-list__item">
-                      <strong>{tier.name}</strong>
-                      <span>{tier.backerCount} backer{tier.backerCount === 1 ? "" : "s"}</span>
-                      <span>{(tier.fileIds || []).length} accessible PDF{(tier.fileIds || []).length === 1 ? "" : "s"}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="status-line">Add tiers first.</p>
-              )}
-              <button
-                className="button-primary"
-                type="button"
-                onClick={() => handleSendEmails()}
-                disabled={!detail.backers.length || !detail.files.length}
-              >
-                Send Unsent Emails
-              </button>
-              <button
-                className="button-secondary"
-                type="button"
-                onClick={() => handleSendEmails({ resendAll: true })}
-                disabled={!detail.backers.length || !detail.files.length}
-              >
-                Resend All
-              </button>
-              <p className="status-line">
-                Each backer gets one private campaign link filtered by their tier. By default, only backers who have not been emailed yet will be sent.
-              </p>
-              {sendStatus ? <p className="status-line">{sendStatus}</p> : null}
-            </section>
-
-            <section className="editor-card delivery-section">
-              <div className="delivery-section__header">
-                <h2>Tier Preview</h2>
-              </div>
-              {detail.tiers.length ? (
-                <div className="delivery-mini-list">
-                  {detail.tiers.map((tier) => {
-                    const previewBacker = detail.backers.find((backer) => backer.tierId === tier.id);
-                      return (
-                        <div key={tier.id} className="delivery-mini-list__item">
-                          <strong>{tier.name}</strong>
-                          <span>{tier.messageOverride || detail.project.shortMessage || "Uses default message."}</span>
-                          {tier.additionalLinkUrl ? (
-                            <span>{tier.additionalLinkLabel || tier.additionalLinkUrl}</span>
-                          ) : null}
-                          {previewBacker ? (
-                            <a href={`/a/${previewBacker.accessToken}`} target="_blank" rel="noreferrer">
-                              Open preview
-                          </a>
-                        ) : (
-                          <span>Add one backer to preview this tier</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : null}
-              {!firstPreviewTier ? (
-                <p className="status-line">Import at least one backer into a tier to preview the public page.</p>
-              ) : null}
-            </section>
-          </div>
-
-          <aside className="delivery-secondary">
-            <section className="editor-card delivery-summary-card">
-              <div className="delivery-section__header">
-                <h2>Campaign Summary</h2>
-              </div>
-              <p className="delivery-summary-card__title">{selectedProject?.title || detail.project.title}</p>
-              <SummaryRow label="Status" value={detail.project.status || "draft"} />
-              <SummaryRow label="Backers" value={detail.backers.length} />
-              <SummaryRow label="PDFs" value={detail.files.length} />
-              <SummaryRow label="Tiers" value={detail.tiers.length} />
-              {analyticsTotals ? (
-                <>
-                  <SummaryRow label="Opened" value={`${analyticsTotals.uniqueOpeners}/${analyticsTotals.backerCount}`} />
-                  <SummaryRow label="Downloaded" value={analyticsTotals.uniqueDownloaders} />
-                </>
-              ) : null}
-              <button className="button-secondary button-compact" type="button" onClick={handleDeleteProject}>
-                Delete Campaign
-              </button>
             </section>
 
             <section className="editor-card delivery-summary-card">
@@ -1449,7 +1286,136 @@ export default function DeliveryAdmin() {
               )}
               {backerStatus ? <p className="status-line">{backerStatus}</p> : null}
             </section>
-          </aside>
+
+            <section className="editor-card delivery-section">
+              <div className="delivery-section__header">
+                <h2>Tiers</h2>
+              </div>
+              <p className="status-line">
+                Each tier can override the campaign message, choose its PDFs, import its own backers, and preview the exact private page it will send.
+              </p>
+              <div className="delivery-mini-list">
+                {tiersDraft.map((tier, index) => {
+                  const previewBacker = detail.backers.find((backer) => backer.tierId === tier.id);
+                  const tierImportText = tierImportTexts[tier.id] || "";
+                  const tierImportStatus = tierImportStatuses[tier.id] || "";
+                  return (
+                    <div key={tier.id} className="delivery-mini-list__item delivery-tier-editor">
+                      <div className="delivery-mini-list__item-header">
+                        <strong>{tier.name || `Tier ${index + 1}`}</strong>
+                        <button
+                          className="button-secondary button-compact"
+                          type="button"
+                          onClick={() => removeTier(index)}
+                          disabled={tiersDraft.length <= 1 || tier.backerCount > 0}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <label>
+                        <span>Name</span>
+                        <input
+                          value={tier.name}
+                          onChange={(event) => handleTierChange(index, "name", event.target.value)}
+                        />
+                      </label>
+                      <label>
+                        <span>Tier-specific message override</span>
+                        <textarea
+                          rows={3}
+                          value={tier.messageOverride}
+                          onChange={(event) =>
+                            handleTierChange(index, "messageOverride", event.target.value)
+                          }
+                        />
+                      </label>
+                      <label>
+                        <span>Additional link label</span>
+                        <input
+                          value={tier.additionalLinkLabel || ""}
+                          onChange={(event) =>
+                            handleTierChange(index, "additionalLinkLabel", event.target.value)
+                          }
+                          placeholder="Leave a Letter"
+                        />
+                      </label>
+                      <label>
+                        <span>Additional link URL</span>
+                        <input
+                          value={tier.additionalLinkUrl || ""}
+                          onChange={(event) =>
+                            handleTierChange(index, "additionalLinkUrl", event.target.value)
+                          }
+                          placeholder="https://example.com"
+                        />
+                      </label>
+                      <div className="delivery-mini-list">
+                        {detail.files.map((file) => (
+                          <label key={file.id} className="workspace-toggle">
+                            <input
+                              type="checkbox"
+                              checked={tier.fileIds.includes(file.id)}
+                              onChange={() => toggleTierFile(index, file.id)}
+                            />
+                            <span>{file.originalFilename}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <span>{tier.backerCount || 0} backer{tier.backerCount === 1 ? "" : "s"} in this tier</span>
+
+                      <div className="delivery-tier-editor__subsection">
+                        <strong>Import Backers</strong>
+                        <span>Paste one email per line. These backers will be added directly to {tier.name || `Tier ${index + 1}`}.</span>
+                        <textarea
+                          rows={6}
+                          value={tierImportText}
+                          onChange={(event) =>
+                            setTierImportTexts((current) => ({
+                              ...current,
+                              [tier.id]: event.target.value,
+                            }))
+                          }
+                          placeholder={"reader@example.com\ncollector@example.com"}
+                        />
+                        <div className="delivery-inline-actions">
+                          <button
+                            className="button-primary button-compact"
+                            type="button"
+                            onClick={() => handleImportBackersToTier(tier)}
+                          >
+                            Import Into Tier
+                          </button>
+                        </div>
+                        {tierImportStatus ? <p className="status-line">{tierImportStatus}</p> : null}
+                      </div>
+
+                      <div className="delivery-tier-editor__subsection">
+                        <strong>Preview</strong>
+                        <span>{tier.messageOverride || detail.project.shortMessage || "Uses default message."}</span>
+                        {tier.additionalLinkUrl ? (
+                          <span>{tier.additionalLinkLabel || tier.additionalLinkUrl}</span>
+                        ) : null}
+                        {previewBacker ? (
+                          <a href={`/a/${previewBacker.accessToken}`} target="_blank" rel="noreferrer">
+                            Open preview
+                          </a>
+                        ) : (
+                          <span>Add one backer to preview this tier.</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="delivery-inline-actions">
+                <button className="button-secondary" type="button" onClick={addTier}>
+                  Add Tier
+                </button>
+                <button className="button-primary" type="button" onClick={handleSaveConfig}>
+                  Save Tier Setup
+                </button>
+              </div>
+            </section>
         </div>
       ) : null}
 

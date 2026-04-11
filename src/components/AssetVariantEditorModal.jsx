@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const FULL_CROP = { x: 0, y: 0, width: 1, height: 1 };
+const DRAG_THRESHOLD_PX = 6;
+const MIN_CROP_SIZE = 0.01;
+const RESIZE_HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -33,6 +36,70 @@ function getPointerCrop(event, element, startPoint) {
     width: Math.max(right - left, 0.01),
     height: Math.max(bottom - top, 0.01),
   });
+}
+
+function getPointerPoint(event, element) {
+  const rect = element.getBoundingClientRect();
+  return {
+    x: clamp((event.clientX - rect.left) / rect.width, 0, 1),
+    y: clamp((event.clientY - rect.top) / rect.height, 0, 1),
+  };
+}
+
+function applyDragToCrop(dragState, point) {
+  if (!dragState) {
+    return FULL_CROP;
+  }
+
+  if (dragState.mode === "draw") {
+    return getPointerCrop(
+      { clientX: point.clientX, clientY: point.clientY },
+      { getBoundingClientRect: () => dragState.rect },
+      dragState.startPoint
+    );
+  }
+
+  if (dragState.mode === "move") {
+    return {
+      ...dragState.startCrop,
+      x: clamp(dragState.startCrop.x + (point.x - dragState.startPoint.x), 0, 1 - dragState.startCrop.width),
+      y: clamp(dragState.startCrop.y + (point.y - dragState.startPoint.y), 0, 1 - dragState.startCrop.height),
+    };
+  }
+
+  let left = dragState.startCrop.x;
+  let top = dragState.startCrop.y;
+  let right = dragState.startCrop.x + dragState.startCrop.width;
+  let bottom = dragState.startCrop.y + dragState.startCrop.height;
+  const { handle } = dragState;
+
+  if (handle.includes("w")) {
+    left = clamp(dragState.startCrop.x + (point.x - dragState.startPoint.x), 0, right - MIN_CROP_SIZE);
+  }
+  if (handle.includes("e")) {
+    right = clamp(
+      dragState.startCrop.x + dragState.startCrop.width + (point.x - dragState.startPoint.x),
+      left + MIN_CROP_SIZE,
+      1
+    );
+  }
+  if (handle.includes("n")) {
+    top = clamp(dragState.startCrop.y + (point.y - dragState.startPoint.y), 0, bottom - MIN_CROP_SIZE);
+  }
+  if (handle.includes("s")) {
+    bottom = clamp(
+      dragState.startCrop.y + dragState.startCrop.height + (point.y - dragState.startPoint.y),
+      top + MIN_CROP_SIZE,
+      1
+    );
+  }
+
+  return {
+    x: left,
+    y: top,
+    width: right - left,
+    height: bottom - top,
+  };
 }
 
 function buildDraft(variant) {
@@ -96,6 +163,29 @@ export default function AssetVariantEditorModal({
       ...current,
       crop: normalizeCrop(nextCrop),
     }));
+  }
+
+  function beginInteraction(event, mode, handle = "") {
+    if (!supportsCropping || !previewRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = previewRef.current.getBoundingClientRect();
+    const startPoint = getPointerPoint(event, previewRef.current);
+    previewRef.current.setPointerCapture?.(event.pointerId);
+    setDragState({
+      pointerId: event.pointerId,
+      mode,
+      handle,
+      rect,
+      startPoint,
+      startCrop: draft.crop,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      moved: false,
+    });
   }
 
   async function handleSave() {
@@ -164,32 +254,50 @@ export default function AssetVariantEditorModal({
             <div
               ref={previewRef}
               className={`asset-crop-surface ${supportsCropping ? "" : "is-disabled"}`}
-              onPointerDown={(event) => {
-                if (!supportsCropping || !previewRef.current) {
-                  return;
-                }
-
-                const rect = previewRef.current.getBoundingClientRect();
-                const startPoint = {
-                  x: clamp((event.clientX - rect.left) / rect.width, 0, 1),
-                  y: clamp((event.clientY - rect.top) / rect.height, 0, 1),
-                };
-                previewRef.current.setPointerCapture?.(event.pointerId);
-                setDragState({ pointerId: event.pointerId, startPoint });
-                updateCrop({ x: startPoint.x, y: startPoint.y, width: 0.01, height: 0.01 });
-              }}
+              onPointerDown={(event) => beginInteraction(event, "draw")}
               onPointerMove={(event) => {
                 if (!dragState || !previewRef.current) {
                   return;
                 }
-                updateCrop(getPointerCrop(event, previewRef.current, dragState.startPoint));
+
+                const moved =
+                  dragState.moved ||
+                  Math.abs(event.clientX - dragState.startClientX) >= DRAG_THRESHOLD_PX ||
+                  Math.abs(event.clientY - dragState.startClientY) >= DRAG_THRESHOLD_PX;
+
+                if (!moved) {
+                  return;
+                }
+
+                if (!dragState.moved) {
+                  setDragState((current) => (current ? { ...current, moved: true } : current));
+                }
+
+                updateCrop(
+                  applyDragToCrop(dragState, {
+                    ...getPointerPoint(event, previewRef.current),
+                    clientX: event.clientX,
+                    clientY: event.clientY,
+                  })
+                );
               }}
               onPointerUp={(event) => {
                 if (!dragState || !previewRef.current) {
                   return;
                 }
                 previewRef.current.releasePointerCapture?.(dragState.pointerId);
-                updateCrop(getPointerCrop(event, previewRef.current, dragState.startPoint));
+                if (dragState.moved) {
+                  updateCrop(
+                    applyDragToCrop(dragState, {
+                      ...getPointerPoint(event, previewRef.current),
+                      clientX: event.clientX,
+                      clientY: event.clientY,
+                    })
+                  );
+                }
+                setDragState(null);
+              }}
+              onPointerCancel={() => {
                 setDragState(null);
               }}
             >
@@ -203,12 +311,26 @@ export default function AssetVariantEditorModal({
                     width: `${draft.crop.width * 100}%`,
                     height: `${draft.crop.height * 100}%`,
                   }}
-                />
+                >
+                  <div
+                    className="asset-crop-surface__selection-body"
+                    onPointerDown={(event) => beginInteraction(event, "move")}
+                  />
+                  {RESIZE_HANDLES.map((handle) => (
+                    <button
+                      key={handle}
+                      className={`asset-crop-surface__handle asset-crop-surface__handle--${handle}`}
+                      type="button"
+                      aria-label={`Resize crop ${handle}`}
+                      onPointerDown={(event) => beginInteraction(event, "resize", handle)}
+                    />
+                  ))}
+                </div>
               ) : null}
             </div>
             {supportsCropping ? (
               <p className="field-help">
-                Drag on the image to draw a crop box, then fine-tune with the sliders.
+                Drag on the image to draw. Drag inside the box to move it, or drag the handles to resize.
               </p>
             ) : (
               <p className="field-help">
