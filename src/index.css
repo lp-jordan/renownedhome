@@ -833,6 +833,23 @@ textarea {
   font-size: 0.93rem;
 }
 
+.delivery-backer-sent,
+.delivery-backer-unsent {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-family: "Josefin Sans", sans-serif;
+}
+
+.delivery-backer-sent {
+  color: #7ecfa0;
+}
+
+.delivery-backer-unsent {
+  color: var(--text-dim);
+  opacity: 0.6;
+}
+
 .delivery-backer-row__actions {
   display: inline-flex;
   align-items: center;
@@ -1602,7 +1619,7 @@ textarea {
 }
 
 .hero--home {
-  min-height: 88vh;
+  min-height: 100svh;
 }
 
 .hero--meet {
@@ -1623,6 +1640,10 @@ textarea {
   will-change: transform;
 }
 
+.hero--home .hero__background {
+  background-position: top center;
+}
+
 .hero--subpage .hero__background,
 .hero--meet .hero__background,
 .hero--letters .hero__background {
@@ -1634,6 +1655,11 @@ textarea {
   inset: 0;
   background:
     linear-gradient(180deg, rgba(4, 5, 9, 0.12) 0%, rgba(4, 5, 9, 0.46) 52%, rgba(10, 13, 20, 0.88) 78%, rgba(10, 13, 20, 1) 100%);
+}
+
+.hero--home .hero__scrim {
+  background:
+    linear-gradient(180deg, rgba(4, 5, 9, 0.08) 0%, rgba(4, 5, 9, 0.22) 50%, rgba(10, 13, 20, 0.72) 80%, rgba(10, 13, 20, 1) 100%);
 }
 
 .hero__content {
@@ -2916,6 +2942,10 @@ textarea {
 .status-pill--error,
 .status-line--error {
   color: #ff9d9d;
+}
+
+.status-line--success {
+  color: #7ecfa0;
 }
 
 .status-pill--pending {

@@ -48,6 +48,18 @@ function fileRoute(fileId) {
   return `/api/delivery/files/${encodeURIComponent(fileId)}`;
 }
 
+function statusClass(text) {
+  if (!text) return "status-line";
+  const lower = text.toLowerCase();
+  if (/failed|unable|error|unavailable|invalid|not configured|not found/.test(lower)) {
+    return "status-line status-line--error";
+  }
+  if (/saved|created|imported|deleted|sent|updated|moved|uploaded/.test(lower)) {
+    return "status-line status-line--success";
+  }
+  return "status-line";
+}
+
 function formatRate(count, total) {
   if (!total) {
     return "0%";
@@ -855,13 +867,25 @@ export default function DeliveryAdmin() {
                     }
                   />
                 </label>
+                <label className="delivery-form-grid__full">
+                  <span>Slug override</span>
+                  <input
+                    value={configForm.slug}
+                    onChange={(event) =>
+                      setConfigForm((current) => ({ ...current, slug: event.target.value }))
+                    }
+                  />
+                </label>
               </div>
               <div className="delivery-inline-actions">
                 <button className="button-primary" type="button" onClick={handleSaveConfig}>
-                  Save Campaign
+                  Save All Changes
+                </button>
+                <button className="button-secondary" type="button" onClick={handleDeleteProject}>
+                  Delete Campaign
                 </button>
               </div>
-              {configStatus ? <p className="status-line">{configStatus}</p> : null}
+              {configStatus ? <p className={statusClass(configStatus)}>{configStatus}</p> : null}
             </section>
 
             <section className="editor-card delivery-section">
@@ -885,18 +909,6 @@ export default function DeliveryAdmin() {
                   <span>Tiers</span>
                   <strong>{detail.tiers.length}</strong>
                 </div>
-                {analyticsTotals ? (
-                  <>
-                    <div>
-                      <span>Opened</span>
-                      <strong>{analyticsTotals.uniqueOpeners}/{analyticsTotals.backerCount}</strong>
-                    </div>
-                    <div>
-                      <span>Downloaded</span>
-                      <strong>{analyticsTotals.uniqueDownloaders}</strong>
-                    </div>
-                  </>
-                ) : null}
               </div>
               {detail.tiers.length ? (
                 <div className="delivery-mini-list">
@@ -928,14 +940,11 @@ export default function DeliveryAdmin() {
                 >
                   Resend All
                 </button>
-                <button className="button-secondary" type="button" onClick={handleDeleteProject}>
-                  Delete Campaign
-                </button>
               </div>
               <p className="status-line">
                 Each backer gets one private campaign link filtered by their tier. By default, only backers who have not been emailed yet will be sent.
               </p>
-              {sendStatus ? <p className="status-line">{sendStatus}</p> : null}
+              {sendStatus ? <p className={statusClass(sendStatus)}>{sendStatus}</p> : null}
             </section>
 
             <section className="editor-card delivery-section">
@@ -1022,7 +1031,7 @@ export default function DeliveryAdmin() {
                   ))}
                 </div>
               ) : null}
-              {detailStatus ? <p className="status-line">{detailStatus}</p> : null}
+              {detailStatus ? <p className={statusClass(detailStatus)}>{detailStatus}</p> : null}
             </section>
 
             <section className="editor-card delivery-section">
@@ -1242,6 +1251,11 @@ export default function DeliveryAdmin() {
                                       <>
                                         <div className="delivery-backer-row__content">
                                           <strong>{backer.email}</strong>
+                                          {backer.lastEmailedAt ? (
+                                            <span className="delivery-backer-sent">Sent</span>
+                                          ) : (
+                                            <span className="delivery-backer-unsent">Unsent</span>
+                                          )}
                                         </div>
                                         <div className="delivery-backer-row__actions">
                                           <button className="delivery-icon-button" type="button" onClick={(event) => {
@@ -1284,7 +1298,7 @@ export default function DeliveryAdmin() {
               ) : (
                 <p className="status-line">Import backers and they will appear here for reassignment.</p>
               )}
-              {backerStatus ? <p className="status-line">{backerStatus}</p> : null}
+              {backerStatus ? <p className={statusClass(backerStatus)}>{backerStatus}</p> : null}
             </section>
 
             <section className="editor-card delivery-section">
@@ -1302,7 +1316,7 @@ export default function DeliveryAdmin() {
                   return (
                     <div key={tier.id} className="delivery-mini-list__item delivery-tier-editor">
                       <div className="delivery-mini-list__item-header">
-                        <strong>{tier.name || `Tier ${index + 1}`}</strong>
+                        <strong>Tier {index + 1}</strong>
                         <button
                           className="button-secondary button-compact"
                           type="button"
@@ -1386,7 +1400,7 @@ export default function DeliveryAdmin() {
                             Import Into Tier
                           </button>
                         </div>
-                        {tierImportStatus ? <p className="status-line">{tierImportStatus}</p> : null}
+                        {tierImportStatus ? <p className={statusClass(tierImportStatus)}>{tierImportStatus}</p> : null}
                       </div>
 
                       <div className="delivery-tier-editor__subsection">
@@ -1396,8 +1410,8 @@ export default function DeliveryAdmin() {
                           <span>{tier.additionalLinkLabel || tier.additionalLinkUrl}</span>
                         ) : null}
                         {previewBacker ? (
-                          <a href={`/a/${previewBacker.accessToken}`} target="_blank" rel="noreferrer">
-                            Open preview
+                          <a className="button-secondary button-compact" href={`/a/${previewBacker.accessToken}`} target="_blank" rel="noreferrer">
+                            Open Preview
                           </a>
                         ) : (
                           <span>Add one backer to preview this tier.</span>
@@ -1412,7 +1426,7 @@ export default function DeliveryAdmin() {
                   Add Tier
                 </button>
                 <button className="button-primary" type="button" onClick={handleSaveConfig}>
-                  Save Tier Setup
+                  Save All Changes
                 </button>
               </div>
             </section>
