@@ -99,8 +99,9 @@ async function uploadSingleAsset(file, options = {}) {
 }
 
 export const api = {
-  getBootstrap() {
-    return request("/api/bootstrap");
+  getBootstrap(forceRefresh = false) {
+    const url = forceRefresh ? `/api/bootstrap?_=${Date.now()}` : "/api/bootstrap";
+    return request(url);
   },
   getSession() {
     return request("/api/auth/session");

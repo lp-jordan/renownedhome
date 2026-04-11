@@ -37,12 +37,43 @@ function getPointerCrop(event, element, startPoint) {
   });
 }
 
-function getPointerPoint(event, element) {
+function getPointerPoint(event, element, renderedBounds) {
   const rect = element.getBoundingClientRect();
+  if (renderedBounds) {
+    return {
+      x: clamp((event.clientX - rect.left - renderedBounds.left) / renderedBounds.width, 0, 1),
+      y: clamp((event.clientY - rect.top - renderedBounds.top) / renderedBounds.height, 0, 1),
+    };
+  }
   return {
     x: clamp((event.clientX - rect.left) / rect.width, 0, 1),
     y: clamp((event.clientY - rect.top) / rect.height, 0, 1),
   };
+}
+
+// Returns the rendered image bounds (in pixels, relative to the container) accounting
+// for object-fit: contain letterboxing. Returns null if dimensions aren't known.
+function getImageRenderedBounds(container, naturalWidth, naturalHeight) {
+  if (!container || !naturalWidth || !naturalHeight) {
+    return null;
+  }
+  const cw = container.clientWidth;
+  const ch = container.clientHeight;
+  if (!cw || !ch) {
+    return null;
+  }
+  const naturalRatio = naturalWidth / naturalHeight;
+  const containerRatio = cw / ch;
+  if (naturalRatio > containerRatio) {
+    // Wider than container ratio → fills width, bars top/bottom
+    const w = cw;
+    const h = cw / naturalRatio;
+    return { left: 0, top: (ch - h) / 2, width: w, height: h };
+  }
+  // Taller than container ratio → fills height, bars left/right
+  const h = ch;
+  const w = ch * naturalRatio;
+  return { left: (cw - w) / 2, top: 0, width: w, height: h };
 }
 
 function applyDragToCrop(dragState, point) {
@@ -135,7 +166,9 @@ export default function AssetVariantEditorModal({
   const [activeVariantId, setActiveVariantId] = useState("");
   const [status, setStatus] = useState("");
   const [dragState, setDragState] = useState(null);
+  const [imageDimensions, setImageDimensions] = useState(null);
   const previewRef = useRef(null);
+  const imageRef = useRef(null);
   const sourceType = asset?.metadata?.contentType || "";
   const supportsCropping = ["image/jpeg", "image/png", "image/webp"].includes(sourceType);
   const variants = useMemo(() => asset?.variants || [], [asset]);
@@ -144,6 +177,7 @@ export default function AssetVariantEditorModal({
     if (!isOpen) {
       setStatus("");
       setDragState(null);
+      setImageDimensions(null);
       return;
     }
 
@@ -151,6 +185,7 @@ export default function AssetVariantEditorModal({
     setActiveVariantId(initialVariant?.id || "");
     setDraft(buildDraft(initialVariant));
     setStatus("");
+    setImageDimensions(null);
   }, [isOpen, variants, asset?.id]);
 
   if (!isOpen || !asset) {
@@ -175,14 +210,31 @@ export default function AssetVariantEditorModal({
 
     event.preventDefault();
     event.stopPropagation();
-    const rect = previewRef.current.getBoundingClientRect();
-    const startPoint = getPointerPoint(event, previewRef.current);
+    const containerRect = previewRef.current.getBoundingClientRect();
+    const renderedBounds = getImageRenderedBounds(
+      previewRef.current,
+      imageRef.current?.naturalWidth,
+      imageRef.current?.naturalHeight
+    );
+    // Absolute screen rect of the rendered image area (for draw mode)
+    const imageRect = renderedBounds
+      ? {
+          left: containerRect.left + renderedBounds.left,
+          top: containerRect.top + renderedBounds.top,
+          right: containerRect.left + renderedBounds.left + renderedBounds.width,
+          bottom: containerRect.top + renderedBounds.top + renderedBounds.height,
+          width: renderedBounds.width,
+          height: renderedBounds.height,
+        }
+      : containerRect;
+    const startPoint = getPointerPoint(event, previewRef.current, renderedBounds);
     previewRef.current.setPointerCapture?.(event.pointerId);
     setDragState({
       pointerId: event.pointerId,
       mode,
       handle,
-      rect,
+      rect: imageRect,
+      renderedBounds,
       startPoint,
       startCrop: draft.crop,
       startClientX: event.clientX,
@@ -283,7 +335,7 @@ export default function AssetVariantEditorModal({
 
                 updateCrop(
                   applyDragToCrop(dragState, {
-                    ...getPointerPoint(event, previewRef.current),
+                    ...getPointerPoint(event, previewRef.current, dragState.renderedBounds),
                     clientX: event.clientX,
                     clientY: event.clientY,
                   })
@@ -297,7 +349,7 @@ export default function AssetVariantEditorModal({
                 if (dragState.moved) {
                   updateCrop(
                     applyDragToCrop(dragState, {
-                      ...getPointerPoint(event, previewRef.current),
+                      ...getPointerPoint(event, previewRef.current, dragState.renderedBounds),
                       clientX: event.clientX,
                       clientY: event.clientY,
                     })
@@ -309,16 +361,43 @@ export default function AssetVariantEditorModal({
                 setDragState(null);
               }}
             >
-              <img src={asset.url} alt={asset.label} className="asset-crop-surface__image" />
-              {supportsCropping && draft.crop ? (
+              <img
+                ref={imageRef}
+                src={asset.url}
+                alt={asset.label}
+                className="asset-crop-surface__image"
+                onLoad={(event) => {
+                  setImageDimensions({
+                    naturalWidth: event.target.naturalWidth,
+                    naturalHeight: event.target.naturalHeight,
+                  });
+                }}
+              />
+              {supportsCropping && draft.crop ? (() => {
+                const bounds = getImageRenderedBounds(
+                  previewRef.current,
+                  imageDimensions?.naturalWidth,
+                  imageDimensions?.naturalHeight
+                );
+                const cw = previewRef.current?.clientWidth || 1;
+                const ch = previewRef.current?.clientHeight || 1;
+                const overlayStyle = bounds
+                  ? {
+                      left: `${((bounds.left + draft.crop.x * bounds.width) / cw) * 100}%`,
+                      top: `${((bounds.top + draft.crop.y * bounds.height) / ch) * 100}%`,
+                      width: `${(draft.crop.width * bounds.width / cw) * 100}%`,
+                      height: `${(draft.crop.height * bounds.height / ch) * 100}%`,
+                    }
+                  : {
+                      left: `${draft.crop.x * 100}%`,
+                      top: `${draft.crop.y * 100}%`,
+                      width: `${draft.crop.width * 100}%`,
+                      height: `${draft.crop.height * 100}%`,
+                    };
+                return (
                 <div
                   className="asset-crop-surface__selection"
-                  style={{
-                    left: `${draft.crop.x * 100}%`,
-                    top: `${draft.crop.y * 100}%`,
-                    width: `${draft.crop.width * 100}%`,
-                    height: `${draft.crop.height * 100}%`,
-                  }}
+                  style={overlayStyle}
                 >
                   <div
                     className="asset-crop-surface__selection-body"
@@ -334,7 +413,8 @@ export default function AssetVariantEditorModal({
                     />
                   ))}
                 </div>
-              ) : null}
+                );
+              })() : null}
             </div>
             {supportsCropping ? (
               <p className="field-help">

@@ -1244,6 +1244,7 @@ function AssetsEditor({
   const [variantAssetId, setVariantAssetId] = useState("");
   const [activeFolderId, setActiveFolderId] = useState("all");
   const [draggedAssetId, setDraggedAssetId] = useState("");
+  const [dragOverFolderId, setDragOverFolderId] = useState("");
   const imageAssets = assets.filter(isImageAsset);
   const persistedFolders = (assetFolders || [])
     .map((folder, index) => ({
@@ -1519,7 +1520,7 @@ function AssetsEditor({
                   {[{ id: "all", name: "All assets" }, { id: "unfiled", name: "Unfiled" }, ...persistedFolders].map((folder) => (
                     <button
                       key={folder.id}
-                      className={`asset-folder-list__item ${activeFolderId === folder.id ? "is-active" : ""}`}
+                      className={`asset-folder-list__item ${activeFolderId === folder.id ? "is-active" : ""} ${dragOverFolderId === folder.id ? "is-drop-target" : ""}`}
                       type="button"
                       onClick={() => setActiveFolderId(folder.id)}
                       onDragOver={(event) => {
@@ -1527,7 +1528,9 @@ function AssetsEditor({
                           return;
                         }
                         event.preventDefault();
+                        setDragOverFolderId(folder.id);
                       }}
+                      onDragLeave={() => setDragOverFolderId("")}
                       onDrop={(event) => {
                         event.preventDefault();
                         if (!draggedAssetId || folder.id === "all") {
@@ -1535,6 +1538,7 @@ function AssetsEditor({
                         }
                         void assignAssetToFolder(draggedAssetId, folder.id);
                         setDraggedAssetId("");
+                        setDragOverFolderId("");
                       }}
                     >
                       <span>{folder.name}</span>
@@ -1551,14 +1555,20 @@ function AssetsEditor({
               </div>
               <div className="asset-gallery-grid">
               {activeFolderAssets.map((asset) => (
-                <div key={asset.id} className="asset-gallery-card asset-gallery-card--library">
+                <div
+                  key={asset.id}
+                  className="asset-gallery-card asset-gallery-card--library"
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.effectAllowed = "move";
+                    setDraggedAssetId(asset.id);
+                  }}
+                  onDragEnd={() => setDraggedAssetId("")}
+                >
                   <img
                     src={asset.url}
                     alt={asset.label}
                     className="asset-gallery-card__image"
-                    draggable
-                    onDragStart={() => setDraggedAssetId(asset.id)}
-                    onDragEnd={() => setDraggedAssetId("")}
                   />
                   <div className="asset-gallery-card__overlay">
                     <div className="asset-gallery-card__actions">

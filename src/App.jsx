@@ -11,7 +11,7 @@ export default function App() {
   const [error, setError] = useState("");
 
   async function refreshBootstrap() {
-    const next = await api.getBootstrap();
+    const next = await api.getBootstrap(true);
     setBootstrap(next);
     return next;
   }

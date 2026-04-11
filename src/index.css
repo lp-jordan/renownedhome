@@ -3267,6 +3267,11 @@ textarea {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.asset-folder-list__item.is-drop-target {
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.14);
+}
+
 .asset-folder-list__item small {
   color: var(--text-dim);
 }
@@ -4037,6 +4042,11 @@ textarea {
   overflow: hidden;
   min-height: 0;
   padding: 0;
+  cursor: grab;
+}
+
+.asset-gallery-card--library:active {
+  cursor: grabbing;
 }
 
 .asset-gallery-card__image {
@@ -4058,6 +4068,7 @@ textarea {
   padding: 0.8rem;
   background: linear-gradient(180deg, rgba(8, 8, 12, 0.18), rgba(8, 8, 12, 0.78));
   opacity: 0;
+  pointer-events: none;
   transition: opacity 160ms ease;
   overflow: auto;
 }
@@ -4065,6 +4076,7 @@ textarea {
 .asset-gallery-card--library:hover .asset-gallery-card__overlay,
 .asset-gallery-card--library:focus-within .asset-gallery-card__overlay {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .asset-gallery-card--library:hover .asset-gallery-card__image,
