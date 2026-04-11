@@ -529,6 +529,7 @@ export const defaultSiteData = {
     },
   ],
   lettersSubmissions: [],
+  assetFolders: [],
   assets: [],
 };
 

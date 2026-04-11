@@ -188,6 +188,12 @@ export const api = {
       body: JSON.stringify({ asset }),
     });
   },
+  saveAssetFolders(folders) {
+    return request("/api/admin/asset-folders", {
+      method: "PUT",
+      body: JSON.stringify({ folders }),
+    });
+  },
   deleteAsset(assetId) {
     return request(`/api/admin/assets/${encodeURIComponent(assetId)}`, {
       method: "DELETE",

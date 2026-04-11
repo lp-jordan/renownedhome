@@ -1827,6 +1827,28 @@ app.put("/api/admin/assets/:id", requireTrustedOrigin, requireAdmin, async (req,
   res.json(sanitizeAdminData(next));
 });
 
+app.put("/api/admin/asset-folders", requireTrustedOrigin, requireAdmin, async (req, res) => {
+  const payload = Array.isArray(req.body?.folders) ? req.body.folders : null;
+  if (!payload) {
+    res.status(400).json({ error: "folders payload is required" });
+    return;
+  }
+
+  const folders = payload
+    .map((folder, index) => ({
+      id: String(folder?.id || "").trim(),
+      name: String(folder?.name || "").trim(),
+      sortOrder: Number.isFinite(Number(folder?.sortOrder)) ? Number(folder.sortOrder) : index,
+    }))
+    .filter((folder) => folder.id && folder.name);
+
+  const next = await withData((data) => ({
+    ...data,
+    assetFolders: folders,
+  }));
+  res.json(sanitizeAdminData(next));
+});
+
 app.delete("/api/admin/assets/:id", requireTrustedOrigin, requireAdmin, async (req, res) => {
   const currentData = await repository.getAllData();
   const asset = currentData.assets.find((entry) => entry.id === req.params.id);

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-const FULL_CROP = { x: 0, y: 0, width: 1, height: 1 };
 const DRAG_THRESHOLD_PX = 6;
 const MIN_CROP_SIZE = 0.01;
 const RESIZE_HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
@@ -11,7 +10,7 @@ function clamp(value, min, max) {
 
 function normalizeCrop(crop) {
   if (!crop) {
-    return FULL_CROP;
+    return null;
   }
 
   const x = clamp(Number(crop.x) || 0, 0, 0.99);
@@ -48,7 +47,7 @@ function getPointerPoint(event, element) {
 
 function applyDragToCrop(dragState, point) {
   if (!dragState) {
-    return FULL_CROP;
+    return null;
   }
 
   if (dragState.mode === "draw") {
@@ -107,7 +106,7 @@ function buildDraft(variant) {
     return {
       id: "",
       label: "",
-      crop: FULL_CROP,
+      crop: null,
     };
   }
 
@@ -170,6 +169,10 @@ export default function AssetVariantEditorModal({
       return;
     }
 
+    if ((mode === "move" || mode === "resize") && !draft.crop) {
+      return;
+    }
+
     event.preventDefault();
     event.stopPropagation();
     const rect = previewRef.current.getBoundingClientRect();
@@ -196,6 +199,11 @@ export default function AssetVariantEditorModal({
 
     if (!payload.label) {
       setStatus("Add a version name before saving.");
+      return;
+    }
+
+    if (!payload.crop) {
+      setStatus("Draw a crop selection before saving.");
       return;
     }
 
@@ -302,7 +310,7 @@ export default function AssetVariantEditorModal({
               }}
             >
               <img src={asset.url} alt={asset.label} className="asset-crop-surface__image" />
-              {supportsCropping ? (
+              {supportsCropping && draft.crop ? (
                 <div
                   className="asset-crop-surface__selection"
                   style={{
@@ -417,33 +425,36 @@ export default function AssetVariantEditorModal({
                     min="0"
                     max="100"
                     step="0.5"
-                    value={Math.round(draft.crop[key] * 1000) / 10}
+                    value={draft.crop ? Math.round(draft.crop[key] * 1000) / 10 : 0}
                     onChange={(event) => {
                       const nextValue = Number(event.target.value) / 100;
+                      if (!draft.crop) {
+                        return;
+                      }
                       setDraft((current) => {
                         const nextCrop = { ...current.crop, [key]: nextValue };
                         return { ...current, crop: normalizeCrop(nextCrop) };
                       });
                     }}
-                    disabled={!supportsCropping}
+                    disabled={!supportsCropping || !draft.crop}
                   />
                   <span className="asset-range-field__value">
-                    {Math.round(draft.crop[key] * 1000) / 10}%
+                    {draft.crop ? `${Math.round(draft.crop[key] * 1000) / 10}%` : "--"}
                   </span>
                 </label>
               ))}
 
               <div className="asset-variant-editor__actions">
-                <button className="button-primary" type="button" onClick={handleSave} disabled={!supportsCropping}>
+                <button className="button-primary" type="button" onClick={handleSave} disabled={!supportsCropping || !draft.crop}>
                   {draft.id ? "Update version" : "Save version"}
                 </button>
                 <button
                   className="button-secondary"
                   type="button"
-                  onClick={() => setDraft((current) => ({ ...current, crop: FULL_CROP }))}
-                  disabled={!supportsCropping}
+                  onClick={() => setDraft((current) => ({ ...current, crop: null }))}
+                  disabled={!supportsCropping || !draft.crop}
                 >
-                  Reset crop
+                  Clear crop
                 </button>
                 <button className="button-secondary" type="button" onClick={handleDelete}>
                   {draft.id ? "Delete version" : "Clear draft"}
