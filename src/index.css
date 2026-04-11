@@ -3144,6 +3144,23 @@ textarea {
   margin: 0 auto;
 }
 
+.asset-upload-progress {
+  width: min(100%, var(--container));
+  height: 10px;
+  margin: 0.85rem auto 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.asset-upload-progress__bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f4d46a 0%, #ffffff 100%);
+  transition: width 120ms ease;
+}
+
 .asset-picker__search {
   display: grid;
   gap: 0.5rem;

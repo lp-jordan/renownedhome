@@ -26,6 +26,49 @@ async function request(url, options = {}) {
   return response.json();
 }
 
+function uploadWithProgress(url, formData, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    xhr.withCredentials = true;
+
+    if (typeof onProgress === "function") {
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable) {
+          return;
+        }
+        onProgress({
+          loaded: event.loaded,
+          total: event.total,
+          percent: Math.round((event.loaded / event.total) * 100),
+        });
+      };
+    }
+
+    xhr.onerror = () => {
+      reject(new Error("Upload failed"));
+    };
+
+    xhr.onload = () => {
+      let payload = null;
+      try {
+        payload = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+      } catch {
+        payload = null;
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(payload);
+        return;
+      }
+
+      reject(new Error(payload?.error || xhr.statusText || "Upload failed"));
+    };
+
+    xhr.send(formData);
+  });
+}
+
 export const api = {
   getBootstrap() {
     return request("/api/bootstrap");
@@ -268,24 +311,13 @@ export const api = {
       headers: {},
     });
   },
-  async uploadAssets({ files }) {
+  async uploadAssets({ files, onProgress }) {
     const formData = new FormData();
     files.forEach((file) => {
       formData.append("files", file);
     });
 
-    const response = await fetch("/api/admin/assets/upload", {
-      method: "POST",
-      credentials: "include",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || "Upload failed");
-    }
-
-    return response.json();
+    return uploadWithProgress("/api/admin/assets/upload", formData, onProgress);
   },
   async uploadAsset(payload) {
     return api.uploadAssets({

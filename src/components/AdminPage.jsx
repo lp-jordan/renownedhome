@@ -1230,6 +1230,7 @@ function AssetsEditor({
   onDeleteVariant,
 }) {
   const [uploadStatus, setUploadStatus] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [dragActive, setDragActive] = useState(false);
   const [variantAssetId, setVariantAssetId] = useState("");
   const imageAssets = assets.filter(isImageAsset);
@@ -1240,14 +1241,26 @@ function AssetsEditor({
     const files = Array.from(fileList || []).filter((file) => file instanceof File && file.size);
     if (!files.length) {
       setUploadStatus("Choose at least one file first.");
+      setUploadProgress(0);
       return;
     }
 
     setUploadStatus(`Uploading ${files.length} file${files.length === 1 ? "" : "s"}...`);
+    setUploadProgress(0);
     try {
-      await onUpload({ files });
+      await onUpload({
+        files,
+        onProgress: ({ percent }) => {
+          setUploadProgress(percent);
+          setUploadStatus(
+            `Uploading ${files.length} file${files.length === 1 ? "" : "s"}... ${percent}%`
+          );
+        },
+      });
+      setUploadProgress(100);
       setUploadStatus(`Uploaded ${files.length} file${files.length === 1 ? "" : "s"}.`);
     } catch (error) {
+      setUploadProgress(0);
       setUploadStatus(error.message || "Upload failed.");
     }
   }
@@ -1265,6 +1278,7 @@ function AssetsEditor({
 
   async function handleDeleteAsset(asset) {
     setUploadStatus(`Deleting ${asset.label}...`);
+    setUploadProgress(0);
     try {
       await onDelete(asset.id);
       setUploadStatus(`${asset.label} deleted.`);
@@ -1293,6 +1307,14 @@ function AssetsEditor({
           <span className="upload-dropzone__copy">Or click to browse files from your computer. Uploads start immediately.</span>
         </label>
         {uploadStatus ? <p className="status-line">{uploadStatus}</p> : null}
+        {uploadProgress > 0 && uploadProgress < 100 ? (
+          <div className="asset-upload-progress" aria-label={`Upload progress ${uploadProgress}%`}>
+            <div
+              className="asset-upload-progress__bar"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
+        ) : null}
       </section>
       <div className="editor-grid">
         <div className="editor-card editor-card--full">
