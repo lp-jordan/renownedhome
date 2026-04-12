@@ -20,6 +20,19 @@ function normalizeCrop(crop) {
   return { x, y, width, height };
 }
 
+function cropsDiffer(a, b) {
+  const na = normalizeCrop(a);
+  const nb = normalizeCrop(b);
+  if (!na && !nb) return false;
+  if (!na || !nb) return true;
+  return (
+    Math.abs(na.x - nb.x) > 0.0001 ||
+    Math.abs(na.y - nb.y) > 0.0001 ||
+    Math.abs(na.width - nb.width) > 0.0001 ||
+    Math.abs(na.height - nb.height) > 0.0001
+  );
+}
+
 function getPointerCrop(event, element, startPoint) {
   const rect = element.getBoundingClientRect();
   const currentX = clamp((event.clientX - rect.left) / rect.width, 0, 1);
@@ -169,17 +182,36 @@ export default function AssetVariantEditorModal({
   const [imageDimensions, setImageDimensions] = useState(null);
   const previewRef = useRef(null);
   const imageRef = useRef(null);
+  // Tracks which asset.id we have already initialized for, preventing the useEffect
+  // from resetting the draft whenever variants updates after a save.
+  const initializedForRef = useRef(null);
+  // Set to true immediately after a successful create so the variants-watch effect
+  // can select the newly prepended variant once the parent propagates the change.
+  const pendingNewVariantRef = useRef(false);
+
   const sourceType = asset?.metadata?.contentType || "";
   const supportsCropping = ["image/jpeg", "image/png", "image/webp"].includes(sourceType);
   const variants = useMemo(() => asset?.variants || [], [asset]);
 
+  // Initialize (or reset) state when the modal opens for a new asset.
+  // The initializedForRef guard prevents re-initialization when variants updates
+  // after a save, which would discard the user's active editing session.
   useEffect(() => {
     if (!isOpen) {
       setStatus("");
       setDragState(null);
       setImageDimensions(null);
+      initializedForRef.current = null;
+      pendingNewVariantRef.current = false;
       return;
     }
+
+    const key = asset?.id || "";
+    if (initializedForRef.current === key) {
+      // Already initialized for this asset — variants updated after a save, don't reset.
+      return;
+    }
+    initializedForRef.current = key;
 
     const initialVariant = variants[0] || null;
     setActiveVariantId(initialVariant?.id || "");
@@ -188,8 +220,38 @@ export default function AssetVariantEditorModal({
     setImageDimensions(null);
   }, [isOpen, variants, asset?.id]);
 
+  // After a successful create, the parent prepends the new variant to asset.variants.
+  // When variants updates, select that new variant so the user sees it as active.
+  useEffect(() => {
+    if (!pendingNewVariantRef.current || !variants.length) {
+      return;
+    }
+    pendingNewVariantRef.current = false;
+    const newVariant = variants[0];
+    setActiveVariantId(newVariant.id);
+    setDraft(buildDraft(newVariant));
+  }, [variants]);
+
   if (!isOpen || !asset) {
     return null;
+  }
+
+  // Returns true if the current draft has changes relative to its saved state.
+  function hasDraftChanges() {
+    if (!draft.id) {
+      // New unsaved draft — has changes if anything has been drawn or typed.
+      return Boolean(draft.crop || draft.label.trim());
+    }
+    const saved = variants.find((v) => v.id === draft.id);
+    if (!saved) return false;
+    if (draft.label !== (saved.label || "")) return true;
+    return cropsDiffer(draft.crop, saved.metadata?.crop);
+  }
+
+  // Shows a browser confirm if there are unsaved changes. Returns true to proceed.
+  function guardUnsaved() {
+    if (!hasDraftChanges()) return true;
+    return window.confirm("You have unsaved changes. Switch anyway?");
   }
 
   function updateCrop(nextCrop) {
@@ -211,10 +273,11 @@ export default function AssetVariantEditorModal({
     event.preventDefault();
     event.stopPropagation();
     const containerRect = previewRef.current.getBoundingClientRect();
+    // Use imageDimensions state (not imageRef.current) for consistency with the overlay renderer.
     const renderedBounds = getImageRenderedBounds(
       previewRef.current,
-      imageRef.current?.naturalWidth,
-      imageRef.current?.naturalHeight
+      imageDimensions?.naturalWidth,
+      imageDimensions?.naturalHeight
     );
     // Absolute screen rect of the rendered image area (for draw mode)
     const imageRect = renderedBounds
@@ -266,6 +329,9 @@ export default function AssetVariantEditorModal({
         setStatus("Version updated.");
       } else {
         await onCreateVariant(asset.id, payload);
+        // Signal the variants-watch effect to select the newly created variant
+        // once the parent propagates the updated asset.variants array.
+        pendingNewVariantRef.current = true;
         setStatus("Version saved.");
       }
     } catch (error) {
@@ -278,6 +344,10 @@ export default function AssetVariantEditorModal({
       setDraft(buildDraft(null));
       setActiveVariantId("");
       setStatus("Unsaved version cleared.");
+      return;
+    }
+
+    if (!window.confirm(`Delete "${draft.label || "this version"}"? This cannot be undone.`)) {
       return;
     }
 
@@ -435,6 +505,7 @@ export default function AssetVariantEditorModal({
                   className="button-secondary"
                   type="button"
                   onClick={() => {
+                    if (!guardUnsaved()) return;
                     setActiveVariantId("");
                     setDraft(buildDraft(null));
                     setStatus("");
@@ -448,6 +519,7 @@ export default function AssetVariantEditorModal({
                   className={`asset-variant-item ${activeVariantId === "" ? "is-active" : ""}`}
                   type="button"
                   onClick={() => {
+                    if (!guardUnsaved()) return;
                     setActiveVariantId("");
                     setDraft(buildDraft(null));
                     setStatus("");
@@ -467,6 +539,7 @@ export default function AssetVariantEditorModal({
                     className={`asset-variant-item ${activeVariantId === variant.id ? "is-active" : ""}`}
                     type="button"
                     onClick={() => {
+                      if (!guardUnsaved()) return;
                       setActiveVariantId(variant.id);
                       setDraft(buildDraft(variant));
                       setStatus("");
