@@ -3290,28 +3290,40 @@ textarea {
 .asset-library__layout {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
-  gap: 1rem;
+  gap: 1.25rem;
   align-items: start;
 }
 
 .asset-folder-panel {
+  position: sticky;
+  top: 1rem;
   display: grid;
   gap: 0.85rem;
   padding: 0.9rem;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.03);
-}
-
-.asset-folder-panel__header,
-.asset-folder-panel__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  z-index: 1;
 }
 
 .asset-folder-panel__header {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.asset-folder-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.asset-folder-panel__confirm-yes {
+  border-color: #ff9d9d;
+  color: #ff9d9d;
 }
 
 .asset-folder-list {
@@ -3331,6 +3343,18 @@ textarea {
   background: rgba(255, 255, 255, 0.03);
   color: var(--text);
   text-align: left;
+  cursor: pointer;
+  user-select: none;
+}
+
+.asset-folder-list__item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Prevent child elements from triggering spurious dragLeave on the folder item */
+.asset-folder-list__item-name,
+.asset-folder-list__item small {
+  pointer-events: none;
 }
 
 .asset-folder-list__item.is-active {
@@ -3345,6 +3369,72 @@ textarea {
 
 .asset-folder-list__item small {
   color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.asset-gallery-pane {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.asset-selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.88rem;
+  color: var(--text-dim);
+}
+
+.asset-selection-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.asset-selection-bar__move {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+.asset-selection-bar__delete {
+  border-color: #ff9d9d;
+  color: #ff9d9d;
+}
+
+.asset-gallery-card.is-selected {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
+.asset-gallery-card__drag-count {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #05070b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
 
 .page-workspace {
@@ -4417,6 +4507,10 @@ textarea {
 @media (max-width: 960px) {
   .asset-library__layout {
     grid-template-columns: 1fr;
+  }
+
+  .asset-folder-panel {
+    position: static;
   }
 
   .asset-variant-editor {

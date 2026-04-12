@@ -1243,8 +1243,14 @@ function AssetsEditor({
   const [dragActive, setDragActive] = useState(false);
   const [variantAssetId, setVariantAssetId] = useState("");
   const [activeFolderId, setActiveFolderId] = useState("all");
-  const [draggedAssetId, setDraggedAssetId] = useState("");
+  const [draggedAssetIds, setDraggedAssetIds] = useState([]);
   const [dragOverFolderId, setDragOverFolderId] = useState("");
+  const [selectedAssetIds, setSelectedAssetIds] = useState([]);
+  const [lastSelectedId, setLastSelectedId] = useState("");
+  const [deleteFolderConfirm, setDeleteFolderConfirm] = useState(false);
+  // Tracks whether a drag just ended so folder onClick doesn't fire immediately after drop.
+  const justDraggedRef = useRef(false);
+
   const imageAssets = assets.filter(isImageAsset);
   const persistedFolders = (assetFolders || [])
     .map((folder, index) => ({
@@ -1261,23 +1267,48 @@ function AssetsEditor({
     folderId: asset.metadata?.folderId || "",
   }));
   const activeFolderAssets = folderedAssets.filter((asset) => {
-    if (activeFolderId === "all") {
-      return true;
-    }
-    if (activeFolderId === "unfiled") {
-      return !asset.folderId;
-    }
+    if (activeFolderId === "all") return true;
+    if (activeFolderId === "unfiled") return !asset.folderId;
     return asset.folderId === activeFolderId;
   });
+  const activeFolderAssetIds = activeFolderAssets.map((a) => a.id);
+  const selectedInView = selectedAssetIds.filter((id) => activeFolderAssetIds.includes(id));
 
   useEffect(() => {
-    if (activeFolderId === "all" || activeFolderId === "unfiled") {
-      return;
-    }
+    if (activeFolderId === "all" || activeFolderId === "unfiled") return;
     if (!persistedFolders.some((folder) => folder.id === activeFolderId)) {
       setActiveFolderId("all");
     }
   }, [activeFolderId, persistedFolders]);
+
+  // Clear selection when folder changes.
+  useEffect(() => {
+    setSelectedAssetIds([]);
+    setLastSelectedId("");
+  }, [activeFolderId]);
+
+  function handleAssetClick(assetId, event) {
+    if (event.shiftKey && lastSelectedId) {
+      const ids = activeFolderAssetIds;
+      const anchorIdx = ids.indexOf(lastSelectedId);
+      const clickIdx = ids.indexOf(assetId);
+      const [start, end] = anchorIdx < clickIdx ? [anchorIdx, clickIdx] : [clickIdx, anchorIdx];
+      const range = ids.slice(start, end + 1);
+      setSelectedAssetIds((current) => [...new Set([...current, ...range])]);
+      return;
+    }
+    if (event.metaKey || event.ctrlKey) {
+      setSelectedAssetIds((current) =>
+        current.includes(assetId)
+          ? current.filter((id) => id !== assetId)
+          : [...current, assetId]
+      );
+      setLastSelectedId(assetId);
+      return;
+    }
+    setSelectedAssetIds([assetId]);
+    setLastSelectedId(assetId);
+  }
 
   async function uploadFiles(fileList) {
     const files = Array.from(fileList || []).filter((file) => file instanceof File && file.size);
@@ -1356,43 +1387,63 @@ function AssetsEditor({
     setUploadFileLabel("");
     try {
       await onDelete(asset.id);
+      setSelectedAssetIds((current) => current.filter((id) => id !== asset.id));
       setUploadStatus(`${asset.label} deleted.`);
     } catch (error) {
       setUploadStatus(error.message || "Unable to delete asset.");
     }
   }
 
-  async function assignAssetToFolder(assetId, folderId) {
-    const asset = imageAssets.find((entry) => entry.id === assetId);
-    if (!asset) {
-      return;
-    }
-
-    const nextFolderId = folderId === "unfiled" ? "" : folderId;
-    if ((asset.metadata?.folderId || "") === nextFolderId) {
-      return;
-    }
-
-    setUploadStatus(`Moving ${asset.label}...`);
+  async function handleDeleteSelected() {
+    if (!selectedInView.length) return;
+    setUploadStatus(`Deleting ${selectedInView.length} asset${selectedInView.length === 1 ? "" : "s"}...`);
     try {
-      await onSaveAsset({
-        ...asset,
-        metadata: {
-          ...(asset.metadata || {}),
-          folderId: nextFolderId,
-        },
-      });
-      setUploadStatus(nextFolderId ? `${asset.label} moved.` : `${asset.label} moved to unfiled.`);
+      for (const id of selectedInView) {
+        await onDelete(id);
+      }
+      setSelectedAssetIds([]);
+      setUploadStatus(`Deleted ${selectedInView.length} asset${selectedInView.length === 1 ? "" : "s"}.`);
     } catch (error) {
-      setUploadStatus(error.message || "Unable to move asset.");
+      setUploadStatus(error.message || "Unable to delete assets.");
     }
+  }
+
+  async function assignAssetsToFolder(assetIds, folderId) {
+    const nextFolderId = folderId === "unfiled" ? "" : folderId;
+    const toMove = assetIds.filter((id) => {
+      const asset = imageAssets.find((a) => a.id === id);
+      return asset && (asset.metadata?.folderId || "") !== nextFolderId;
+    });
+    if (!toMove.length) return;
+
+    setUploadStatus(`Moving ${toMove.length} asset${toMove.length === 1 ? "" : "s"}...`);
+    try {
+      for (const id of toMove) {
+        const asset = imageAssets.find((a) => a.id === id);
+        if (!asset) continue;
+        await onSaveAsset({
+          ...asset,
+          metadata: { ...(asset.metadata || {}), folderId: nextFolderId },
+        });
+      }
+      setUploadStatus(
+        toMove.length === 1
+          ? nextFolderId ? "Asset moved." : "Asset moved to unfiled."
+          : nextFolderId ? `${toMove.length} assets moved.` : `${toMove.length} assets moved to unfiled.`
+      );
+    } catch (error) {
+      setUploadStatus(error.message || "Unable to move assets.");
+    }
+  }
+
+  async function handleMoveSelectedToFolder(folderId) {
+    if (!selectedInView.length) return;
+    await assignAssetsToFolder(selectedInView, folderId);
   }
 
   async function handleCreateFolder() {
     const name = normalizeFolderName(window.prompt("Folder name"));
-    if (!name) {
-      return;
-    }
+    if (!name) return;
 
     if (persistedFolders.some((folder) => folder.name.toLowerCase() === name.toLowerCase())) {
       setUploadStatus("A folder with that name already exists.");
@@ -1414,31 +1465,23 @@ function AssetsEditor({
   }
 
   async function handleDeleteFolder() {
-    if (activeFolderId === "all" || activeFolderId === "unfiled") {
-      return;
-    }
+    if (activeFolderId === "all" || activeFolderId === "unfiled") return;
 
     const folder = persistedFolders.find((entry) => entry.id === activeFolderId);
-    if (!folder) {
+    if (!folder) return;
+
+    if (!deleteFolderConfirm) {
+      setDeleteFolderConfirm(true);
       return;
     }
 
-    const confirmed = window.confirm(
-      `Delete "${folder.name}"? Assets inside it will be moved to unfiled.`
-    );
-    if (!confirmed) {
-      return;
-    }
-
+    setDeleteFolderConfirm(false);
     try {
       const assetsInFolder = imageAssets.filter((asset) => asset.metadata?.folderId === folder.id);
       for (const asset of assetsInFolder) {
         await onSaveAsset({
           ...asset,
-          metadata: {
-            ...(asset.metadata || {}),
-            folderId: "",
-          },
+          metadata: { ...(asset.metadata || {}), folderId: "" },
         });
       }
       await onSaveAssetFolders(
@@ -1499,49 +1542,81 @@ function AssetsEditor({
               <p className="field-help">{imageAssets.length} uploaded image{imageAssets.length === 1 ? "" : "s"}</p>
             </div>
             <div className="asset-library__layout">
-              <div className="asset-folder-panel">
+              <aside className="asset-folder-panel">
                 <div className="asset-folder-panel__header">
                   <strong>Folders</strong>
                   <div className="asset-folder-panel__actions">
                     <button className="button-secondary button-compact" type="button" onClick={handleCreateFolder}>
                       Add
                     </button>
-                    <button
-                      className="button-secondary button-compact"
-                      type="button"
-                      onClick={handleDeleteFolder}
-                      disabled={activeFolderId === "all" || activeFolderId === "unfiled"}
-                    >
-                      Delete
-                    </button>
+                    {deleteFolderConfirm ? (
+                      <>
+                        <button
+                          className="button-secondary button-compact asset-folder-panel__confirm-yes"
+                          type="button"
+                          onClick={handleDeleteFolder}
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          className="button-secondary button-compact"
+                          type="button"
+                          onClick={() => setDeleteFolderConfirm(false)}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="button-secondary button-compact"
+                        type="button"
+                        onClick={handleDeleteFolder}
+                        disabled={activeFolderId === "all" || activeFolderId === "unfiled"}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="asset-folder-list">
                   {[{ id: "all", name: "All assets" }, { id: "unfiled", name: "Unfiled" }, ...persistedFolders].map((folder) => (
-                    <button
+                    <div
                       key={folder.id}
-                      className={`asset-folder-list__item ${activeFolderId === folder.id ? "is-active" : ""} ${dragOverFolderId === folder.id ? "is-drop-target" : ""}`}
-                      type="button"
-                      onClick={() => setActiveFolderId(folder.id)}
+                      className={`asset-folder-list__item${activeFolderId === folder.id ? " is-active" : ""}${dragOverFolderId === folder.id ? " is-drop-target" : ""}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        if (justDraggedRef.current) return;
+                        setActiveFolderId(folder.id);
+                      }}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setActiveFolderId(folder.id); }}
                       onDragOver={(event) => {
-                        if (!draggedAssetId || folder.id === "all") {
-                          return;
-                        }
+                        if (!draggedAssetIds.length || folder.id === "all") return;
                         event.preventDefault();
                         setDragOverFolderId(folder.id);
                       }}
-                      onDragLeave={() => setDragOverFolderId("")}
+                      onDragEnter={(event) => {
+                        if (!draggedAssetIds.length || folder.id === "all") return;
+                        event.preventDefault();
+                        setDragOverFolderId(folder.id);
+                      }}
+                      onDragLeave={(event) => {
+                        // Only clear if leaving the folder item itself, not a child.
+                        if (!event.currentTarget.contains(event.relatedTarget)) {
+                          setDragOverFolderId("");
+                        }
+                      }}
                       onDrop={(event) => {
                         event.preventDefault();
-                        if (!draggedAssetId || folder.id === "all") {
-                          return;
-                        }
-                        void assignAssetToFolder(draggedAssetId, folder.id);
-                        setDraggedAssetId("");
+                        if (!draggedAssetIds.length || folder.id === "all") return;
+                        justDraggedRef.current = true;
+                        setTimeout(() => { justDraggedRef.current = false; }, 200);
+                        void assignAssetsToFolder(draggedAssetIds, folder.id);
+                        setDraggedAssetIds([]);
                         setDragOverFolderId("");
                       }}
                     >
-                      <span>{folder.name}</span>
+                      <span className="asset-folder-list__item-name">{folder.name}</span>
                       <small>
                         {folder.id === "all"
                           ? imageAssets.length
@@ -1549,53 +1624,118 @@ function AssetsEditor({
                             ? folderedAssets.filter((asset) => !asset.folderId).length
                             : folderedAssets.filter((asset) => asset.folderId === folder.id).length}
                       </small>
-                    </button>
+                    </div>
                   ))}
                 </div>
-              </div>
-              <div className="asset-gallery-grid">
-              {activeFolderAssets.map((asset) => (
-                <div
-                  key={asset.id}
-                  className="asset-gallery-card asset-gallery-card--library"
-                  draggable
-                  onDragStart={(event) => {
-                    event.dataTransfer.effectAllowed = "move";
-                    setDraggedAssetId(asset.id);
-                  }}
-                  onDragEnd={() => setDraggedAssetId("")}
-                >
-                  <img
-                    src={asset.url}
-                    alt={asset.label}
-                    className="asset-gallery-card__image"
-                  />
-                  <div className="asset-gallery-card__overlay">
-                    <div className="asset-gallery-card__actions">
+              </aside>
+              <div className="asset-gallery-pane">
+                {selectedInView.length > 0 ? (
+                  <div className="asset-selection-bar">
+                    <span>{selectedInView.length} selected</span>
+                    <div className="asset-selection-bar__actions">
+                      {persistedFolders.length > 0 ? (
+                        <select
+                          className="asset-selection-bar__move"
+                          defaultValue=""
+                          onChange={async (event) => {
+                            const folderId = event.target.value;
+                            if (!folderId) return;
+                            event.target.value = "";
+                            await handleMoveSelectedToFolder(folderId);
+                          }}
+                        >
+                          <option value="" disabled>Move to folder…</option>
+                          <option value="unfiled">Unfiled</option>
+                          {persistedFolders.map((folder) => (
+                            <option key={folder.id} value={folder.id}>{folder.name}</option>
+                          ))}
+                        </select>
+                      ) : null}
                       <button
-                        className="button-secondary asset-gallery-card__delete"
+                        className="button-secondary button-compact"
                         type="button"
-                        onClick={() => setVariantAssetId(asset.id)}
+                        onClick={() => setSelectedAssetIds([])}
                       >
-                        Crop
+                        Clear
                       </button>
                       <button
-                        className="button-secondary asset-gallery-card__delete"
+                        className="button-secondary button-compact asset-selection-bar__delete"
                         type="button"
-                        onClick={() => handleDeleteAsset(asset)}
+                        onClick={handleDeleteSelected}
                       >
-                        Delete
+                        Delete {selectedInView.length}
                       </button>
                     </div>
                   </div>
+                ) : null}
+                <div className="asset-gallery-grid">
+                  {activeFolderAssets.map((asset) => {
+                    const isSelected = selectedAssetIds.includes(asset.id);
+                    return (
+                      <div
+                        key={asset.id}
+                        className={`asset-gallery-card asset-gallery-card--library${isSelected ? " is-selected" : ""}`}
+                        draggable
+                        onClick={(event) => handleAssetClick(asset.id, event)}
+                        onDragStart={(event) => {
+                          event.dataTransfer.effectAllowed = "move";
+                          const ids = isSelected && selectedAssetIds.length > 1
+                            ? selectedAssetIds
+                            : [asset.id];
+                          setDraggedAssetIds(ids);
+                          if (!isSelected) {
+                            setSelectedAssetIds([asset.id]);
+                            setLastSelectedId(asset.id);
+                          }
+                        }}
+                        onDragEnd={() => {
+                          setDraggedAssetIds([]);
+                          justDraggedRef.current = false;
+                        }}
+                      >
+                        <img
+                          src={asset.url}
+                          alt={asset.label}
+                          className="asset-gallery-card__image"
+                          draggable={false}
+                        />
+                        <div className="asset-gallery-card__overlay">
+                          <div className="asset-gallery-card__actions">
+                            <button
+                              className="button-secondary asset-gallery-card__delete"
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setVariantAssetId(asset.id);
+                              }}
+                            >
+                              Crop
+                            </button>
+                            <button
+                              className="button-secondary asset-gallery-card__delete"
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleDeleteAsset(asset);
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                        {draggedAssetIds.includes(asset.id) && draggedAssetIds.length > 1 ? (
+                          <span className="asset-gallery-card__drag-count">{draggedAssetIds.length}</span>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+                {!imageAssets.length ? <p className="field-help">No uploaded images are in the library yet.</p> : null}
+                {imageAssets.length && !activeFolderAssets.length ? (
+                  <p className="field-help">No images are in this folder yet.</p>
+                ) : null}
               </div>
             </div>
-            {!imageAssets.length ? <p className="field-help">No uploaded images are in the library yet.</p> : null}
-            {imageAssets.length && !activeFolderAssets.length ? (
-              <p className="field-help">No images are in this folder yet.</p>
-            ) : null}
           </div>
         </div>
       </div>
