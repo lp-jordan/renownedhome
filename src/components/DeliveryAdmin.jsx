@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import InlinePdfReader from "./InlinePdfReader";
 
@@ -111,6 +111,20 @@ function ExternalIcon() {
   );
 }
 
+function useAutoClear(setter, delay = 4000) {
+  const timer = useRef(null);
+  return useCallback(
+    (text) => {
+      setter(text);
+      clearTimeout(timer.current);
+      if (text && statusClass(text).includes("status-line--success")) {
+        timer.current = setTimeout(() => setter(""), delay);
+      }
+    },
+    [setter, delay]
+  );
+}
+
 export default function DeliveryAdmin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -121,8 +135,12 @@ export default function DeliveryAdmin() {
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [detail, setDetail] = useState(null);
   const [detailStatus, setDetailStatus] = useState("");
+  const [assetStatus, setAssetStatusRaw] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
   const [projectForm, setProjectForm] = useState(emptyProjectForm());
   const [configForm, setConfigForm] = useState(emptyProjectForm());
+  const [savedConfigRef, setSavedConfigRef] = useState(emptyProjectForm());
+  const [savedTiersRef, setSavedTiersRef] = useState([]);
   const [tiersDraft, setTiersDraft] = useState([]);
   const [projectStatus, setProjectStatus] = useState("");
   const [configStatus, setConfigStatus] = useState("");
@@ -138,7 +156,15 @@ export default function DeliveryAdmin() {
   const [selectionAnchorId, setSelectionAnchorId] = useState("");
   const [draggedBackerIds, setDraggedBackerIds] = useState([]);
   const [dragOverTierId, setDragOverTierId] = useState("");
+  // confirmState: { key: string, label: string } | null — tracks which action is awaiting inline confirm
+  const [confirmState, setConfirmState] = useState(null);
   const backersListRef = useRef(null);
+
+  const setAssetStatus = useAutoClear(setAssetStatusRaw);
+  const setProjectStatusAC = useAutoClear(setProjectStatus);
+  const setConfigStatusAC = useAutoClear(setConfigStatus);
+  const setSendStatusAC = useAutoClear(setSendStatus);
+  const setBackerStatusAC = useAutoClear(setBackerStatus);
 
   async function loadDashboard() {
     const [nextSummary, nextProjects] = await Promise.all([
@@ -151,24 +177,26 @@ export default function DeliveryAdmin() {
   }
 
   function syncConfig(nextDetail) {
-    setConfigForm({
+    const nextConfig = {
       title: nextDetail.project.title || "",
       creatorName: nextDetail.project.creatorName || "",
       slug: nextDetail.project.slug || "",
       shortMessage: nextDetail.project.shortMessage || "",
       description: nextDetail.project.description || "",
-    });
-    setTiersDraft(
-      (nextDetail.tiers || []).map((tier) => ({
-        id: tier.id,
-        name: tier.name || "",
-        messageOverride: tier.messageOverride || "",
-        additionalLinkLabel: tier.additionalLinkLabel || "",
-        additionalLinkUrl: tier.additionalLinkUrl || "",
-        fileIds: [...(tier.fileIds || [])],
-        backerCount: tier.backerCount || 0,
-      }))
-    );
+    };
+    const nextTiers = (nextDetail.tiers || []).map((tier) => ({
+      id: tier.id,
+      name: tier.name || "",
+      messageOverride: tier.messageOverride || "",
+      additionalLinkLabel: tier.additionalLinkLabel || "",
+      additionalLinkUrl: tier.additionalLinkUrl || "",
+      fileIds: [...(tier.fileIds || [])],
+      backerCount: tier.backerCount || 0,
+    }));
+    setConfigForm(nextConfig);
+    setSavedConfigRef(nextConfig);
+    setTiersDraft(nextTiers);
+    setSavedTiersRef(nextTiers);
     setSelectedBackerIds([]);
     setEditingBackerId("");
     setBackerDraft({ email: "", tierId: nextDetail.tiers?.[0]?.id || "" });
@@ -272,7 +300,7 @@ export default function DeliveryAdmin() {
     try {
       const response = await api.createDeliveryProject(projectForm);
       setProjectForm(emptyProjectForm());
-      setProjectStatus("Campaign created.");
+      setProjectStatusAC("Campaign created.");
       setShowProjectForm(false);
       const nextProjects = await loadDashboard();
       const projectId = response.project.id || nextProjects[0]?.id || "";
@@ -289,7 +317,7 @@ export default function DeliveryAdmin() {
       return;
     }
 
-    setConfigStatus("Saving campaign...");
+    setConfigStatus("Saving...");
     try {
       const payload = {
         ...configForm,
@@ -306,7 +334,7 @@ export default function DeliveryAdmin() {
       const nextDetail = await api.updateDeliveryProject(selectedProjectId, payload);
       setDetail(nextDetail);
       syncConfig(nextDetail);
-      setConfigStatus("Campaign saved.");
+      setConfigStatusAC("Campaign saved.");
       await loadDashboard();
     } catch (saveError) {
       setConfigStatus(saveError.message || "Campaign save failed.");
@@ -355,18 +383,19 @@ export default function DeliveryAdmin() {
     event.preventDefault();
     const formElement = event.currentTarget;
     if (!selectedProjectId) {
-      setDetailStatus("Create or select a campaign first.");
+      setAssetStatus("Create or select a campaign first.");
       return;
     }
 
     const form = new FormData(formElement);
     const file = form.get("file");
     if (!(file instanceof File) || !file.size) {
-      setDetailStatus("Choose a file first.");
+      setAssetStatus("Choose a file first.");
       return;
     }
 
-    setDetailStatus(kind === "cover" ? "Uploading cover..." : "Uploading PDF...");
+    setIsUploading(true);
+    setAssetStatus(kind === "cover" ? "Uploading cover..." : "Uploading PDF...");
     try {
       if (kind === "cover") {
         await api.uploadDeliveryCover(selectedProjectId, file);
@@ -376,9 +405,11 @@ export default function DeliveryAdmin() {
       formElement.reset();
       await loadDashboard();
       await loadProjectDetail(selectedProjectId);
-      setDetailStatus(kind === "cover" ? "Cover updated." : "PDF uploaded.");
+      setAssetStatus(kind === "cover" ? "Cover updated." : "PDF uploaded.");
     } catch (uploadError) {
-      setDetailStatus(uploadError.message || "Upload failed.");
+      setAssetStatus(uploadError.message || "Upload failed.");
+    } finally {
+      setIsUploading(false);
     }
   }
 
@@ -388,23 +419,14 @@ export default function DeliveryAdmin() {
       return;
     }
 
-    if (resendAll) {
-      const confirmed = window.confirm(
-        "Resend delivery emails to every backer in this campaign, including people who have already been emailed?"
-      );
-      if (!confirmed) {
-        return;
-      }
-    }
-
     setSendStatus(resendAll ? "Resending delivery emails..." : "Sending unsent delivery emails...");
     try {
       const result = await api.sendDeliveryEmails(selectedProjectId, { resendAll });
       if (!result.targetedCount) {
         setSendStatus("No unsent backers left to email.");
       } else {
-        setSendStatus(
-          `${resendAll ? "Sent" : "Sent"} ${result.sentCount} email${result.sentCount === 1 ? "" : "s"}${
+        setSendStatusAC(
+          `${resendAll ? "Resent" : "Sent"} ${result.sentCount} email${result.sentCount === 1 ? "" : "s"}${
             result.skippedCount && !resendAll
               ? `, skipped ${result.skippedCount} already-sent`
               : ""
@@ -424,13 +446,6 @@ export default function DeliveryAdmin() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Delete "${detail.project.title}" and all of its uploaded media from storage? This cannot be undone.`
-    );
-    if (!confirmed) {
-      return;
-    }
-
     setDetailStatus("Deleting campaign and bucket files...");
     try {
       await api.deleteDeliveryProject(selectedProjectId);
@@ -439,6 +454,7 @@ export default function DeliveryAdmin() {
       setSelectedProjectId(nextProjectId);
       setSendStatus("");
       setConfigStatus("");
+      setConfirmState(null);
       if (nextProjectId) {
         await loadProjectDetail(nextProjectId);
       } else {
@@ -455,19 +471,15 @@ export default function DeliveryAdmin() {
       return;
     }
 
-    const confirmed = window.confirm(`Delete ${file.originalFilename} from this campaign?`);
-    if (!confirmed) {
-      return;
-    }
-
-    setDetailStatus(`Deleting ${file.kind === "pdf" ? "PDF" : "cover"}...`);
+    setAssetStatus(`Deleting ${file.kind === "pdf" ? "PDF" : "cover"}...`);
     try {
       await api.deleteDeliveryFile(selectedProjectId, file.id);
       await loadDashboard();
       await loadProjectDetail(selectedProjectId);
-      setDetailStatus(`${file.kind === "pdf" ? "PDF" : "Cover"} deleted.`);
+      setAssetStatus(`${file.kind === "pdf" ? "PDF" : "Cover"} deleted.`);
+      setConfirmState(null);
     } catch (deleteError) {
-      setDetailStatus(deleteError.message || "File deletion failed.");
+      setAssetStatus(deleteError.message || "File deletion failed.");
     }
   }
 
@@ -595,7 +607,7 @@ export default function DeliveryAdmin() {
       });
       await loadDashboard();
       await loadProjectDetail(selectedProjectId);
-      setBackerStatus("Backer updated.");
+      setBackerStatusAC("Backer updated.");
     } catch (saveError) {
       setBackerStatus(saveError.message || "Unable to update backer.");
     }
@@ -612,7 +624,7 @@ export default function DeliveryAdmin() {
       await api.moveDeliveryBackers(selectedProjectId, backerIds, tierId);
       await loadDashboard();
       await loadProjectDetail(selectedProjectId);
-      setBackerStatus("Backers moved.");
+      setBackerStatusAC("Backers moved.");
     } catch (moveError) {
       setBackerStatus(moveError.message || "Unable to move backers.");
     }
@@ -635,7 +647,6 @@ export default function DeliveryAdmin() {
       await moveBackersToTier(movableIds, tierId);
       setSelectedBackerIds(movableIds);
       setSelectionAnchorId(movableIds[0] || "");
-      setBackerStatus(movableIds.length > 1 ? "Backers moved." : "Backer moved.");
     } catch {
       // handled in moveBackersToTier
     } finally {
@@ -669,11 +680,13 @@ export default function DeliveryAdmin() {
       return;
     }
 
-    const confirmed = window.confirm(`Delete ${backer.email} from this campaign?`);
-    if (!confirmed) {
+    const confirmKey = `backer-${backer.id}`;
+    if (confirmState?.key !== confirmKey) {
+      setConfirmState({ key: confirmKey, label: `Delete ${backer.email}?` });
       return;
     }
 
+    setConfirmState(null);
     setBackerStatus("Deleting backer...");
     try {
       await api.deleteDeliveryBacker(selectedProjectId, backer.id);
@@ -681,7 +694,7 @@ export default function DeliveryAdmin() {
       await loadProjectDetail(selectedProjectId);
       setSelectedBackerIds((current) => current.filter((id) => id !== backer.id));
       setSelectionAnchorId((current) => (current === backer.id ? "" : current));
-      setBackerStatus("Backer deleted.");
+      setBackerStatusAC("Backer deleted.");
     } catch (deleteError) {
       setBackerStatus(deleteError.message || "Unable to delete backer.");
     }
@@ -721,6 +734,10 @@ export default function DeliveryAdmin() {
       })
     : [];
   const selectedCount = selectedBackerIds.length;
+  const isDirty =
+    JSON.stringify(configForm) !== JSON.stringify(savedConfigRef) ||
+    JSON.stringify(tiersDraft.map(({ backerCount: _, ...t }) => t)) !==
+      JSON.stringify(savedTiersRef.map(({ backerCount: _, ...t }) => t));
 
   return (
     <section className="editor-shell delivery-workspace delivery-workspace--streamlined">
@@ -732,11 +749,19 @@ export default function DeliveryAdmin() {
         <div className="delivery-header__actions">
           {projects.length ? (
             <label className="delivery-project-picker">
-              <span>Campaign</span>
+              <span>Campaign{isDirty ? " *" : ""}</span>
               <select
                 value={selectedProjectId}
                 onChange={async (event) => {
                   const projectId = event.target.value;
+                  if (isDirty) {
+                    const confirmKey = "switch-campaign";
+                    if (confirmState?.key !== confirmKey) {
+                      setConfirmState({ key: confirmKey, label: "Unsaved changes will be lost. Switch anyway?" });
+                      return;
+                    }
+                    setConfirmState(null);
+                  }
                   setSelectedProjectId(projectId);
                   await loadProjectDetail(projectId);
                 }}
@@ -758,6 +783,34 @@ export default function DeliveryAdmin() {
           </button>
         </div>
       </div>
+
+      {confirmState?.key === "switch-campaign" ? (
+        <div className="delivery-switch-confirm">
+          <span>{confirmState.label}</span>
+          <button
+            className="button-secondary button-compact"
+            type="button"
+            onClick={async () => {
+              const pendingSelect = document.querySelector(".delivery-project-picker select");
+              const projectId = pendingSelect?.value || "";
+              setConfirmState(null);
+              if (projectId && projectId !== selectedProjectId) {
+                setSelectedProjectId(projectId);
+                await loadProjectDetail(projectId);
+              }
+            }}
+          >
+            Switch anyway
+          </button>
+          <button className="button-secondary button-compact" type="button" onClick={() => {
+            const selectEl = document.querySelector(".delivery-project-picker select");
+            if (selectEl) selectEl.value = selectedProjectId;
+            setConfirmState(null);
+          }}>
+            Keep editing
+          </button>
+        </div>
+      ) : null}
 
       {showProjectForm || !projects.length ? (
         <section className="editor-card delivery-section">
@@ -817,7 +870,7 @@ export default function DeliveryAdmin() {
                 Create Campaign
               </button>
             </div>
-            {projectStatus ? <p className="status-line">{projectStatus}</p> : null}
+            {projectStatus ? <p className={statusClass(projectStatus)}>{projectStatus}</p> : null}
           </form>
         </section>
       ) : null}
@@ -881,11 +934,28 @@ export default function DeliveryAdmin() {
                 <button className="button-primary" type="button" onClick={handleSaveConfig}>
                   Save All Changes
                 </button>
-                <button className="button-secondary" type="button" onClick={handleDeleteProject}>
-                  Delete Campaign
-                </button>
+                {confirmState?.key === "delete-campaign" ? (
+                  <>
+                    <span className="delivery-confirm-label">{confirmState.label}</span>
+                    <button className="button-secondary delivery-confirm-yes" type="button" onClick={handleDeleteProject}>
+                      Yes, delete
+                    </button>
+                    <button className="button-secondary" type="button" onClick={() => setConfirmState(null)}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="button-secondary"
+                    type="button"
+                    onClick={() => setConfirmState({ key: "delete-campaign", label: `Delete "${detail.project.title}"?` })}
+                  >
+                    Delete Campaign
+                  </button>
+                )}
               </div>
               {configStatus ? <p className={statusClass(configStatus)}>{configStatus}</p> : null}
+              {detailStatus ? <p className={statusClass(detailStatus)}>{detailStatus}</p> : null}
             </section>
 
             <section className="editor-card delivery-section">
@@ -932,14 +1002,30 @@ export default function DeliveryAdmin() {
                 >
                   Send Unsent Emails
                 </button>
-                <button
-                  className="button-secondary"
-                  type="button"
-                  onClick={() => handleSendEmails({ resendAll: true })}
-                  disabled={!detail.backers.length || !detail.files.length}
-                >
-                  Resend All
-                </button>
+                {confirmState?.key === "resend-all" ? (
+                  <>
+                    <span className="delivery-confirm-label">{confirmState.label}</span>
+                    <button
+                      className="button-secondary delivery-confirm-yes"
+                      type="button"
+                      onClick={() => { setConfirmState(null); void handleSendEmails({ resendAll: true }); }}
+                    >
+                      Yes, resend
+                    </button>
+                    <button className="button-secondary" type="button" onClick={() => setConfirmState(null)}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="button-secondary"
+                    type="button"
+                    onClick={() => setConfirmState({ key: "resend-all", label: "Resend to every backer, including already-emailed?" })}
+                    disabled={!detail.backers.length || !detail.files.length}
+                  >
+                    Resend All
+                  </button>
+                )}
               </div>
               <p className="status-line">
                 Each backer gets one private campaign link filtered by their tier. By default, only backers who have not been emailed yet will be sent.
@@ -963,13 +1049,14 @@ export default function DeliveryAdmin() {
                     <p className="delivery-upload-card__empty">No cover uploaded yet.</p>
                   )}
                   <form onSubmit={(event) => handleUpload("cover", event)}>
-                    <label className="button-secondary button-compact delivery-upload-button">
+                    <label className={`button-secondary button-compact delivery-upload-button${isUploading ? " is-disabled" : ""}`}>
                       <span>{coverUrl ? "Replace Image" : "Upload Image"}</span>
                       <input
                         className="delivery-upload-input"
                         name="file"
                         type="file"
                         accept="image/*"
+                        disabled={isUploading}
                         onChange={(event) => {
                           if (event.target.files?.length) {
                             event.target.form?.requestSubmit();
@@ -986,13 +1073,14 @@ export default function DeliveryAdmin() {
                     {detail.files.length} PDF{detail.files.length === 1 ? "" : "s"} uploaded
                   </p>
                   <form onSubmit={(event) => handleUpload("pdf", event)}>
-                    <label className="button-primary button-compact delivery-upload-button">
+                    <label className={`button-primary button-compact delivery-upload-button${isUploading ? " is-disabled" : ""}`}>
                       <span>Upload PDF</span>
                       <input
                         className="delivery-upload-input"
                         name="file"
                         type="file"
                         accept=".pdf,application/pdf"
+                        disabled={isUploading}
                         onChange={(event) => {
                           if (event.target.files?.length) {
                             event.target.form?.requestSubmit();
@@ -1005,33 +1093,48 @@ export default function DeliveryAdmin() {
               </div>
               {detail.files.length ? (
                 <div className="delivery-mini-list">
-                  {detail.files.map((file) => (
-                    <div key={file.id} className="delivery-mini-list__item">
-                      <div className="delivery-mini-list__item-header">
-                        <strong>{file.originalFilename}</strong>
-                        <button
-                          className="button-secondary button-compact"
-                          type="button"
-                          onClick={() => handleDeleteFile(file)}
-                        >
-                          Delete
-                        </button>
+                  {detail.files.map((file) => {
+                    const fileConfirmKey = `delete-file-${file.id}`;
+                    return (
+                      <div key={file.id} className="delivery-mini-list__item">
+                        <div className="delivery-mini-list__item-header">
+                          <strong>{file.originalFilename}</strong>
+                          {confirmState?.key === fileConfirmKey ? (
+                            <span className="delivery-confirm-inline">
+                              <span className="delivery-confirm-label">{confirmState.label}</span>
+                              <button className="button-secondary button-compact delivery-confirm-yes" type="button" onClick={() => handleDeleteFile(file)}>
+                                Yes
+                              </button>
+                              <button className="button-secondary button-compact" type="button" onClick={() => setConfirmState(null)}>
+                                Cancel
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              className="button-secondary button-compact"
+                              type="button"
+                              onClick={() => setConfirmState({ key: fileConfirmKey, label: `Delete ${file.originalFilename}?` })}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                        <div className="delivery-pdf-frame">
+                          <InlinePdfReader
+                            pdfUrl={fileRoute(file.id) + "/content"}
+                            pages={file.readerPages || []}
+                            compact
+                          />
+                        </div>
+                        <span>
+                          v{file.versionNumber} | {formatFileSize(file.fileSizeBytes)}
+                        </span>
                       </div>
-                      <div className="delivery-pdf-frame">
-                        <InlinePdfReader
-                          pdfUrl={fileRoute(file.id) + "/content"}
-                          pages={file.readerPages || []}
-                          compact
-                        />
-                      </div>
-                      <span>
-                        v{file.versionNumber} | {formatFileSize(file.fileSizeBytes)}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : null}
-              {detailStatus ? <p className={statusClass(detailStatus)}>{detailStatus}</p> : null}
+              {assetStatus ? <p className={statusClass(assetStatus)}>{assetStatus}</p> : null}
             </section>
 
             <section className="editor-card delivery-section">
@@ -1264,10 +1367,16 @@ export default function DeliveryAdmin() {
                                           }} aria-label={`Edit ${backer.email}`}>
                                             <PencilIcon />
                                           </button>
-                                          <button className="delivery-icon-button" type="button" onClick={(event) => {
-                                            event.stopPropagation();
-                                            void handleDeleteBacker(backer);
-                                          }} aria-label={`Delete ${backer.email}`}>
+                                          <button
+                                            className={`delivery-icon-button${confirmState?.key === `backer-${backer.id}` ? " delivery-icon-button--confirming" : ""}`}
+                                            type="button"
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              void handleDeleteBacker(backer);
+                                            }}
+                                            aria-label={confirmState?.key === `backer-${backer.id}` ? `Confirm delete ${backer.email}` : `Delete ${backer.email}`}
+                                            title={confirmState?.key === `backer-${backer.id}` ? "Click again to confirm delete" : "Delete"}
+                                          >
                                             <TrashIcon />
                                           </button>
                                           <a
