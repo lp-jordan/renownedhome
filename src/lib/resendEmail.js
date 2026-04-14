@@ -1,4 +1,4 @@
-function escapeHtml(value) {
+export function escapeHtml(value) {
   return String(value || "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -183,7 +183,7 @@ export function buildDeliveryEmail({
   };
 }
 
-export async function sendResendEmail({ to, subject, html, text }) {
+export async function sendResendEmail({ to, subject, html, text, attachments }) {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -197,6 +197,7 @@ export async function sendResendEmail({ to, subject, html, text }) {
       html,
       text,
       reply_to: process.env.RESEND_REPLY_TO || undefined,
+      attachments: attachments || undefined,
     }),
   });
 

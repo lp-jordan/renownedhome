@@ -30,6 +30,7 @@ import {
 } from "./src/lib/deliveryStore.js";
 import {
   buildDeliveryEmail,
+  escapeHtml,
   resendIsConfigured,
   sendResendEmail,
 } from "./src/lib/resendEmail.js";
@@ -1685,6 +1686,59 @@ app.post("/api/public/letters", publicFormRateLimiter, async (req, res) => {
 
   res.json({ ok: true });
 });
+
+app.post(
+  "/api/public/correspondence",
+  publicFormRateLimiter,
+  upload.single("image"),
+  async (req, res) => {
+    const { name, location } = req.body ?? {};
+    const file = req.file;
+
+    if (!name?.trim() || !file) {
+      if (file) {
+        await fs.unlink(file.path).catch(() => {});
+      }
+      res.status(400).json({ error: "Name and image are required." });
+      return;
+    }
+
+    if (!resendIsConfigured()) {
+      await fs.unlink(file.path).catch(() => {});
+      res.status(503).json({ error: "Email delivery is not configured." });
+      return;
+    }
+
+    const trimmedName = String(name).trim();
+    const trimmedLocation = String(location || "").trim();
+
+    try {
+      const imageBuffer = await fs.readFile(file.path);
+      const base64Content = imageBuffer.toString("base64");
+      const extension = path.extname(file.originalname || "scan.jpg") || ".jpg";
+      const filename = `correspondence-${Date.now()}${extension}`;
+
+      const toEmail =
+        process.env.CORRESPONDENCE_TO_EMAIL || process.env.RESEND_FROM_EMAIL;
+
+      const signature = trimmedLocation
+        ? `${trimmedName}, ${trimmedLocation}`
+        : trimmedName;
+
+      await sendResendEmail({
+        to: toEmail,
+        subject: `Reader Correspondence — ${signature}`,
+        html: `<p>New reader correspondence from <strong>${escapeHtml(trimmedName)}</strong>${trimmedLocation ? `, ${escapeHtml(trimmedLocation)}` : ""}.</p><p>See attached image.</p>`,
+        text: `New reader correspondence from ${trimmedName}${trimmedLocation ? `, ${trimmedLocation}` : ""}.\n\nSee attached image.`,
+        attachments: [{ filename, content: base64Content }],
+      });
+
+      res.json({ ok: true });
+    } finally {
+      await fs.unlink(file.path).catch(() => {});
+    }
+  }
+);
 
 app.get("/api/admin/data", requireAdmin, async (_req, res) => {
   const data = await repository.getAllData();

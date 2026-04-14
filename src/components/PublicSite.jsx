@@ -144,6 +144,7 @@ export default function PublicSite({ bootstrap, refreshBootstrap }) {
             path="/letters"
             element={<LettersPage bootstrap={bootstrap} refreshBootstrap={refreshBootstrap} />}
           />
+          <Route path="/correspondence" element={<CorrespondencePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>
@@ -1225,6 +1226,172 @@ function BreadcrumbBar({ bootstrap }) {
         );
       })}
     </nav>
+  );
+}
+
+function CorrespondencePage() {
+  const fileInputRef = useRef(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [name, setName] = useState("");
+  const [location, setLocation] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  function handleFileChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setImageFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    setError("");
+  }
+
+  function handleRetake() {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setImageFile(null);
+    setPreviewUrl(null);
+    setError("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    if (!imageFile || !name.trim() || !location.trim()) {
+      return;
+    }
+    setIsSubmitting(true);
+    setError("");
+    try {
+      await api.submitCorrespondence({
+        imageFile,
+        name: name.trim(),
+        location: location.trim(),
+      });
+      setSubmitted(true);
+    } catch (err) {
+      setError(err.message || "Unable to submit. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  if (submitted) {
+    return (
+      <main className="page-stack page-stack--subpage">
+        <section className="section-shell section-shell--narrow section-shell--subpage correspondence-shell">
+          <div className="correspondence-success">
+            <h1>Reader Correspondence</h1>
+            <p className="correspondence-success__message">Received. Thank you.</p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="page-stack page-stack--subpage">
+      <section className="section-shell section-shell--narrow section-shell--subpage correspondence-shell">
+        <h1>Reader Correspondence</h1>
+        <form className="letter-composer correspondence-composer" onSubmit={handleSubmit}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="correspondence-file-input"
+            onChange={handleFileChange}
+            aria-label="Photograph your submission"
+          />
+          <button
+            type="button"
+            className={`correspondence-scan-zone ${previewUrl ? "correspondence-scan-zone--captured" : ""}`}
+            onClick={() => fileInputRef.current?.click()}
+            aria-label={previewUrl ? "Retake photo" : "Photograph your submission"}
+          >
+            {previewUrl ? (
+              <img
+                className="correspondence-scan-zone__preview"
+                src={previewUrl}
+                alt="Your submission preview"
+              />
+            ) : (
+              <div className="correspondence-scan-zone__prompt">
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+                <span>Photograph your submission</span>
+              </div>
+            )}
+          </button>
+          {previewUrl ? (
+            <button
+              type="button"
+              className="correspondence-retake"
+              onClick={handleRetake}
+            >
+              Retake
+            </button>
+          ) : null}
+          <label className="letter-composer__issue correspondence-field">
+            <input
+              required
+              type="text"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Your name"
+            />
+          </label>
+          <label className="letter-composer__issue correspondence-field">
+            <input
+              required
+              type="text"
+              value={location}
+              onChange={(event) => setLocation(event.target.value)}
+              placeholder="Where ya from"
+            />
+          </label>
+          <div className="letter-composer__actions">
+            <button
+              className="button-primary letter-composer__button"
+              type="submit"
+              disabled={!imageFile || !name.trim() || !location.trim() || isSubmitting}
+            >
+              {isSubmitting ? "Sending..." : "Submit"}
+            </button>
+          </div>
+          {error ? <p className="status-line status-line--error">{error}</p> : null}
+        </form>
+      </section>
+    </main>
   );
 }
 

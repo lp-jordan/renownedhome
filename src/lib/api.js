@@ -123,6 +123,22 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  async submitCorrespondence({ imageFile, name, location }) {
+    const formData = new FormData();
+    formData.append("image", imageFile);
+    formData.append("name", name);
+    formData.append("location", location || "");
+    const response = await fetch("/api/public/correspondence", {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || "Submission failed.");
+    }
+    return response.json();
+  },
   getAdminData() {
     return request("/api/admin/data");
   },
