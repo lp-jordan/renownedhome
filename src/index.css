@@ -1944,6 +1944,10 @@ textarea {
   text-align: center;
 }
 
+.panel-card--home .panel-card__image {
+  filter: saturate(0.35) contrast(1.04) blur(2px);
+}
+
 .panel-card:hover .panel-card__image {
   transform: scale(1.06);
   filter: saturate(0.95) contrast(1.05) blur(0.6px) brightness(1.04);
@@ -4314,7 +4318,7 @@ textarea {
 }
 
 .asset-crop-surface {
-  position: relative;
+  /* Outer shell: border, checkerboard bg, and centers the inner canvas */
   border: 1px solid var(--line);
   border-radius: 18px;
   overflow: hidden;
@@ -4322,19 +4326,39 @@ textarea {
     linear-gradient(45deg, rgba(255, 255, 255, 0.035) 25%, transparent 25%) 0 0 / 24px 24px,
     linear-gradient(-45deg, rgba(255, 255, 255, 0.035) 25%, transparent 25%) 0 0 / 24px 24px,
     rgba(255, 255, 255, 0.03);
-  touch-action: none;
-  cursor: crosshair;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
 }
 
-.asset-crop-surface.is-disabled {
+.asset-crop-surface__canvas {
+  /*
+    Inner canvas: sizes EXACTLY to the rendered image (no object-fit letterboxing).
+    The image uses auto dimensions + max constraints so the element IS the content.
+    Overlay crop percentages then map 1:1 to image fractions — no coordinate math.
+  */
+  position: relative;
+  touch-action: none;
+  cursor: crosshair;
+  /* Remove inline descender gap so the canvas height = image height exactly */
+  line-height: 0;
+  /* Don't exceed the outer container width */
+  max-width: 100%;
+}
+
+.asset-crop-surface.is-disabled .asset-crop-surface__canvas {
   cursor: not-allowed;
 }
 
 .asset-crop-surface__image {
-  width: 100%;
+  /* Natural dimensions, constrained by max-width/height. No object-fit: the
+     element IS the rendered image — no letterboxing, no coordinate offset. */
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
   max-height: 72vh;
-  object-fit: contain;
-  margin: 0 auto;
+  user-select: none;
 }
 
 .asset-crop-surface__selection {

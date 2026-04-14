@@ -1608,6 +1608,7 @@ function AssetsEditor({
                       }}
                       onDrop={(event) => {
                         event.preventDefault();
+                        event.stopPropagation();
                         if (!draggedAssetIds.length || folder.id === "all") return;
                         justDraggedRef.current = true;
                         setTimeout(() => { justDraggedRef.current = false; }, 200);
@@ -1690,7 +1691,10 @@ function AssetsEditor({
                         }}
                         onDragEnd={() => {
                           setDraggedAssetIds([]);
-                          justDraggedRef.current = false;
+                          // Do NOT reset justDraggedRef here — onDrop sets it and the
+                          // setTimeout clears it. onDragEnd fires before the browser's
+                          // synthetic click on the drop target, so clearing it here would
+                          // defeat the guard that prevents the folder from switching.
                         }}
                       >
                         <img
@@ -1759,7 +1763,7 @@ function PageWorkspace({
   onSaveIssue,
 }) {
   const entries = [
-    ...pages.map((page) => ({
+    ...pages.filter((page) => page.slug !== "/connect").map((page) => ({
       id: `page:${page.id}`,
       type: "page",
       title: page.title,

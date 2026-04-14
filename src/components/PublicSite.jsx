@@ -407,7 +407,7 @@ function ReadPage({ bootstrap }) {
             <Link key={issue.id} className="issue-card" to={getIssuePresentationPath(issue)}>
               <div
                 className="issue-card__image"
-                style={{ backgroundImage: `url(${issue.coverImage || page.hero.backgroundImage})` }}
+                style={{ backgroundImage: `url(${getIssueFeaturedImage(issue) || page.hero.backgroundImage})` }}
               />
               <div className="issue-card__content">
                 <h3>{issue.shortLabel || issue.title}</h3>
@@ -480,22 +480,17 @@ function IssuePage({ bootstrap, slug }) {
               {issue.seo.description || synopsis[0] || "A new case from the world of Renowned."}
             </p>
             <div className="issue-hero__actions">
-              {hasReader ? (
+              {hasReader && slug !== "/one-shot" ? (
                 <button type="button" className="button-primary" onClick={() => openReader(1)}>
-                  {issue.readerLabel || "Open preview"}
+                  {issue.readerLabel || (slug === "/issue-2" ? "Preview Pages" : "Open preview")}
                 </button>
               ) : null}
               {issue.previewUrl ? (
                 <a className="button-secondary" href={issue.previewUrl} target="_blank" rel="noreferrer">
-                  {issue.previewLabel || "Learn more"}
+                  {issue.previewLabel || (slug === "/issue-2" ? "Follow" : "Learn more")}
                 </a>
               ) : null}
             </div>
-            <p className="issue-hero__hint">
-              {hasReader
-                ? "Tap to read with a distraction-free, mobile-friendly viewer."
-                : "Preview pages can be added to the gallery below as they become available."}
-            </p>
           </div>
         </section>
         <section className="section-shell issue-story">
