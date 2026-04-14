@@ -368,23 +368,25 @@ function TeamPage({ bootstrap, routeSlug }) {
         </div>
       </section>
         <section id="headlines" className="section-shell section-shell--narrow section-shell--subpage">
-          <SectionHeading kicker="Newsletter" title={connectPage.content.newsletterHeading} />
-          <p className="body-copy body-copy--centered">{connectPage.content.newsletterSubtitle}</p>
           <div className="newsletter-card newsletter-card--headlines">
-            <p className="newsletter-card__eyebrow">
+            <h3 className="newsletter-card__title">
               {connectPage.content.newsletterCardEyebrow || "The Headlines"}
-            </p>
-            <h3>{connectPage.content.newsletterCardTitle || "Subscribe on Substack"}</h3>
-            {connectPage.content.newsletterCtaUrl ? (
-              <a
-                className="button-primary"
-                href={connectPage.content.newsletterCtaUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {connectPage.content.newsletterCtaLabel || "Read The Headlines"}
-              </a>
-            ) : null}
+            </h3>
+            <div className="headlines-bar">
+              {connectPage.content.newsletterCtaUrl ? (
+                <a
+                  className="button-secondary headlines-bar__cta"
+                  href={connectPage.content.newsletterCtaUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {connectPage.content.newsletterCtaLabel || "Subscribe on Substack"}
+                </a>
+              ) : null}
+              <p className="headlines-bar__desc">
+                {connectPage.content.newsletterSubtitle || connectPage.content.newsletterCardTitle}
+              </p>
+            </div>
           </div>
         </section>
     </main>

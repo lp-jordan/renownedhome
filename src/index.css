@@ -2975,6 +2975,7 @@ textarea {
   line-height: 1.2;
 }
 
+
 .editor-card--full {
   grid-column: span 2;
 }
@@ -4698,14 +4699,38 @@ textarea {
 }
 
 .newsletter-card--headlines {
-  display: grid;
-  gap: 1rem;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
   padding: 2rem;
 }
 
-#headlines .body-copy--centered {
-  max-width: 90ch;
+.newsletter-card__title {
+  margin: 0;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.headlines-bar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.headlines-bar__cta {
+  flex-shrink: 0;
+}
+
+.headlines-bar__desc {
+  flex: 1;
+  text-align: right;
+  color: rgba(199, 204, 214, 0.92);
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 
 .newsletter-card__note {

@@ -487,7 +487,7 @@ function uniqueItems(items) {
   return [...new Set(items.filter(Boolean))];
 }
 
-function PageEditor({ pages, assets, onSave, title = "Pages" }) {
+function PageEditor({ pages, assets, onSave, title = "Pages", teamMembers = [], onSaveTeamMember }) {
   const selectedPage = pages[0];
   const [draft, setDraft] = useState(selectedPage);
   const [saveStatus, setSaveStatus] = useState("");
@@ -611,6 +611,23 @@ function PageEditor({ pages, assets, onSave, title = "Pages" }) {
                 value={panel.image || ""}
                 assets={assets}
                 onReplace={(value) => updateHomePanelImage(panel.href, value)}
+              />
+            ))}
+            {teamMembers.length > 0 && teamMembers.map((member) => (
+              <ImageReplaceRow
+                key={member.id}
+                label={member.name}
+                value={member.image || ""}
+                assets={assets}
+                onReplace={async (value) => {
+                  setSaveStatus("Updating photo...");
+                  try {
+                    await onSaveTeamMember({ ...member, image: value });
+                    setSaveStatus(`${member.name} photo updated.`);
+                  } catch (error) {
+                    setSaveStatus(error.message || "Unable to update photo.");
+                  }
+                }}
               />
             ))}
           </div>
@@ -1755,12 +1772,15 @@ function AssetsEditor({
   );
 }
 
+
 function PageWorkspace({
   pages,
   issues,
   assets,
+  teamMembers,
   onSavePage,
   onSaveIssue,
+  onSaveTeamMember,
 }) {
   const entries = [
     ...pages.filter((page) => page.slug !== "/connect").map((page) => ({
@@ -1837,6 +1857,8 @@ function PageWorkspace({
             assets={assets}
             onSave={onSavePage}
             title={selectedPage.title}
+            teamMembers={selectedPage.slug === "/meet" ? teamMembers : []}
+            onSaveTeamMember={onSaveTeamMember}
           />
         ) : null}
         {selectedIssue ? (
@@ -1965,8 +1987,10 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
             issues={adminData.issues}
             letters={adminData.lettersSubmissions}
             assets={adminData.assets}
+            teamMembers={adminData.teamMembers || []}
             onSavePage={async (page) => syncAfterSave(await api.savePage(page))}
             onSaveIssue={async (issue) => syncAfterSave(await api.saveIssue(issue))}
+            onSaveTeamMember={async (member) => syncAfterSave(await api.saveTeamMember(member))}
           />
         ) : null}
         {activeTab === "redirects" ? (
