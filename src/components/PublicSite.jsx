@@ -1238,6 +1238,7 @@ function CorrespondencePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -1246,6 +1247,14 @@ function CorrespondencePage() {
       }
     };
   }, [previewUrl]);
+
+  useEffect(() => {
+    if (!showCelebration) {
+      return undefined;
+    }
+    const timeout = setTimeout(() => setShowCelebration(false), 1200);
+    return () => clearTimeout(timeout);
+  }, [showCelebration]);
 
   function handleFileChange(event) {
     const file = event.target.files?.[0];
@@ -1285,6 +1294,7 @@ function CorrespondencePage() {
         name: name.trim(),
         location: location.trim(),
       });
+      setShowCelebration(true);
       setSubmitted(true);
     } catch (err) {
       setError(err.message || "Unable to submit. Please try again.");
@@ -1298,6 +1308,20 @@ function CorrespondencePage() {
       <main className="page-stack page-stack--subpage">
         <section className="section-shell section-shell--narrow section-shell--subpage correspondence-shell">
           <div className="correspondence-success">
+            {showCelebration ? (
+              <div className="letter-composer__celebration" aria-hidden="true">
+                {Array.from({ length: 12 }).map((_, index) => (
+                  <span
+                    key={index}
+                    style={{
+                      "--burst-x": `${Math.cos((index / 12) * Math.PI * 2) * 120}px`,
+                      "--burst-y": `${Math.sin((index / 12) * Math.PI * 2) * 120}px`,
+                      "--burst-delay": `${index * 20}ms`,
+                    }}
+                  />
+                ))}
+              </div>
+            ) : null}
             <h1>Reader Correspondence</h1>
             <p className="correspondence-success__message">Received. Thank you.</p>
           </div>

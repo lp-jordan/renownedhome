@@ -1719,7 +1719,7 @@ app.post(
       const filename = `correspondence-${Date.now()}${extension}`;
 
       const toEmail =
-        process.env.CORRESPONDENCE_TO_EMAIL || process.env.RESEND_FROM_EMAIL;
+        process.env.RESEND_REPLY_TO || process.env.RESEND_FROM_EMAIL;
 
       const signature = trimmedLocation
         ? `${trimmedName}, ${trimmedLocation}`
