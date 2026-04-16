@@ -1452,10 +1452,11 @@ textarea {
 .inline-pdf-reader--fullscreen .inline-pdf-reader__viewport {
   flex: 1 1 0;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
+  /* Column + stretch: children fill both width and height */
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
   transition: padding-bottom 180ms ease;
 }
 
@@ -1464,40 +1465,39 @@ textarea {
 }
 
 .inline-pdf-reader--fullscreen .inline-pdf-reader__zoom-surface {
-  /* Fill the flex viewport so images can use height: 100% */
+  /* Fill the column viewport — now has a definite height */
+  flex: 1 1 0;
+  min-height: 0;
   width: 100%;
-  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Allow overflow when zoomed in so panning works */
-  min-width: min-content;
-  min-height: min-content;
+  transform-origin: center center;
 }
 
 .inline-pdf-reader--fullscreen .comic-reader__spread,
 .inline-pdf-reader--fullscreen .inline-pdf-reader__image-spread {
   gap: 0;
-  /* Fill the zoom-surface so images can fill height */
   width: 100%;
   height: 100%;
+  display: flex;
   align-items: center;
-  justify-items: center;
+  justify-content: center;
 }
 
-/* Canvas: keep width-based rendering, just remove constraints */
+/* Canvas: keep width-based rendering, just remove height constraints */
 .inline-pdf-reader--fullscreen .inline-pdf-reader__frame canvas {
   max-height: none;
   border-radius: 0;
   box-shadow: none;
 }
 
-/* Images: fill the available frame, maintain aspect ratio via object-fit */
+/* Images: constrain to the available box, object-fit centers+scales */
 .inline-pdf-reader--fullscreen .inline-pdf-reader__image {
-  width: 100%;
-  height: 100%;
   max-width: 100%;
   max-height: 100%;
+  width: auto;
+  height: auto;
   border-radius: 0;
   box-shadow: none;
   object-fit: contain;
