@@ -22,9 +22,17 @@ export default function InlinePdfReader({
   const readerRef = useRef(null);
   const stageRef = useRef(null);
   const gestureRef = useRef({ startX: 0, startY: 0, active: false });
+  const touchHandledRef = useRef(false);
+  const autoHideTimerRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageCount, setPageCount] = useState(0);
-  const [stageWidth, setStageWidth] = useState(compact ? 360 : 720);
+  const [stageWidth, setStageWidth] = useState(() => {
+    if (compact) return 360;
+    if (typeof window !== "undefined" && window.innerWidth < 900) {
+      return Math.max(220, window.innerWidth - 80);
+    }
+    return 720;
+  });
   const [pdfFile, setPdfFile] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -142,11 +150,15 @@ export default function InlinePdfReader({
 
     // Briefly show controls so user knows they can tap to toggle them.
     setIsChromeVisible(true);
-    const autoHideTimer = setTimeout(() => setIsChromeVisible(false), 2000);
+    autoHideTimerRef.current = setTimeout(() => {
+      autoHideTimerRef.current = null;
+      setIsChromeVisible(false);
+    }, 2000);
 
     return () => {
       document.body.style.overflow = previousOverflow;
-      clearTimeout(autoHideTimer);
+      clearTimeout(autoHideTimerRef.current);
+      autoHideTimerRef.current = null;
     };
   }, [isFullscreen]);
 
@@ -223,10 +235,22 @@ export default function InlinePdfReader({
   }
 
   function toggleChrome() {
+    // Cancel any pending auto-hide so it doesn't interfere with manual toggles.
+    if (autoHideTimerRef.current) {
+      clearTimeout(autoHideTimerRef.current);
+      autoHideTimerRef.current = null;
+    }
     setIsChromeVisible((current) => !current);
   }
 
   function handleFrameToggle() {
+    toggleChrome();
+  }
+
+  function handleFrameClick() {
+    // Suppress the synthetic click that fires after a touch tap to avoid a
+    // double-toggle (onTouchEnd already handled it).
+    if (touchHandledRef.current) return;
     toggleChrome();
   }
 
@@ -266,6 +290,9 @@ export default function InlinePdfReader({
     }
 
     if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
+      // Mark as touch-handled so the subsequent synthetic click is suppressed.
+      touchHandledRef.current = true;
+      setTimeout(() => { touchHandledRef.current = false; }, 400);
       handleFrameToggle();
     }
   }
@@ -346,7 +373,7 @@ export default function InlinePdfReader({
       <div
         className="inline-pdf-reader__frame"
         ref={stageRef}
-        onClick={isFullscreen ? handleFrameToggle : undefined}
+        onClick={isFullscreen ? handleFrameClick : undefined}
         onTouchStart={isFullscreen ? handleTouchStart : undefined}
         onTouchEnd={isFullscreen ? handleTouchEnd : undefined}
       >
