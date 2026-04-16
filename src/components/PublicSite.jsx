@@ -7,7 +7,6 @@ import {
 } from "react-router-dom";
 import { api } from "../lib/api";
 import DeliveryAccessPage from "./DeliveryAccessPage";
-import DeliveryReadPage from "./DeliveryReadPage";
 import { resolveSeo, usePageSeo, useSeo } from "../lib/seo";
 
 const SWIPE_THRESHOLD = 44;
@@ -134,8 +133,6 @@ export default function PublicSite({ bootstrap, refreshBootstrap }) {
           <Route path="/one-shot" element={<IssuePage bootstrap={bootstrap} slug="/one-shot" />} />
           <Route path="/go" element={<RedirectPage bootstrap={bootstrap} pathName="/go" />} />
           <Route path="/a/:token" element={<DeliveryAccessPage />} />
-          <Route path="/a/:token/read" element={<DeliveryReadPage />} />
-          <Route path="/a/:token/read/:fileId" element={<DeliveryReadPage />} />
           <Route
             path="/3-10-to-nowhere"
             element={<RedirectPage bootstrap={bootstrap} pathName="/3-10-to-nowhere" />}

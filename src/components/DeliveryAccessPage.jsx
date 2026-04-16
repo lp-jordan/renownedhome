@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { useSeo } from "../lib/seo";
 
@@ -155,9 +155,7 @@ export default function DeliveryAccessPage() {
                     <a className="button-primary" href={file.actions.downloadUrl}>
                       Download
                     </a>
-                    <Link className="button-secondary" to={file.actions.readUrl}>
-                      Read In Browser
-                    </Link>
+
                     {additionalLinkUrl ? (
                       <a
                         className="button-secondary"
