@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
+import { buildDeliveryEmail } from "../lib/resendEmail";
 import InlinePdfReader from "./InlinePdfReader";
 
 function emptyProjectForm() {
@@ -1518,13 +1519,35 @@ export default function DeliveryAdmin() {
                         {tier.additionalLinkUrl ? (
                           <span>{tier.additionalLinkLabel || tier.additionalLinkUrl}</span>
                         ) : null}
-                        {previewBacker ? (
-                          <a className="button-secondary button-compact" href={`/a/${previewBacker.accessToken}`} target="_blank" rel="noreferrer">
-                            Open Preview
-                          </a>
-                        ) : (
-                          <span>Add one backer to preview this tier.</span>
-                        )}
+                        <div className="delivery-inline-actions">
+                          {previewBacker ? (
+                            <a className="button-secondary button-compact" href={`/a/${previewBacker.accessToken}`} target="_blank" rel="noreferrer">
+                              Open Preview
+                            </a>
+                          ) : (
+                            <span>Add one backer to preview this tier.</span>
+                          )}
+                          <button
+                            className="button-secondary button-compact"
+                            type="button"
+                            onClick={() => {
+                              const { html } = buildDeliveryEmail({
+                                projectTitle: detail.project.title,
+                                creatorName: detail.project.creatorName,
+                                accessUrl: previewBacker
+                                  ? `${window.location.origin}/a/${previewBacker.accessToken}`
+                                  : `${window.location.origin}/a/preview`,
+                                coverImageUrl: coverUrl,
+                              });
+                              const blob = new Blob([html], { type: "text/html" });
+                              const url = URL.createObjectURL(blob);
+                              window.open(url, "_blank");
+                              setTimeout(() => URL.revokeObjectURL(url), 60000);
+                            }}
+                          >
+                            Preview Email
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
