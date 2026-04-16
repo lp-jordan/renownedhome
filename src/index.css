@@ -6377,8 +6377,9 @@ textarea {
     display: none;
   }
 
-  /* Allow native pinch-to-zoom on fullscreen content */
+  /* Lock scrolling in fullscreen — swipe navigation handles page turns */
   .inline-pdf-reader--fullscreen .inline-pdf-reader__viewport {
-    touch-action: pan-x pan-y pinch-zoom;
+    overflow: hidden;
+    touch-action: none;
   }
 }
