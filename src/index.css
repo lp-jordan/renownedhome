@@ -1320,7 +1320,8 @@ textarea {
     max(0.9rem, env(safe-area-inset-bottom))
     max(0.75rem, env(safe-area-inset-left));
   background: rgba(7, 9, 14, 0.98);
-  display: block;
+  display: flex;
+  flex-direction: column;
 }
 
 .inline-pdf-reader__frame {
@@ -1436,8 +1437,9 @@ textarea {
 }
 
 .inline-pdf-reader--fullscreen .inline-pdf-reader__frame {
+  flex: 1 1 0;
   min-height: 0;
-  height: calc(100vh - max(1.8rem, env(safe-area-inset-top)) - max(1.8rem, env(safe-area-inset-bottom)));
+  height: auto;
   padding: 0;
   border-radius: 0;
   border: 0;
@@ -1446,6 +1448,11 @@ textarea {
 
 .inline-pdf-reader--fullscreen .inline-pdf-reader__viewport {
   overflow: auto;
+  transition: padding-bottom 180ms ease;
+}
+
+.inline-pdf-reader--fullscreen.inline-pdf-reader--chrome-visible .inline-pdf-reader__viewport {
+  padding-bottom: 4.5rem;
 }
 
 .inline-pdf-reader--fullscreen .inline-pdf-reader__zoom-surface {
@@ -6274,7 +6281,7 @@ textarea {
   .delivery-reader-page__reader .react-pdf__Page__canvas {
     width: 100% !important;
     max-width: 100% !important;
-    max-height: none;
+    max-height: 55vh;
   }
 
   .inline-pdf-reader__footer {
@@ -6296,8 +6303,11 @@ textarea {
     right: max(0.75rem, env(safe-area-inset-right));
     bottom: max(0.9rem, env(safe-area-inset-bottom));
     width: auto;
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
     border-radius: 18px;
     transform: translateY(0);
   }
@@ -6310,8 +6320,14 @@ textarea {
     transform: translateY(8px);
   }
 
-  .inline-pdf-reader__topbar .inline-pdf-reader__nav-button {
+  .inline-pdf-reader--fullscreen .inline-pdf-reader__footer .inline-pdf-reader__nav-button {
     width: auto;
+    flex: 0 0 auto;
+  }
+
+  .inline-pdf-reader--fullscreen .inline-pdf-reader__meta {
+    flex: 1 1 auto;
+    min-width: 7rem;
   }
 
   .inline-pdf-reader__meta,

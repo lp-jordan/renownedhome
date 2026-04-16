@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(ls /c/renownedhome/.env*)"
+      "Bash(ls /c/renownedhome/.env*)",
+      "Bash(grep -l \"reader\\\\|Reader\" /c/renownedhome/src/components/*.jsx)"
     ]
   }
 }

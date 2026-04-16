@@ -139,8 +139,14 @@ export default function InlinePdfReader({
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+
+    // Briefly show controls so user knows they can tap to toggle them.
+    setIsChromeVisible(true);
+    const autoHideTimer = setTimeout(() => setIsChromeVisible(false), 2000);
+
     return () => {
       document.body.style.overflow = previousOverflow;
+      clearTimeout(autoHideTimer);
     };
   }, [isFullscreen]);
 
@@ -213,7 +219,6 @@ export default function InlinePdfReader({
 
   function toggleFullscreen() {
     setIsFullscreen((current) => !current);
-    setIsChromeVisible(false);
     setZoom(MIN_ZOOM);
   }
 
