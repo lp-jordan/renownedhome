@@ -111,6 +111,7 @@ export function buildDeliveryEmail({
                             }
                           </td>
                           <td valign="top" class="delivery-stack__right" style="padding:0 0 0 2px;vertical-align:top;">
+                            <p style="margin:0 0 12px;color:#f2f4f8;font-size:15px;line-height:1.6;">Your digital package is ready for download!</p>
                             <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 12px;">
                               <tr>
                                 <td align="center" bgcolor="#ffffff" style="border-radius:16px;">
@@ -118,7 +119,7 @@ export function buildDeliveryEmail({
                                     href="${safeAccessUrl}"
                                     style="display:block;padding:16px 24px;border-radius:16px;background:#ffffff;color:#05070b;text-decoration:none;font-size:15px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;"
                                   >
-                                    Open Your Copy
+                                    Access Here
                                   </a>
                                 </td>
                               </tr>
