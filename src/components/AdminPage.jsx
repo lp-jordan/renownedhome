@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import AssetVariantEditorModal from "./AssetVariantEditorModal";
 import DeliveryAdmin from "./DeliveryAdmin";
+import ShareLinksAdmin from "./ShareLinksAdmin";
 import { usePageSeo } from "../lib/seo";
 import { useAutosave } from "../hooks/useAutosave";
 
@@ -1952,6 +1953,7 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
 
   const tabs = [
     ["delivery", "Delivery"],
+    ["share-links", "Share Links"],
     ["pages", "Pages"],
     ["letters", "Letters"],
     ["assets", "Assets"],
@@ -1981,6 +1983,7 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
           />
         ) : null}
         {activeTab === "delivery" ? <DeliveryAdmin /> : null}
+        {activeTab === "share-links" ? <ShareLinksAdmin /> : null}
         {activeTab === "pages" ? (
           <PageWorkspace
             pages={adminData.pages}

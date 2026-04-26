@@ -531,6 +531,7 @@ export const defaultSiteData = {
   lettersSubmissions: [],
   assetFolders: [],
   assets: [],
+  shareLinks: [],
 };
 
 export function cloneDefaultSiteData() {

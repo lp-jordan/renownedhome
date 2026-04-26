@@ -437,4 +437,20 @@ export const api = {
       files: [payload.file],
     });
   },
+  listShareLinks() {
+    return request("/api/admin/share-links");
+  },
+  uploadShareLink(file, { label, message } = {}, { onProgress, onPhaseChange } = {}) {
+    const formData = new FormData();
+    formData.append("pdf", file);
+    if (label) formData.append("label", label);
+    if (message) formData.append("message", message);
+    return uploadWithProgress("/api/admin/share-links", formData, { onProgress, onPhaseChange });
+  },
+  deleteShareLink(id) {
+    return request(`/api/admin/share-links/${encodeURIComponent(id)}`, { method: "DELETE" });
+  },
+  getShareLink(token) {
+    return request(`/api/share/${encodeURIComponent(token)}`, { headers: {} });
+  },
 };

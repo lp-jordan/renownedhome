@@ -772,6 +772,7 @@ class PgRepository {
       "redirects",
       "lettersSubmissions",
       "assets",
+      "shareLinks",
     ];
 
     for (const key of keys) {
@@ -781,7 +782,7 @@ class PgRepository {
           VALUES ($1, $2::jsonb)
           ON CONFLICT (store_key) DO NOTHING
         `,
-        [key, JSON.stringify(seed[key])]
+        [key, JSON.stringify(seed[key] ?? [])]
       );
     }
 
@@ -849,6 +850,7 @@ class PgRepository {
         "redirects",
         "lettersSubmissions",
         "assets",
+        "shareLinks",
       ];
 
       for (const key of keys) {
@@ -2253,6 +2255,147 @@ app.get("/api/admin/letters", requireAdmin, async (_req, res) => {
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   res.json({ letters: enriched });
+});
+
+app.get("/api/admin/share-links", requireAdmin, async (_req, res) => {
+  const data = await repository.getAllData();
+  res.json({ shareLinks: (data.shareLinks || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) });
+});
+
+app.post(
+  "/api/admin/share-links",
+  requireTrustedOrigin,
+  requireAdmin,
+  upload.single("pdf"),
+  async (req, res) => {
+    let tempFilePath = null;
+
+    if (!storageIsConfigured()) {
+      res.status(501).json({
+        error: "Bucket storage is not configured. Set the required S3_* variables before using uploads.",
+      });
+      return;
+    }
+
+    if (!req.file) {
+      res.status(400).json({ error: "pdf file is required." });
+      return;
+    }
+
+    const looksLikePdf =
+      req.file.mimetype === "application/pdf" ||
+      path.extname(req.file.originalname).toLowerCase() === ".pdf";
+
+    if (!looksLikePdf) {
+      await removeTempUpload(req.file.path);
+      res.status(400).json({ error: "Only PDF files are allowed." });
+      return;
+    }
+
+    tempFilePath = req.file.path;
+
+    try {
+      const id = crypto.randomUUID();
+      const token = crypto.randomBytes(24).toString("base64url");
+      const storageKey = `share-links/${id}.pdf`;
+      const client = createStorageClient();
+
+      await client.send(
+        new PutObjectCommand({
+          Bucket: getStorageEnv().bucket,
+          Key: storageKey,
+          Body: createReadStream(tempFilePath),
+          ContentType: "application/pdf",
+          ContentLength: req.file.size,
+        })
+      );
+
+      const shareLink = {
+        id,
+        token,
+        label: String(req.body.label || "").trim() || req.file.originalname,
+        message: String(req.body.message || "").trim(),
+        filename: req.file.originalname,
+        storageKey,
+        fileSize: req.file.size,
+        createdAt: new Date().toISOString(),
+      };
+
+      await withData((data) => ({
+        ...data,
+        shareLinks: [...(data.shareLinks || []), shareLink],
+      }));
+
+      res.json({ shareLink, url: `/share/${token}` });
+    } finally {
+      await removeTempUpload(tempFilePath);
+    }
+  }
+);
+
+app.delete(
+  "/api/admin/share-links/:id",
+  requireTrustedOrigin,
+  requireAdmin,
+  async (req, res) => {
+    const data = await repository.getAllData();
+    const link = (data.shareLinks || []).find((entry) => entry.id === req.params.id);
+
+    if (!link) {
+      res.status(404).json({ error: "Share link not found." });
+      return;
+    }
+
+    await deleteStorageKeys([link.storageKey]);
+    await withData((d) => ({
+      ...d,
+      shareLinks: (d.shareLinks || []).filter((entry) => entry.id !== req.params.id),
+    }));
+
+    res.status(204).end();
+  }
+);
+
+app.get("/api/share/:token", async (req, res) => {
+  const data = await repository.getAllData();
+  const link = (data.shareLinks || []).find((entry) => entry.token === req.params.token);
+
+  if (!link) {
+    res.status(404).json({ error: "Link not found or expired." });
+    return;
+  }
+
+  res.json({
+    label: link.label,
+    message: link.message,
+    filename: link.filename,
+    fileSize: link.fileSize,
+    createdAt: link.createdAt,
+  });
+});
+
+app.get("/api/share/:token/download", async (req, res) => {
+  const data = await repository.getAllData();
+  const link = (data.shareLinks || []).find((entry) => entry.token === req.params.token);
+
+  if (!link) {
+    res.status(404).json({ error: "Link not found or expired." });
+    return;
+  }
+
+  if (!storageIsConfigured()) {
+    res.status(501).json({ error: "Storage not configured." });
+    return;
+  }
+
+  const signedUrl = await createSignedStorageUrl({
+    key: link.storageKey,
+    contentType: "application/pdf",
+    disposition: "attachment",
+    filename: link.filename,
+  });
+
+  res.redirect(302, signedUrl);
 });
 
 app.get("/api/admin/delivery/summary", requireAdmin, async (req, res) => {
