@@ -48,49 +48,47 @@ export default function ShareAccessPage() {
   }, [token]);
 
   if (loading) {
-    return (
-      <div className="delivery-shell">
-        <div className="delivery-loading">Loading&hellip;</div>
-      </div>
-    );
+    return <div className="state-shell">Loading&hellip;</div>;
   }
 
   if (error || !link) {
     return (
-      <div className="delivery-shell">
-        <div className="delivery-not-found">
+      <main className="delivery-access">
+        <section className="delivery-card delivery-card--centered">
+          <p className="delivery-access__eyebrow">Shared File</p>
           <h1>Link not found</h1>
           <p>{error || "This link is invalid or has been removed."}</p>
-        </div>
-      </div>
+        </section>
+      </main>
     );
   }
 
   const downloadUrl = `/api/share/${encodeURIComponent(token)}/download`;
 
   return (
-    <div className="delivery-shell">
-      <div className="delivery-access-card">
-        <h1 className="delivery-access-card__title">{link.label}</h1>
-
-        {link.message ? (
-          <p className="delivery-access-card__message">{link.message}</p>
-        ) : null}
-
-        <div className="delivery-access-card__files">
-          <a
-            className="delivery-file-row delivery-file-row--download"
-            href={downloadUrl}
-            download={link.filename}
-          >
-            <span className="delivery-file-row__name">{link.filename}</span>
-            {link.fileSize ? (
-              <span className="delivery-file-row__meta">{formatFileSize(link.fileSize)}</span>
-            ) : null}
-            <span className="delivery-file-row__action button-primary">Download PDF</span>
-          </a>
+    <main className="delivery-access">
+      <section className="delivery-card delivery-card--centered">
+        <div className="delivery-card__content">
+          <p className="delivery-access__eyebrow">Shared File</p>
+          <h1 className="delivery-card__title">{link.label}</h1>
+          {link.message ? (
+            <p className="delivery-card__message">
+              <em>{link.message}</em>
+            </p>
+          ) : null}
+          <div className="delivery-mini-list">
+            <div className="delivery-mini-list__item">
+              <strong>{link.filename}</strong>
+              {link.fileSize ? <span>{formatFileSize(link.fileSize)}</span> : null}
+              <div className="delivery-inline-actions">
+                <a className="button-primary" href={downloadUrl} download={link.filename}>
+                  Download PDF
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

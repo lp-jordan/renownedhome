@@ -109,7 +109,8 @@ function getHomePanels(page, lettersPage) {
 
 export default function PublicSite({ bootstrap, refreshBootstrap }) {
   const location = useLocation();
-  const hideBreadcrumbs = location.pathname.startsWith("/a/");
+  const hideBreadcrumbs =
+    location.pathname.startsWith("/a/") || location.pathname.startsWith("/share/");
 
   useEffect(() => {
     window.scrollTo(0, 0);
