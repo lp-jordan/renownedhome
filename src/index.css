@@ -957,6 +957,24 @@ textarea {
   color: #05070b;
 }
 
+.delivery-inline-actions--centered {
+  justify-content: center;
+}
+
+.share-access-thumbnail {
+  width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+}
+
+.share-access-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .delivery-analytics-stats small {
   display: block;
   margin-top: 0.35rem;

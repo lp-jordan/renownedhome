@@ -440,18 +440,19 @@ export const api = {
   listShareLinks() {
     return request("/api/admin/share-links");
   },
-  uploadShareLink(file, { label, message } = {}, { onProgress, onPhaseChange } = {}) {
+  uploadShareLink(file, { label, message, thumbnailUrl } = {}, { onProgress, onPhaseChange } = {}) {
     const formData = new FormData();
     formData.append("pdf", file);
     if (label) formData.append("label", label);
     if (message) formData.append("message", message);
+    if (thumbnailUrl) formData.append("thumbnailUrl", thumbnailUrl);
     return uploadWithProgress("/api/admin/share-links", formData, { onProgress, onPhaseChange });
   },
-  updateShareLink(id, { label, message }) {
+  updateShareLink(id, { label, message, thumbnailUrl }) {
     return request(`/api/admin/share-links/${encodeURIComponent(id)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label, message }),
+      body: JSON.stringify({ label, message, thumbnailUrl }),
     });
   },
   deleteShareLink(id) {

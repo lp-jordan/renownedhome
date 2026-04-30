@@ -76,11 +76,16 @@ export default function ShareAccessPage() {
               <em>{link.message}</em>
             </p>
           ) : null}
+          {link.thumbnailUrl ? (
+            <div className="share-access-thumbnail">
+              <img src={link.thumbnailUrl} alt={link.label} />
+            </div>
+          ) : null}
           <div className="delivery-mini-list">
             <div className="delivery-mini-list__item">
               <strong>{link.filename}</strong>
               {link.fileSize ? <span>{formatFileSize(link.fileSize)}</span> : null}
-              <div className="delivery-inline-actions">
+              <div className="delivery-inline-actions delivery-inline-actions--centered">
                 <a className="button-primary" href={downloadUrl} download={link.filename}>
                   Download PDF
                 </a>

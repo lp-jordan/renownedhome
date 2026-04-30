@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
+import { AssetField } from "./AssetField";
 
 function formatFileSize(bytes) {
   const value = Number(bytes || 0);
@@ -32,15 +33,16 @@ function statusClass(text) {
   return "status-line";
 }
 
-function EditLinkForm({ link, onSave, onCancel }) {
+function EditLinkForm({ link, assets, onSave, onCancel }) {
   const [label, setLabel] = useState(link.label || "");
   const [message, setMessage] = useState(link.message || "");
+  const [thumbnailUrl, setThumbnailUrl] = useState(link.thumbnailUrl || "");
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
     setSaving(true);
     try {
-      await onSave(link.id, { label, message });
+      await onSave(link.id, { label, message, thumbnailUrl });
     } finally {
       setSaving(false);
     }
@@ -56,6 +58,24 @@ function EditLinkForm({ link, onSave, onCancel }) {
         <span>Message (shown on access page)</span>
         <textarea rows={3} value={message} onChange={(e) => setMessage(e.target.value)} />
       </label>
+      <div className="delivery-form-grid__full">
+        <AssetField
+          label="Thumbnail (16:9, shown on access page)"
+          value={thumbnailUrl}
+          onChange={setThumbnailUrl}
+          assets={assets}
+        />
+        {thumbnailUrl ? (
+          <button
+            type="button"
+            className="button-secondary button-compact"
+            style={{ marginTop: "0.4rem" }}
+            onClick={() => setThumbnailUrl("")}
+          >
+            Remove thumbnail
+          </button>
+        ) : null}
+      </div>
       <div style={{ display: "flex", gap: "0.5rem", gridColumn: "1 / -1" }}>
         <button className="button-primary" type="button" onClick={handleSave} disabled={saving}>
           {saving ? "Saving..." : "Save"}
@@ -68,7 +88,7 @@ function EditLinkForm({ link, onSave, onCancel }) {
   );
 }
 
-export default function ShareLinksAdmin() {
+export default function ShareLinksAdmin({ assets = [] }) {
   const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
@@ -76,6 +96,7 @@ export default function ShareLinksAdmin() {
   const [uploadPhase, setUploadPhase] = useState(null);
   const [label, setLabel] = useState("");
   const [message, setMessage] = useState("");
+  const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [pendingDelete, setPendingDelete] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const fileInputRef = useRef(null);
@@ -104,7 +125,7 @@ export default function ShareLinksAdmin() {
     try {
       const result = await api.uploadShareLink(
         file,
-        { label: label.trim(), message: message.trim() },
+        { label: label.trim(), message: message.trim(), thumbnailUrl: thumbnailUrl.trim() },
         {
           onProgress: ({ percent }) => setUploadProgress(percent),
           onPhaseChange: (phase) => setUploadPhase(phase),
@@ -118,6 +139,7 @@ export default function ShareLinksAdmin() {
       setLinks((prev) => [result.shareLink, ...prev]);
       setLabel("");
       setMessage("");
+      setThumbnailUrl("");
       setStatus("Uploaded! Link generated.");
       await copyToClipboard(`${window.location.origin}/share/${result.shareLink.token}`);
     } catch (err) {
@@ -193,6 +215,24 @@ export default function ShareLinksAdmin() {
               onChange={(e) => setMessage(e.target.value)}
             />
           </label>
+          <div className="delivery-form-grid__full">
+            <AssetField
+              label="Thumbnail (16:9, shown on access page)"
+              value={thumbnailUrl}
+              onChange={setThumbnailUrl}
+              assets={assets}
+            />
+            {thumbnailUrl ? (
+              <button
+                type="button"
+                className="button-secondary button-compact"
+                style={{ marginTop: "0.4rem" }}
+                onClick={() => setThumbnailUrl("")}
+              >
+                Remove thumbnail
+              </button>
+            ) : null}
+          </div>
         </div>
         <div style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: "1rem" }}>
           <button
@@ -245,9 +285,17 @@ export default function ShareLinksAdmin() {
                 {link.message && editingId !== link.id ? (
                   <p style={{ margin: 0, fontSize: "0.85rem", opacity: 0.8, fontStyle: "italic" }}>&ldquo;{link.message}&rdquo;</p>
                 ) : null}
+                {link.thumbnailUrl && editingId !== link.id ? (
+                  <img
+                    src={link.thumbnailUrl}
+                    alt=""
+                    style={{ marginTop: "0.35rem", width: "100%", maxWidth: "200px", aspectRatio: "16/9", objectFit: "cover", borderRadius: "4px" }}
+                  />
+                ) : null}
                 {editingId === link.id ? (
                   <EditLinkForm
                     link={link}
+                    assets={assets}
                     onSave={handleSaveEdit}
                     onCancel={() => setEditingId(null)}
                   />

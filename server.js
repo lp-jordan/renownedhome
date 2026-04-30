@@ -2315,6 +2315,7 @@ app.post(
         token,
         label: String(req.body.label || "").trim() || req.file.originalname,
         message: String(req.body.message || "").trim(),
+        thumbnailUrl: String(req.body.thumbnailUrl || "").trim(),
         filename: req.file.originalname,
         storageKey,
         fileSize: req.file.size,
@@ -2361,7 +2362,7 @@ app.patch(
   requireTrustedOrigin,
   requireAdmin,
   async (req, res) => {
-    const { label, message } = req.body || {};
+    const { label, message, thumbnailUrl } = req.body || {};
     const data = await repository.getAllData();
     const link = (data.shareLinks || []).find((entry) => entry.id === req.params.id);
 
@@ -2374,6 +2375,7 @@ app.patch(
       ...link,
       label: typeof label === "string" ? label.trim() : link.label,
       message: typeof message === "string" ? message.trim() : link.message,
+      thumbnailUrl: typeof thumbnailUrl === "string" ? thumbnailUrl.trim() : link.thumbnailUrl,
     };
 
     await withData((d) => ({
@@ -2399,6 +2401,7 @@ app.get("/api/share/:token", async (req, res) => {
   res.json({
     label: link.label,
     message: link.message,
+    thumbnailUrl: link.thumbnailUrl || "",
     filename: link.filename,
     fileSize: link.fileSize,
     createdAt: link.createdAt,
