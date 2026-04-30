@@ -28,8 +28,44 @@ function statusClass(text) {
   if (!text) return "status-line";
   const lower = text.toLowerCase();
   if (/error|failed|invalid/.test(lower)) return "status-line status-line--error";
-  if (/uploaded|copied|deleted/.test(lower)) return "status-line status-line--success";
+  if (/uploaded|copied|deleted|saved/.test(lower)) return "status-line status-line--success";
   return "status-line";
+}
+
+function EditLinkForm({ link, onSave, onCancel }) {
+  const [label, setLabel] = useState(link.label || "");
+  const [message, setMessage] = useState(link.message || "");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await onSave(link.id, { label, message });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="delivery-form-grid" style={{ marginTop: "0.5rem" }}>
+      <label>
+        <span>Label</span>
+        <input value={label} onChange={(e) => setLabel(e.target.value)} />
+      </label>
+      <label className="delivery-form-grid__full">
+        <span>Message (shown on access page)</span>
+        <textarea rows={3} value={message} onChange={(e) => setMessage(e.target.value)} />
+      </label>
+      <div style={{ display: "flex", gap: "0.5rem", gridColumn: "1 / -1" }}>
+        <button className="button-primary" type="button" onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : "Save"}
+        </button>
+        <button className="button-secondary" type="button" onClick={onCancel} disabled={saving}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function ShareLinksAdmin() {
@@ -41,6 +77,7 @@ export default function ShareLinksAdmin() {
   const [label, setLabel] = useState("");
   const [message, setMessage] = useState("");
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [editingId, setEditingId] = useState(null);
   const fileInputRef = useRef(null);
 
   async function loadLinks() {
@@ -98,6 +135,17 @@ export default function ShareLinksAdmin() {
       setStatus("Link copied to clipboard!");
     } catch {
       setStatus(`Link ready: ${text}`);
+    }
+  }
+
+  async function handleSaveEdit(id, fields) {
+    try {
+      const result = await api.updateShareLink(id, fields);
+      setLinks((prev) => prev.map((l) => (l.id === id ? result.shareLink : l)));
+      setEditingId(null);
+      setStatus("Saved.");
+    } catch (err) {
+      setStatus(`Save error: ${err.message}`);
     }
   }
 
@@ -194,53 +242,68 @@ export default function ShareLinksAdmin() {
                   <strong style={{ fontSize: "0.95rem" }}>{link.label || link.filename}</strong>
                   <span style={{ fontSize: "0.8rem", opacity: 0.6 }}>{formatDate(link.createdAt)} · {formatFileSize(link.fileSize)}</span>
                 </div>
-                {link.message ? (
+                {link.message && editingId !== link.id ? (
                   <p style={{ margin: 0, fontSize: "0.85rem", opacity: 0.8, fontStyle: "italic" }}>&ldquo;{link.message}&rdquo;</p>
                 ) : null}
-                <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.25rem", flexWrap: "wrap" }}>
-                  <button
-                    className="button-secondary button-compact"
-                    type="button"
-                    onClick={() => copyToClipboard(shareUrl(link.token))}
-                  >
-                    Copy Link
-                  </button>
-                  <a
-                    className="button-secondary button-compact"
-                    href={shareUrl(link.token)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ textDecoration: "none" }}
-                  >
-                    Preview
-                  </a>
-                  {pendingDelete === link.id ? (
-                    <>
-                      <button
-                        className="button-secondary button-compact delivery-confirm-yes"
-                        type="button"
-                        onClick={() => handleDelete(link)}
-                      >
-                        Confirm Delete
-                      </button>
-                      <button
-                        className="button-secondary button-compact"
-                        type="button"
-                        onClick={() => setPendingDelete(null)}
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
+                {editingId === link.id ? (
+                  <EditLinkForm
+                    link={link}
+                    onSave={handleSaveEdit}
+                    onCancel={() => setEditingId(null)}
+                  />
+                ) : (
+                  <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.25rem", flexWrap: "wrap" }}>
                     <button
                       className="button-secondary button-compact"
                       type="button"
-                      onClick={() => handleDelete(link)}
+                      onClick={() => copyToClipboard(shareUrl(link.token))}
                     >
-                      Delete
+                      Copy Link
                     </button>
-                  )}
-                </div>
+                    <a
+                      className="button-secondary button-compact"
+                      href={shareUrl(link.token)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ textDecoration: "none" }}
+                    >
+                      Preview
+                    </a>
+                    <button
+                      className="button-secondary button-compact"
+                      type="button"
+                      onClick={() => { setEditingId(link.id); setPendingDelete(null); }}
+                    >
+                      Edit
+                    </button>
+                    {pendingDelete === link.id ? (
+                      <>
+                        <button
+                          className="button-secondary button-compact delivery-confirm-yes"
+                          type="button"
+                          onClick={() => handleDelete(link)}
+                        >
+                          Confirm Delete
+                        </button>
+                        <button
+                          className="button-secondary button-compact"
+                          type="button"
+                          onClick={() => setPendingDelete(null)}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="button-secondary button-compact"
+                        type="button"
+                        onClick={() => handleDelete(link)}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
               </li>
             ))}
           </ul>

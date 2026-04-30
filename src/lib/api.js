@@ -447,6 +447,13 @@ export const api = {
     if (message) formData.append("message", message);
     return uploadWithProgress("/api/admin/share-links", formData, { onProgress, onPhaseChange });
   },
+  updateShareLink(id, { label, message }) {
+    return request(`/api/admin/share-links/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label, message }),
+    });
+  },
   deleteShareLink(id) {
     return request(`/api/admin/share-links/${encodeURIComponent(id)}`, { method: "DELETE" });
   },

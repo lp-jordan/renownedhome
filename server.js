@@ -2356,6 +2356,37 @@ app.delete(
   }
 );
 
+app.patch(
+  "/api/admin/share-links/:id",
+  requireTrustedOrigin,
+  requireAdmin,
+  async (req, res) => {
+    const { label, message } = req.body || {};
+    const data = await repository.getAllData();
+    const link = (data.shareLinks || []).find((entry) => entry.id === req.params.id);
+
+    if (!link) {
+      res.status(404).json({ error: "Share link not found." });
+      return;
+    }
+
+    const updated = {
+      ...link,
+      label: typeof label === "string" ? label.trim() : link.label,
+      message: typeof message === "string" ? message.trim() : link.message,
+    };
+
+    await withData((d) => ({
+      ...d,
+      shareLinks: (d.shareLinks || []).map((entry) =>
+        entry.id === req.params.id ? updated : entry
+      ),
+    }));
+
+    res.json({ shareLink: updated });
+  }
+);
+
 app.get("/api/share/:token", async (req, res) => {
   const data = await repository.getAllData();
   const link = (data.shareLinks || []).find((entry) => entry.token === req.params.token);
