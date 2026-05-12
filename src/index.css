@@ -946,6 +946,74 @@ textarea {
   flex-wrap: wrap;
 }
 
+.delivery-backer-row__addons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.delivery-backer-row__addons-label {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  margin-right: 0.2rem;
+}
+
+.delivery-backer-row__addons-empty {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  opacity: 0.55;
+}
+
+.delivery-backer-row__addon-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: rgba(220, 231, 255, 0.1);
+  border: 1px solid rgba(220, 231, 255, 0.18);
+  border-radius: 4px;
+  padding: 0.18rem 0.4rem 0.18rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.delivery-backer-row__addon-name {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.delivery-backer-row__addon-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.1rem;
+  opacity: 0.6;
+}
+
+.delivery-backer-row__addon-remove:hover {
+  opacity: 1;
+  color: #ff9d9d;
+}
+
+.delivery-backer-row__addon-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.delivery-backer-row__addon-add select {
+  width: auto;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.82rem;
+}
+
 .delivery-mini-list__item span,
 .delivery-mini-list__item a {
   color: var(--text-dim);

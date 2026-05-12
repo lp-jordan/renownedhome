@@ -309,6 +309,24 @@ export const api = {
       }
     );
   },
+  addDeliveryBackerAddon(projectId, backerId, fileId) {
+    return request(
+      `/api/admin/delivery/projects/${encodeURIComponent(projectId)}/backers/${encodeURIComponent(backerId)}/addons`,
+      {
+        method: "POST",
+        body: JSON.stringify({ fileId }),
+      }
+    );
+  },
+  removeDeliveryBackerAddon(projectId, backerId, fileId) {
+    return request(
+      `/api/admin/delivery/projects/${encodeURIComponent(projectId)}/backers/${encodeURIComponent(backerId)}/addons/${encodeURIComponent(fileId)}`,
+      {
+        method: "DELETE",
+        body: JSON.stringify({}),
+      }
+    );
+  },
   sendDeliveryEmails(projectId, options = {}) {
     return request(`/api/admin/delivery/projects/${encodeURIComponent(projectId)}/send-emails`, {
       method: "POST",

@@ -153,6 +153,7 @@ export default function DeliveryAdmin() {
   const [backerStatus, setBackerStatus] = useState("");
   const [editingBackerId, setEditingBackerId] = useState("");
   const [backerDraft, setBackerDraft] = useState({ email: "", tierId: "" });
+  const [addonPickFileId, setAddonPickFileId] = useState("");
   const [expandedTierIds, setExpandedTierIds] = useState([]);
   const [selectionAnchorId, setSelectionAnchorId] = useState("");
   const [draggedBackerIds, setDraggedBackerIds] = useState([]);
@@ -527,6 +528,32 @@ export default function DeliveryAdmin() {
       tierId: backer.tierId || detail?.tiers?.[0]?.id || "",
     });
     setBackerStatus("");
+    setAddonPickFileId("");
+  }
+
+  async function handleAddBackerAddon(backerId, fileId) {
+    if (!selectedProjectId || !fileId) return;
+    setBackerStatus("Adding add-on...");
+    try {
+      await api.addDeliveryBackerAddon(selectedProjectId, backerId, fileId);
+      await loadProjectDetail(selectedProjectId);
+      setAddonPickFileId("");
+      setBackerStatusAC("Add-on added.");
+    } catch (addonError) {
+      setBackerStatus(addonError.message || "Unable to add add-on.");
+    }
+  }
+
+  async function handleRemoveBackerAddon(backerId, fileId) {
+    if (!selectedProjectId || !fileId) return;
+    setBackerStatus("Removing add-on...");
+    try {
+      await api.removeDeliveryBackerAddon(selectedProjectId, backerId, fileId);
+      await loadProjectDetail(selectedProjectId);
+      setBackerStatusAC("Add-on removed.");
+    } catch (addonError) {
+      setBackerStatus(addonError.message || "Unable to remove add-on.");
+    }
   }
 
   function handleBackerSelection(backerId, event) {
@@ -1336,6 +1363,62 @@ export default function DeliveryAdmin() {
                                             </option>
                                           ))}
                                         </select>
+                                        {(() => {
+                                          const tierFileIds = new Set(
+                                            detail.tiers.find((t) => t.id === backer.tierId)?.fileIds || []
+                                          );
+                                          const addonIds = new Set(backer.addonFileIds || []);
+                                          const availableAddonFiles = detail.files.filter(
+                                            (f) => !tierFileIds.has(f.id) && !addonIds.has(f.id)
+                                          );
+                                          const effectivePickId = addonPickFileId || availableAddonFiles[0]?.id || "";
+                                          return (
+                                            <div className="delivery-backer-row__addons" onClick={(e) => e.stopPropagation()}>
+                                              <span className="delivery-backer-row__addons-label">Add-ons</span>
+                                              {addonIds.size === 0 ? (
+                                                <span className="delivery-backer-row__addons-empty">None</span>
+                                              ) : (
+                                                [...addonIds].map((fileId) => {
+                                                  const addonFile = detail.files.find((f) => f.id === fileId);
+                                                  if (!addonFile) return null;
+                                                  return (
+                                                    <span key={fileId} className="delivery-backer-row__addon-tag">
+                                                      <span className="delivery-backer-row__addon-name">{addonFile.originalFilename}</span>
+                                                      <button
+                                                        className="delivery-backer-row__addon-remove"
+                                                        type="button"
+                                                        aria-label={`Remove ${addonFile.originalFilename}`}
+                                                        onClick={() => void handleRemoveBackerAddon(backer.id, fileId)}
+                                                      >
+                                                        ×
+                                                      </button>
+                                                    </span>
+                                                  );
+                                                })
+                                              )}
+                                              {availableAddonFiles.length > 0 && (
+                                                <div className="delivery-backer-row__addon-add">
+                                                  <select
+                                                    value={effectivePickId}
+                                                    onChange={(e) => setAddonPickFileId(e.target.value)}
+                                                    aria-label="File to add as add-on"
+                                                  >
+                                                    {availableAddonFiles.map((f) => (
+                                                      <option key={f.id} value={f.id}>{f.originalFilename}</option>
+                                                    ))}
+                                                  </select>
+                                                  <button
+                                                    className="button-secondary button-compact"
+                                                    type="button"
+                                                    onClick={() => void handleAddBackerAddon(backer.id, effectivePickId)}
+                                                  >
+                                                    Add
+                                                  </button>
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })()}
                                         <div className="delivery-backer-row__edit-actions">
                                           <button className="button-primary button-compact" type="button" onClick={(event) => {
                                             event.stopPropagation();

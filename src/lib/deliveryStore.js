@@ -187,6 +187,11 @@ function buildProjectDetail(data, project) {
       backerCount: data.backers.filter((backer) => backer.tierId === tier.id).length,
     };
   });
+  const backerAddonMap = new Map();
+  for (const entry of (data.backerFiles || [])) {
+    if (!backerAddonMap.has(entry.backerId)) backerAddonMap.set(entry.backerId, []);
+    backerAddonMap.get(entry.backerId).push(entry.fileId);
+  }
   const backers = sortByCreatedDesc(
     data.backers
       .filter((backer) => backer.projectId === project.id)
@@ -196,6 +201,7 @@ function buildProjectDetail(data, project) {
           ...backer,
           tierName: tier?.name || "",
           tierSlug: tier?.slug || "",
+          addonFileIds: backerAddonMap.get(backer.id) || [],
         };
       })
   );
@@ -478,6 +484,7 @@ export class DeliveryFileStore {
         backers: [],
         tiers: [],
         tierFiles: [],
+        backerFiles: [],
         deliveries: [],
         accessEvents: [],
       });
@@ -491,6 +498,7 @@ export class DeliveryFileStore {
       backers: Array.isArray(data.backers) ? data.backers : [],
       tiers: Array.isArray(data.tiers) ? data.tiers.map((tier) => normalizeTier(tier)) : [],
       tierFiles: Array.isArray(data.tierFiles) ? data.tierFiles : [],
+      backerFiles: Array.isArray(data.backerFiles) ? data.backerFiles : [],
       deliveries: Array.isArray(data.deliveries) ? data.deliveries : [],
       accessEvents: Array.isArray(data.accessEvents) ? data.accessEvents : [],
     };
@@ -734,6 +742,7 @@ export class DeliveryFileStore {
     data.backers = data.backers.filter((backer) => backer.projectId !== projectId);
     data.tiers = data.tiers.filter((tier) => tier.projectId !== projectId);
     data.tierFiles = data.tierFiles.filter((entry) => entry.projectId !== projectId);
+    data.backerFiles = (data.backerFiles || []).filter((entry) => entry.projectId !== projectId);
     data.accessEvents = data.accessEvents.filter((event) => event.projectId !== projectId);
     await this.write(data);
 
@@ -762,6 +771,7 @@ export class DeliveryFileStore {
     const project = data.projects[projectIndex];
     data.files = data.files.filter((entry) => entry.id !== fileId);
     data.tierFiles = data.tierFiles.filter((entry) => entry.fileId !== fileId);
+    data.backerFiles = (data.backerFiles || []).filter((entry) => entry.fileId !== fileId);
 
     data.projects[projectIndex] = {
       ...project,
@@ -946,9 +956,39 @@ export class DeliveryFileStore {
     }
 
     data.backers = data.backers.filter((entry) => entry.id !== backerId);
+    data.backerFiles = (data.backerFiles || []).filter((entry) => entry.backerId !== backerId);
     data.accessEvents = data.accessEvents.filter((entry) => entry.backerId !== backerId);
     await this.write(data);
     return existing;
+  }
+
+  async addBackerFile(userId, projectId, backerId, fileId) {
+    const data = await this.read();
+    const project = data.projects.find((entry) => entry.id === projectId && entry.userId === userId);
+    if (!project) return null;
+    const backer = data.backers.find((entry) => entry.id === backerId && entry.projectId === projectId);
+    if (!backer) return null;
+    const file = data.files.find((entry) => entry.id === fileId && entry.projectId === projectId && entry.kind === "pdf");
+    if (!file) return null;
+    if (!Array.isArray(data.backerFiles)) data.backerFiles = [];
+    const exists = data.backerFiles.some((entry) => entry.backerId === backerId && entry.fileId === fileId);
+    if (!exists) {
+      data.backerFiles.push({ id: createId(), projectId, backerId, fileId, createdAt: new Date().toISOString() });
+      await this.write(data);
+    }
+    return { addonFileIds: data.backerFiles.filter((entry) => entry.backerId === backerId).map((entry) => entry.fileId) };
+  }
+
+  async removeBackerFile(userId, projectId, backerId, fileId) {
+    const data = await this.read();
+    const project = data.projects.find((entry) => entry.id === projectId && entry.userId === userId);
+    if (!project) return null;
+    const backer = data.backers.find((entry) => entry.id === backerId && entry.projectId === projectId);
+    if (!backer) return null;
+    if (!Array.isArray(data.backerFiles)) data.backerFiles = [];
+    data.backerFiles = data.backerFiles.filter((entry) => !(entry.backerId === backerId && entry.fileId === fileId));
+    await this.write(data);
+    return { addonFileIds: data.backerFiles.filter((entry) => entry.backerId === backerId).map((entry) => entry.fileId) };
   }
 
   async getFile(fileId) {
@@ -969,10 +1009,14 @@ export class DeliveryFileStore {
       return null;
     }
 
-    const fileIds = getTierFileIds(data.tierFiles, tier.id);
+    const tierFileIds = getTierFileIds(data.tierFiles, tier.id);
+    const backerAddonIds = (data.backerFiles || [])
+      .filter((entry) => entry.backerId === backer.id)
+      .map((entry) => entry.fileId);
+    const allFileIds = [...new Set([...tierFileIds, ...backerAddonIds])];
     const files = sortByCreatedDesc(
       data.files
-        .filter((file) => file.projectId === project.id && file.kind === "pdf" && fileIds.includes(file.id))
+        .filter((file) => file.projectId === project.id && file.kind === "pdf" && allFileIds.includes(file.id))
         .map((file) => normalizeDeliveryFile(file))
     );
     const currentCover = normalizeDeliveryFile(
@@ -1160,10 +1204,13 @@ export class DeliveryPgStore {
             b.created_at AS "createdAt",
             b.updated_at AS "updatedAt",
             t.name AS "tierName",
-            t.slug AS "tierSlug"
+            t.slug AS "tierSlug",
+            COALESCE(ARRAY_AGG(bf.file_id ORDER BY bf.created_at ASC) FILTER (WHERE bf.file_id IS NOT NULL), ARRAY[]::uuid[]) AS "addonFileIds"
           FROM delivery_backers b
           LEFT JOIN delivery_tiers t ON t.id = b.tier_id
+          LEFT JOIN delivery_backer_files bf ON bf.backer_id = b.id
           WHERE b.project_id = $1
+          GROUP BY b.id, t.name, t.slug
           ORDER BY b.created_at DESC
         `,
         [projectId]
@@ -1348,6 +1395,17 @@ export class DeliveryPgStore {
     await this.pool.query(
       `ALTER TABLE delivery_access_events ADD COLUMN IF NOT EXISTS file_id UUID NULL REFERENCES delivery_files(id) ON DELETE SET NULL`
     );
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS delivery_backer_files (
+        id UUID PRIMARY KEY,
+        project_id UUID NOT NULL REFERENCES delivery_projects(id) ON DELETE CASCADE,
+        backer_id UUID NOT NULL REFERENCES delivery_backers(id) ON DELETE CASCADE,
+        file_id UUID NOT NULL REFERENCES delivery_files(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (backer_id, file_id)
+      );
+    `);
 
     const projectsResult = await this.pool.query(`SELECT id FROM delivery_projects`);
     for (const row of projectsResult.rows) {
@@ -2158,6 +2216,59 @@ export class DeliveryPgStore {
     }
   }
 
+  async addBackerFile(userId, projectId, backerId, fileId) {
+    const projectResult = await this.pool.query(
+      `SELECT id FROM delivery_projects WHERE id = $1 AND user_id = $2`,
+      [projectId, userId]
+    );
+    if (!projectResult.rows[0]) return null;
+    const backerResult = await this.pool.query(
+      `SELECT id FROM delivery_backers WHERE id = $1 AND project_id = $2`,
+      [backerId, projectId]
+    );
+    if (!backerResult.rows[0]) return null;
+    const fileResult = await this.pool.query(
+      `SELECT id FROM delivery_files WHERE id = $1 AND project_id = $2 AND kind = 'pdf'`,
+      [fileId, projectId]
+    );
+    if (!fileResult.rows[0]) return null;
+    await this.pool.query(
+      `
+        INSERT INTO delivery_backer_files (id, project_id, backer_id, file_id)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (backer_id, file_id) DO NOTHING
+      `,
+      [createId(), projectId, backerId, fileId]
+    );
+    const addonResult = await this.pool.query(
+      `SELECT file_id AS "fileId" FROM delivery_backer_files WHERE backer_id = $1 ORDER BY created_at ASC`,
+      [backerId]
+    );
+    return { addonFileIds: addonResult.rows.map((row) => row.fileId) };
+  }
+
+  async removeBackerFile(userId, projectId, backerId, fileId) {
+    const projectResult = await this.pool.query(
+      `SELECT id FROM delivery_projects WHERE id = $1 AND user_id = $2`,
+      [projectId, userId]
+    );
+    if (!projectResult.rows[0]) return null;
+    const backerResult = await this.pool.query(
+      `SELECT id FROM delivery_backers WHERE id = $1 AND project_id = $2`,
+      [backerId, projectId]
+    );
+    if (!backerResult.rows[0]) return null;
+    await this.pool.query(
+      `DELETE FROM delivery_backer_files WHERE backer_id = $1 AND file_id = $2 AND project_id = $3`,
+      [backerId, fileId, projectId]
+    );
+    const addonResult = await this.pool.query(
+      `SELECT file_id AS "fileId" FROM delivery_backer_files WHERE backer_id = $1 ORDER BY created_at ASC`,
+      [backerId]
+    );
+    return { addonFileIds: addonResult.rows.map((row) => row.fileId) };
+  }
+
   async getAccessByToken(token) {
     const result = await this.pool.query(
       `
@@ -2226,12 +2337,15 @@ export class DeliveryPgStore {
             f.version_number AS "versionNumber",
             f.is_active AS "isActive",
             f.created_at AS "createdAt"
-          FROM delivery_tier_files tf
-          INNER JOIN delivery_files f ON f.id = tf.file_id
-          WHERE tf.tier_id = $1
+          FROM delivery_files f
+          WHERE f.id IN (
+            SELECT file_id FROM delivery_tier_files WHERE tier_id = $1
+            UNION
+            SELECT file_id FROM delivery_backer_files WHERE backer_id = $2
+          )
           ORDER BY f.created_at DESC
         `,
-        [row.tierId]
+        [row.tierId, row.backerId]
       ),
     ]);
 
