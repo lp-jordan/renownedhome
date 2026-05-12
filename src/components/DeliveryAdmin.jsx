@@ -593,7 +593,12 @@ export default function DeliveryAdmin() {
 
   // ----- Email preview -----
   function handlePreviewEmail(tier, previewBacker) {
-    const coverUrl = detail?.currentCover ? fileRoute(detail.currentCover.id) : "";
+    const previewCoverUrl =
+      previewBacker && detail?.currentCover
+        ? `${window.location.origin}/api/delivery/access/${encodeURIComponent(
+            previewBacker.accessToken
+          )}/cover`
+        : "";
     const { html } = buildDeliveryEmail({
       projectTitle: detail.project.title,
       creatorName: detail.project.creatorName,
@@ -601,7 +606,7 @@ export default function DeliveryAdmin() {
       accessUrl: previewBacker
         ? `${window.location.origin}/a/${previewBacker.accessToken}`
         : `${window.location.origin}/a/preview`,
-      coverImageUrl: coverUrl,
+      coverImageUrl: previewCoverUrl,
     });
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
