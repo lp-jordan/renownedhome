@@ -312,6 +312,17 @@ textarea {
 
 .delivery-section__header {
   margin-bottom: 1rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.delivery-section__header-actions {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.85rem;
 }
 
 .delivery-form-grid {

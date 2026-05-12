@@ -1068,6 +1068,20 @@ export class DeliveryFileStore {
     };
   }
 
+  async clearAccessEvents(userId, projectId) {
+    const data = await this.read();
+    const project = data.projects.find(
+      (entry) => entry.id === projectId && entry.userId === userId
+    );
+    if (!project) {
+      return null;
+    }
+    const before = data.accessEvents.length;
+    data.accessEvents = data.accessEvents.filter((event) => event.projectId !== projectId);
+    await this.write(data);
+    return { clearedCount: before - data.accessEvents.length };
+  }
+
   async logAccessEvent(projectId, backerId, eventType, fileId = null) {
     const data = await this.read();
     data.accessEvents.unshift({
@@ -2471,6 +2485,21 @@ export class DeliveryPgStore {
       `,
       [createId(), projectId, backerId, fileId, eventType]
     );
+  }
+
+  async clearAccessEvents(userId, projectId) {
+    const projectResult = await this.pool.query(
+      `SELECT id FROM delivery_projects WHERE id = $1 AND user_id = $2`,
+      [projectId, userId]
+    );
+    if (!projectResult.rows[0]) {
+      return null;
+    }
+    const result = await this.pool.query(
+      `DELETE FROM delivery_access_events WHERE project_id = $1`,
+      [projectId]
+    );
+    return { clearedCount: result.rowCount || 0 };
   }
 
   async markBackersEmailed(userId, projectId, backerIds) {

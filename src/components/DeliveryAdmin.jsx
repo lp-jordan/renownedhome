@@ -955,7 +955,37 @@ export default function DeliveryAdmin() {
               />
             </div>
           ) : (
-            <DeliveryAnalytics analytics={analytics} status={analyticsStatus} />
+            <DeliveryAnalytics
+              analytics={analytics}
+              status={analyticsStatus}
+              onReset={() =>
+                setConfirmDialog({
+                  title: "Reset analytics",
+                  body: (
+                    <p>
+                      Clear all logged opens, views, and downloads for{" "}
+                      <strong>{detail.project.title}</strong>? This only wipes
+                      analytics rows — backers, files, and tier setup are
+                      untouched.
+                    </p>
+                  ),
+                  confirmLabel: "Reset analytics",
+                  destructive: true,
+                  onConfirm: async () => {
+                    await api.clearDeliveryAnalytics(selectedProjectId);
+                    setConfirmDialog(null);
+                    try {
+                      const next = await api.getDeliveryAnalytics(selectedProjectId, 14);
+                      setAnalytics(next.analytics);
+                    } catch (analyticsError) {
+                      setAnalytics(null);
+                      setAnalyticsStatus(analyticsError.message || "Analytics unavailable.");
+                    }
+                    setTransientStatus("Analytics reset");
+                  },
+                })
+              }
+            />
           )}
         </>
       ) : null}

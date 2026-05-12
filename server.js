@@ -1516,6 +1516,13 @@ async function destroySession(token) {
   sessions.delete(token);
 }
 
+async function isAdminPreview(req) {
+  // Admins hitting recipient endpoints (Preview Page, Preview Email, the
+  // Open icon in admin) shouldn't pollute backer analytics.
+  const session = await readSession(req);
+  return session?.user?.role === "admin";
+}
+
 async function requireAdmin(req, res, next) {
   const session = await readSession(req);
   if (!session) {
@@ -2477,6 +2484,28 @@ app.get("/api/admin/delivery/projects/:id/analytics", requireAdmin, async (req, 
   res.json({ analytics });
 });
 
+app.delete(
+  "/api/admin/delivery/projects/:id/analytics",
+  requireTrustedOrigin,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const result = await deliveryStore.clearAccessEvents(
+        req.session.user.id,
+        req.params.id
+      );
+      if (!result) {
+        res.status(404).json({ error: "Delivery project not found." });
+        return;
+      }
+      res.json({ ok: true, clearedCount: result.clearedCount });
+    } catch (error) {
+      console.error("Delivery analytics clear failed", error);
+      res.status(500).json({ error: error.message || "Analytics clear failed." });
+    }
+  }
+);
+
 app.put(
   "/api/admin/delivery/projects/:id",
   requireTrustedOrigin,
@@ -3179,7 +3208,9 @@ app.get("/api/delivery/access/:token", async (req, res) => {
     return;
   }
 
-  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "access_page_view");
+  if (!(await isAdminPreview(req))) {
+    await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "access_page_view");
+  }
   res.json({
     project: access.project,
     backer: {
@@ -3238,7 +3269,9 @@ app.get("/api/delivery/access/:token/download", async (req, res) => {
     return;
   }
 
-  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "file_download", file.id);
+  if (!(await isAdminPreview(req))) {
+    await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "file_download", file.id);
+  }
   const signedUrl = await createSignedStorageUrl({
     key: file.storageKey,
     contentType: file.mimeType,
@@ -3261,7 +3294,9 @@ app.get("/api/delivery/access/:token/files/:fileId/download", async (req, res) =
     return;
   }
 
-  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "file_download", file.id);
+  if (!(await isAdminPreview(req))) {
+    await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "file_download", file.id);
+  }
   const signedUrl = await createSignedStorageUrl({
     key: file.storageKey,
     contentType: file.mimeType,
@@ -3284,7 +3319,9 @@ app.get("/api/delivery/access/:token/read", async (req, res) => {
     return;
   }
 
-  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline", file.id);
+  if (!(await isAdminPreview(req))) {
+    await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline", file.id);
+  }
   const signedUrl = await createSignedStorageUrl({
     key: file.storageKey,
     contentType: file.mimeType,
@@ -3307,7 +3344,9 @@ app.get("/api/delivery/access/:token/files/:fileId/read/content", async (req, re
     return;
   }
 
-  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline", file.id);
+  if (!(await isAdminPreview(req))) {
+    await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline", file.id);
+  }
 
   try {
     await streamStorageFile(res, {
@@ -3335,7 +3374,9 @@ app.get("/api/delivery/access/:token/read/content", async (req, res) => {
     return;
   }
 
-  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline", file.id);
+  if (!(await isAdminPreview(req))) {
+    await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline", file.id);
+  }
 
   try {
     await streamStorageFile(res, {
@@ -3372,7 +3413,9 @@ app.get("/api/delivery/access/:token/files/:fileId/read/pages/:pageNumber", asyn
     return;
   }
 
-  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline", file.id);
+  if (!(await isAdminPreview(req))) {
+    await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline", file.id);
+  }
 
   try {
     await streamStorageFile(res, {
@@ -3407,7 +3450,9 @@ app.get("/api/delivery/access/:token/read/pages/:pageNumber", async (req, res) =
     return;
   }
 
-  await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline", file.id);
+  if (!(await isAdminPreview(req))) {
+    await deliveryStore.logAccessEvent(access.project.id, access.backer.id, "read_inline", file.id);
+  }
 
   try {
     await streamStorageFile(res, {

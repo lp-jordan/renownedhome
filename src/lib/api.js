@@ -255,6 +255,15 @@ export const api = {
       `/api/admin/delivery/projects/${encodeURIComponent(projectId)}/analytics?days=${encodeURIComponent(days)}`
     );
   },
+  clearDeliveryAnalytics(projectId) {
+    return request(
+      `/api/admin/delivery/projects/${encodeURIComponent(projectId)}/analytics`,
+      {
+        method: "DELETE",
+        body: JSON.stringify({}),
+      }
+    );
+  },
   createDeliveryProject(payload) {
     return request("/api/admin/delivery/projects", {
       method: "POST",

@@ -16,7 +16,7 @@ function niceCeil(value) {
   return value;
 }
 
-export default function DeliveryAnalytics({ analytics, status }) {
+export default function DeliveryAnalytics({ analytics, status, onReset }) {
   const [hovered, setHovered] = useState(null);
 
   const totals = analytics?.totals || null;
@@ -37,6 +37,15 @@ export default function DeliveryAnalytics({ analytics, status }) {
       <section className="editor-card delivery-section">
         <div className="delivery-section__header">
           <h2>Analytics</h2>
+          {onReset ? (
+            <button
+              className="delivery-tier-card__link-button"
+              type="button"
+              onClick={onReset}
+            >
+              Reset analytics
+            </button>
+          ) : null}
         </div>
         <p className="status-line">
           {status || "Analytics will appear after this campaign has activity."}
@@ -49,7 +58,18 @@ export default function DeliveryAnalytics({ analytics, status }) {
     <section className="editor-card delivery-section">
       <div className="delivery-section__header">
         <h2>Analytics</h2>
-        <span className="status-line">Last {analytics.windowDays} days</span>
+        <div className="delivery-section__header-actions">
+          <span className="status-line">Last {analytics.windowDays} days</span>
+          {onReset ? (
+            <button
+              className="delivery-tier-card__link-button"
+              type="button"
+              onClick={onReset}
+            >
+              Reset analytics
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="delivery-inline-stats delivery-analytics-stats">
