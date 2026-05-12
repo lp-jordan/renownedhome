@@ -102,6 +102,7 @@ function normalizeDeliveryFile(file) {
 
   return {
     ...file,
+    displayName: String(file.displayName || "").trim(),
     readerPages: normalizeReaderPages(file.readerPages),
   };
 }
@@ -687,6 +688,7 @@ export class DeliveryFileStore {
       kind: payload.kind,
       storageKey: payload.storageKey,
       originalFilename: payload.originalFilename,
+      displayName: "",
       mimeType: payload.mimeType,
       fileSizeBytes: payload.fileSizeBytes,
       readerPages: normalizeReaderPages(payload.readerPages),
@@ -784,6 +786,37 @@ export class DeliveryFileStore {
       deletedFile: file,
       nextCoverFileId: data.projects[projectIndex].coverFileId,
     };
+  }
+
+  async updateFile(userId, projectId, fileId, patch) {
+    const data = await this.read();
+    const projectIndex = data.projects.findIndex(
+      (entry) => entry.id === projectId && entry.userId === userId
+    );
+
+    if (projectIndex === -1) {
+      return null;
+    }
+
+    const fileIndex = data.files.findIndex(
+      (entry) => entry.id === fileId && entry.projectId === projectId
+    );
+    if (fileIndex === -1) {
+      return null;
+    }
+
+    const file = data.files[fileIndex];
+    const nextDisplayName =
+      typeof patch?.displayName === "string" ? patch.displayName.trim() : file.displayName || "";
+
+    data.files[fileIndex] = { ...file, displayName: nextDisplayName };
+    data.projects[projectIndex] = {
+      ...data.projects[projectIndex],
+      updatedAt: new Date().toISOString(),
+    };
+
+    await this.write(data);
+    return normalizeDeliveryFile(data.files[fileIndex]);
   }
 
   async importBackers(userId, projectId, csvText) {
@@ -1154,6 +1187,7 @@ export class DeliveryPgStore {
             kind,
             storage_key AS "storageKey",
             original_filename AS "originalFilename",
+            display_name AS "displayName",
             mime_type AS "mimeType",
             file_size_bytes::INT AS "fileSizeBytes",
             reader_pages AS "readerPages",
@@ -1309,6 +1343,9 @@ export class DeliveryPgStore {
     `);
     await this.pool.query(
       `ALTER TABLE delivery_files ADD COLUMN IF NOT EXISTS reader_pages JSONB NOT NULL DEFAULT '[]'::jsonb`
+    );
+    await this.pool.query(
+      `ALTER TABLE delivery_files ADD COLUMN IF NOT EXISTS display_name TEXT NOT NULL DEFAULT ''`
     );
 
     await this.pool.query(`
@@ -1600,6 +1637,7 @@ export class DeliveryPgStore {
           kind,
           storage_key AS "storageKey",
           original_filename AS "originalFilename",
+          display_name AS "displayName",
           mime_type AS "mimeType",
           file_size_bytes::INT AS "fileSizeBytes",
           reader_pages AS "readerPages",
@@ -1802,6 +1840,7 @@ export class DeliveryPgStore {
         kind: payload.kind,
         storageKey: payload.storageKey,
         originalFilename: payload.originalFilename,
+        displayName: "",
         mimeType: payload.mimeType,
         fileSizeBytes: payload.fileSizeBytes,
         readerPages: normalizeReaderPages(payload.readerPages),
@@ -1818,13 +1857,14 @@ export class DeliveryPgStore {
             kind,
             storage_key,
             original_filename,
+            display_name,
             mime_type,
             file_size_bytes,
             reader_pages,
             version_number,
             is_active,
             created_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12)
         `,
         [
           file.id,
@@ -1832,6 +1872,7 @@ export class DeliveryPgStore {
           file.kind,
           file.storageKey,
           file.originalFilename,
+          file.displayName,
           file.mimeType,
           file.fileSizeBytes,
           JSON.stringify(file.readerPages),
@@ -1911,6 +1952,31 @@ export class DeliveryPgStore {
     } finally {
       client.release();
     }
+  }
+
+  async updateFile(userId, projectId, fileId, patch) {
+    const detail = await this.getProjectSnapshot(projectId, userId);
+    if (!detail) {
+      return null;
+    }
+
+    const file = detail.files.find((entry) => entry.id === fileId);
+    if (!file) {
+      return null;
+    }
+
+    if (typeof patch?.displayName === "string") {
+      await this.pool.query(
+        `UPDATE delivery_files SET display_name = $1 WHERE id = $2 AND project_id = $3`,
+        [patch.displayName.trim(), fileId, projectId]
+      );
+      await this.pool.query(
+        `UPDATE delivery_projects SET updated_at = NOW() WHERE id = $1 AND user_id = $2`,
+        [projectId, userId]
+      );
+    }
+
+    return this.getFile(fileId);
   }
 
   async deleteFile(userId, projectId, fileId) {
@@ -2324,6 +2390,7 @@ export class DeliveryPgStore {
                 kind,
                 storage_key AS "storageKey",
                 original_filename AS "originalFilename",
+                display_name AS "displayName",
                 mime_type AS "mimeType",
                 file_size_bytes::INT AS "fileSizeBytes",
                 reader_pages AS "readerPages",
@@ -2344,6 +2411,7 @@ export class DeliveryPgStore {
             f.kind,
             f.storage_key AS "storageKey",
             f.original_filename AS "originalFilename",
+            f.display_name AS "displayName",
             f.mime_type AS "mimeType",
             f.file_size_bytes::INT AS "fileSizeBytes",
             f.reader_pages AS "readerPages",

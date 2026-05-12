@@ -1440,11 +1440,29 @@ textarea {
   gap: 0.25rem;
 }
 
-.delivery-thumb-card__body strong {
+.delivery-thumb-card__display-name {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
   font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.delivery-thumb-card__display-name::placeholder {
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
+.delivery-thumb-card__filename {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--text-dim);
+  font-size: 0.75rem;
 }
 
 .delivery-thumb-card__body span {

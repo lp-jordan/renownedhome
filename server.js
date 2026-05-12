@@ -2536,6 +2536,35 @@ app.delete(
   }
 );
 
+app.put(
+  "/api/admin/delivery/projects/:id/files/:fileId",
+  requireTrustedOrigin,
+  requireAdmin,
+  async (req, res) => {
+    const patch = {};
+    if (typeof req.body?.displayName === "string") {
+      patch.displayName = req.body.displayName;
+    }
+
+    try {
+      const file = await deliveryStore.updateFile(
+        req.session.user.id,
+        req.params.id,
+        req.params.fileId,
+        patch
+      );
+      if (!file) {
+        res.status(404).json({ error: "Delivery file not found." });
+        return;
+      }
+      res.json({ file });
+    } catch (error) {
+      console.error("Delivery file update failed", error);
+      res.status(500).json({ error: error.message || "File update failed." });
+    }
+  }
+);
+
 app.delete(
   "/api/admin/delivery/projects/:id/files/:fileId",
   requireTrustedOrigin,

@@ -909,6 +909,10 @@ export default function DeliveryAdmin() {
                 onUploadPdfs={handleUploadPdfs}
                 onOpenPdf={(file) => setPdfDialog(file)}
                 onRequestDelete={requestDeleteFile}
+                onRenameFile={async (file, displayName) => {
+                  await api.updateDeliveryFile(selectedProjectId, file.id, { displayName });
+                  await loadProjectDetail(selectedProjectId);
+                }}
               />
 
               <DeliveryAudience

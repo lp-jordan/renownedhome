@@ -147,7 +147,7 @@ export default function DeliveryAccessPage() {
             <div className="delivery-mini-list">
               {access.files.map((file) => (
                 <div key={file.id} className="delivery-mini-list__item">
-                  <strong>{file.originalFilename}</strong>
+                  <strong>{file.displayName || file.originalFilename}</strong>
                   <span>
                     Version {file.versionNumber} | {formatFileSize(file.fileSizeBytes)}
                   </span>

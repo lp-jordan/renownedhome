@@ -382,6 +382,15 @@ export const api = {
       }
     );
   },
+  updateDeliveryFile(projectId, fileId, patch) {
+    return request(
+      `/api/admin/delivery/projects/${encodeURIComponent(projectId)}/files/${encodeURIComponent(fileId)}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(patch),
+      }
+    );
+  },
   getDeliveryAccess(token) {
     return request(`/api/delivery/access/${encodeURIComponent(token)}`, {
       headers: {},

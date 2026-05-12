@@ -52,7 +52,7 @@ export default function DeliveryReadPage() {
       <div className="delivery-reader-page__header">
         <div>
           <p className="delivery-access__eyebrow">{access?.tier?.name || "Digital Reader"}</p>
-          <h1>{activeFile.originalFilename}</h1>
+          <h1>{activeFile.displayName || activeFile.originalFilename}</h1>
         </div>
         <div className="delivery-reader-page__actions">
           <Link className="button-secondary" to={`/a/${token}`}>

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function formatFileSize(bytes) {
   const value = Number(bytes || 0);
@@ -36,6 +36,48 @@ function PdfThumb({ file, onClick }) {
   );
 }
 
+function DisplayNameInput({ file, onSave }) {
+  const [value, setValue] = useState(file.displayName || "");
+  const [saving, setSaving] = useState(false);
+  const initialRef = useRef(file.displayName || "");
+
+  useEffect(() => {
+    setValue(file.displayName || "");
+    initialRef.current = file.displayName || "";
+  }, [file.id, file.displayName]);
+
+  async function commit() {
+    const trimmed = value.trim();
+    if (trimmed === initialRef.current) return;
+    setSaving(true);
+    try {
+      await onSave(trimmed);
+      initialRef.current = trimmed;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <input
+      className="delivery-thumb-card__display-name"
+      type="text"
+      placeholder="Display name (shown to backers)"
+      value={value}
+      onChange={(event) => setValue(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          event.currentTarget.blur();
+        }
+      }}
+      disabled={saving}
+      aria-label="Display name shown to backers"
+    />
+  );
+}
+
 export default function DeliveryAssets({
   cover,
   coverUrl,
@@ -44,6 +86,7 @@ export default function DeliveryAssets({
   onUploadPdfs,
   onOpenPdf,
   onRequestDelete,
+  onRenameFile,
 }) {
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -165,9 +208,15 @@ export default function DeliveryAssets({
             <div className="delivery-thumb-grid">
               {files.map((file) => (
                 <div key={file.id} className="delivery-thumb-card">
+                  <DisplayNameInput
+                    file={file}
+                    onSave={(value) => onRenameFile?.(file, value)}
+                  />
                   <PdfThumb file={file} onClick={() => onOpenPdf(file)} />
                   <div className="delivery-thumb-card__body">
-                    <strong title={file.originalFilename}>{file.originalFilename}</strong>
+                    <span className="delivery-thumb-card__filename" title={file.originalFilename}>
+                      {file.originalFilename}
+                    </span>
                     <span>
                       v{file.versionNumber} · {formatFileSize(file.fileSizeBytes)}
                     </span>
