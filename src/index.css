@@ -1361,8 +1361,13 @@ textarea {
 
 .delivery-pdf-dropzone__hint {
   margin: 0;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
   color: var(--text-dim);
   font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .delivery-pdf-dropzone__pick {
@@ -1370,6 +1375,7 @@ textarea {
   text-decoration: underline;
   cursor: pointer;
   color: var(--text);
+  white-space: nowrap;
 }
 
 .delivery-pdf-dropzone__pick.is-disabled {
@@ -1589,28 +1595,90 @@ textarea {
 
 .delivery-tier-card__files {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.55rem;
 }
 
-.delivery-tier-card__file-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+.delivery-tier-card__files-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.delivery-tier-card__files-count {
+  color: var(--text-dim);
+  font-size: 0.78rem;
+}
+
+.delivery-file-chips {
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
 }
 
-.delivery-tier-card__file-toggle {
+.delivery-file-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.6rem;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.02);
-  font-size: 0.88rem;
+  gap: 0.45rem;
+  padding: 0.38rem 0.7rem 0.38rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-dim);
+  font-size: 0.82rem;
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  max-width: 100%;
 }
 
-.delivery-tier-card__file-toggle:hover {
-  background: rgba(255, 255, 255, 0.05);
+.delivery-file-chip:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.delivery-file-chip.is-on {
+  background: rgba(220, 231, 255, 0.12);
+  border-color: rgba(220, 231, 255, 0.4);
+  color: var(--text);
+}
+
+.delivery-file-chip input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.delivery-file-chip__check {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  border: 1.5px solid currentColor;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.delivery-file-chip.is-on .delivery-file-chip__check {
+  background: currentColor;
+  opacity: 1;
+}
+
+.delivery-file-chip.is-on .delivery-file-chip__check::after {
+  content: "";
+  width: 0.32rem;
+  height: 0.55rem;
+  border: solid #0c1018;
+  border-width: 0 1.5px 1.5px 0;
+  transform: translateY(-1px) rotate(45deg);
+}
+
+.delivery-file-chip__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 18rem;
 }
 
 .delivery-tier-card__backers {
@@ -1671,71 +1739,138 @@ textarea {
 /* -------- Bulk action bar -------- */
 .delivery-bulkbar {
   position: fixed;
-  bottom: 1rem;
+  bottom: 1.25rem;
   left: 50%;
   transform: translateX(-50%);
   z-index: 40;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 1.1rem;
-  flex-wrap: wrap;
-  padding: 0.7rem 1rem;
+  gap: 0.5rem;
+  padding: 0.5rem 0.55rem 0.5rem 1rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 14px;
   background: rgba(15, 17, 24, 0.96);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(10px);
   max-width: calc(100vw - 2rem);
+  font-size: 0.88rem;
 }
 
 .delivery-bulkbar__count {
   display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding-right: 0.8rem;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  align-items: baseline;
+  gap: 0.35rem;
+  padding-right: 0.85rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text);
 }
 
-.delivery-bulkbar__clear {
-  border: 0;
-  background: transparent;
+.delivery-bulkbar__count strong {
+  font-size: 0.95rem;
+}
+
+.delivery-bulkbar__count span {
   color: var(--text-dim);
-  cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
 }
 
 .delivery-bulkbar__group {
   display: inline-flex;
-  align-items: end;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.3rem;
 }
 
-.delivery-bulkbar__field {
-  display: grid;
-  gap: 0.15rem;
-}
-
-.delivery-bulkbar__field span {
-  color: var(--text-dim);
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.delivery-bulkbar__field select {
-  padding: 0.4rem 0.6rem;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.04);
+.delivery-bulkbar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
   color: var(--text);
   font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
-.delivery-bulkbar__actions {
-  display: inline-flex;
-  gap: 0.5rem;
-  padding-left: 0.6rem;
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
+.delivery-bulkbar__btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.delivery-bulkbar__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.delivery-bulkbar__btn--danger {
+  color: #ff9d9d;
+}
+
+.delivery-bulkbar__btn--danger:hover:not(:disabled) {
+  background: rgba(255, 157, 157, 0.1);
+}
+
+.delivery-bulkbar__pop {
+  position: relative;
+}
+
+.delivery-bulkbar__pop-panel {
+  position: absolute;
+  bottom: calc(100% + 0.45rem);
+  left: 0;
+  min-width: 220px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #111218;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  z-index: 1;
+}
+
+.delivery-bulkbar__menu {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.delivery-bulkbar__menu li button {
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.delivery-bulkbar__menu li button:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.delivery-bulkbar__close {
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.95rem;
+  padding: 0.35rem 0.55rem;
+  margin-left: 0.2rem;
+  border-radius: 8px;
+}
+
+.delivery-bulkbar__close:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
 }
 
 /* -------- Dialog (modal) -------- */

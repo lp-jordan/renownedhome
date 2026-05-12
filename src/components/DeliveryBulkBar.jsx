@@ -1,6 +1,47 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+function PopoverButton({ label, disabled, children, onClose }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    function handler(event) {
+      if (ref.current?.contains(event.target)) return;
+      setOpen(false);
+    }
+    document.addEventListener("pointerdown", handler);
+    return () => document.removeEventListener("pointerdown", handler);
+  }, [open]);
+
+  function close() {
+    setOpen(false);
+    onClose?.();
+  }
+
+  return (
+    <div className="delivery-bulkbar__pop" ref={ref}>
+      <button
+        type="button"
+        className="delivery-bulkbar__btn"
+        disabled={disabled}
+        onClick={() => setOpen((current) => !current)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        {label} <span aria-hidden="true">▾</span>
+      </button>
+      {open ? (
+        <div className="delivery-bulkbar__pop-panel" role="menu">
+          {typeof children === "function" ? children(close) : children}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export default function DeliveryBulkBar({
+  innerRef,
   selectedCount,
   tiers,
   files,
@@ -10,93 +51,78 @@ export default function DeliveryBulkBar({
   onDeleteSelected,
   onClearSelection,
 }) {
-  const [moveTo, setMoveTo] = useState("");
-  const [addonId, setAddonId] = useState("");
-
   if (!selectedCount) return null;
 
   return (
-    <div className="delivery-bulkbar" role="region" aria-label="Bulk actions">
+    <div className="delivery-bulkbar" role="region" aria-label="Bulk actions" ref={innerRef}>
       <div className="delivery-bulkbar__count">
-        <strong>{selectedCount}</strong> selected
-        <button
-          className="delivery-bulkbar__clear"
-          type="button"
-          onClick={onClearSelection}
-          aria-label="Clear selection"
-        >
-          ✕
-        </button>
+        <strong>{selectedCount}</strong>
+        <span>selected</span>
       </div>
 
       <div className="delivery-bulkbar__group">
-        <label className="delivery-bulkbar__field">
-          <span>Move to tier</span>
-          <select
-            value={moveTo}
-            onChange={(event) => setMoveTo(event.target.value)}
-            disabled={!tiers.length}
-          >
-            <option value="">Choose tier…</option>
-            {tiers.map((tier) => (
-              <option key={tier.id} value={tier.id}>
-                {tier.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          className="button-secondary button-compact"
-          type="button"
-          disabled={!moveTo}
-          onClick={() => {
-            if (!moveTo) return;
-            onMoveToTier(moveTo);
-            setMoveTo("");
-          }}
-        >
-          Move
-        </button>
-      </div>
+        <PopoverButton label="Move to" disabled={!tiers.length}>
+          {(close) => (
+            <ul className="delivery-bulkbar__menu">
+              {tiers.map((tier) => (
+                <li key={tier.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onMoveToTier(tier.id);
+                      close();
+                    }}
+                  >
+                    {tier.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </PopoverButton>
 
-      <div className="delivery-bulkbar__group">
-        <label className="delivery-bulkbar__field">
-          <span>Add add-on</span>
-          <select
-            value={addonId}
-            onChange={(event) => setAddonId(event.target.value)}
-            disabled={!files.length}
-          >
-            <option value="">Choose file…</option>
-            {files.map((file) => (
-              <option key={file.id} value={file.id}>
-                {file.originalFilename}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          className="button-secondary button-compact"
-          type="button"
-          disabled={!addonId}
-          onClick={() => {
-            if (!addonId) return;
-            onAddAddon(addonId);
-            setAddonId("");
-          }}
-        >
-          Add
-        </button>
-      </div>
+        <PopoverButton label="Add add-on" disabled={!files.length}>
+          {(close) => (
+            <ul className="delivery-bulkbar__menu">
+              {files.map((file) => (
+                <li key={file.id}>
+                  <button
+                    type="button"
+                    title={file.originalFilename}
+                    onClick={() => {
+                      onAddAddon(file.id);
+                      close();
+                    }}
+                  >
+                    {file.originalFilename}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </PopoverButton>
 
-      <div className="delivery-bulkbar__actions">
-        <button className="button-secondary button-compact" type="button" onClick={onSendSelected}>
+        <button className="delivery-bulkbar__btn" type="button" onClick={onSendSelected}>
           Send email
         </button>
-        <button className="button-danger button-compact" type="button" onClick={onDeleteSelected}>
+
+        <button
+          className="delivery-bulkbar__btn delivery-bulkbar__btn--danger"
+          type="button"
+          onClick={onDeleteSelected}
+        >
           Delete
         </button>
       </div>
+
+      <button
+        className="delivery-bulkbar__close"
+        type="button"
+        onClick={onClearSelection}
+        aria-label="Clear selection"
+      >
+        ✕
+      </button>
     </div>
   );
 }

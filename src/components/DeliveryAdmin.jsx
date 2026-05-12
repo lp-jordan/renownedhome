@@ -86,6 +86,7 @@ export default function DeliveryAdmin() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const audienceListRef = useRef(null);
+  const bulkBarRef = useRef(null);
   const skipAutoSaveRef = useRef(true);
   const autoSaveTimerRef = useRef(null);
   const savedStatusTimerRef = useRef(null);
@@ -231,8 +232,10 @@ export default function DeliveryAdmin() {
   // Clear backer selection on outside click.
   useEffect(() => {
     function handlePointerDown(event) {
-      if (!audienceListRef.current) return;
-      if (audienceListRef.current.contains(event.target)) return;
+      if (audienceListRef.current?.contains(event.target)) return;
+      if (bulkBarRef.current?.contains(event.target)) return;
+      // Ignore clicks inside any open dialog — they shouldn't deselect.
+      if (event.target.closest?.(".delivery-dialog")) return;
       setSelectedBackerIds([]);
       setSelectionAnchorId("");
     }
@@ -956,6 +959,7 @@ export default function DeliveryAdmin() {
       ) : null}
 
       <DeliveryBulkBar
+        innerRef={bulkBarRef}
         selectedCount={selectedBackerIds.length}
         tiers={detail?.tiers || []}
         files={detail?.files || []}

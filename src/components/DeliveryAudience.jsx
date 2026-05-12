@@ -378,19 +378,32 @@ function TierCard({
       </details>
 
       <div className="delivery-tier-card__files">
-        <span className="delivery-tier-card__section-label">Files for this tier</span>
+        <div className="delivery-tier-card__files-head">
+          <span className="delivery-tier-card__section-label">Files for this tier</span>
+          <span className="delivery-tier-card__files-count">
+            {tier.fileIds.length} of {sortedFiles.length}
+          </span>
+        </div>
         {sortedFiles.length ? (
-          <div className="delivery-tier-card__file-grid">
-            {sortedFiles.map((file) => (
-              <label key={file.id} className="delivery-tier-card__file-toggle">
-                <input
-                  type="checkbox"
-                  checked={tier.fileIds.includes(file.id)}
-                  onChange={() => onToggleFile(index, file.id)}
-                />
-                <span>{file.originalFilename}</span>
-              </label>
-            ))}
+          <div className="delivery-file-chips">
+            {sortedFiles.map((file) => {
+              const isOn = tier.fileIds.includes(file.id);
+              return (
+                <label
+                  key={file.id}
+                  className={`delivery-file-chip${isOn ? " is-on" : ""}`}
+                  title={file.originalFilename}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isOn}
+                    onChange={() => onToggleFile(index, file.id)}
+                  />
+                  <span className="delivery-file-chip__check" aria-hidden="true" />
+                  <span className="delivery-file-chip__name">{file.originalFilename}</span>
+                </label>
+              );
+            })}
           </div>
         ) : (
           <p className="status-line">Upload PDFs in the Assets section first.</p>

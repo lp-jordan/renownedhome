@@ -149,9 +149,9 @@ export default function DeliveryAssets({
             </span>
           </div>
           <p className="delivery-pdf-dropzone__hint">
-            Drop PDFs here or
+            <span>Drop PDFs here, or</span>
             <label className={`delivery-pdf-dropzone__pick${isUploading ? " is-disabled" : ""}`}>
-              {" "}browse{" "}
+              browse to upload
               <input
                 type="file"
                 accept=".pdf,application/pdf"
@@ -160,7 +160,6 @@ export default function DeliveryAssets({
                 onChange={handlePdfPick}
               />
             </label>
-            to upload.
           </p>
           {files.length ? (
             <div className="delivery-thumb-grid">
