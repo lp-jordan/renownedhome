@@ -84,7 +84,7 @@ export function buildDeliveryEmail({
                     <td style="padding:20px 24px 22px;">
                       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="delivery-stack" style="width:100%;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
                         <tr>
-                          <td valign="top" width="236" class="delivery-stack__left" style="width:236px;padding:0 22px 0 0;vertical-align:top;">
+                          <td valign="middle" width="236" class="delivery-stack__left" style="width:236px;padding:0 22px 0 0;vertical-align:middle;">
                             ${
                               safeCoverImageUrl
                                 ? `
@@ -110,9 +110,9 @@ export function buildDeliveryEmail({
                                 `
                             }
                           </td>
-                          <td valign="top" class="delivery-stack__right" style="padding:0 0 0 2px;vertical-align:top;">
-                            <p style="margin:0 0 12px;color:#f2f4f8;font-size:15px;line-height:1.6;">Your digital package is ready for download!</p>
-                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 12px;">
+                          <td valign="middle" align="center" class="delivery-stack__right" style="padding:0 0 0 2px;vertical-align:middle;text-align:center;">
+                            <p style="margin:0 0 14px;color:#f2f4f8;font-size:15px;line-height:1.6;text-align:center;">Your digital package is ready for download!</p>
+                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 14px;">
                               <tr>
                                 <td align="center" bgcolor="#ffffff" style="border-radius:16px;">
                                   <a
@@ -124,7 +124,7 @@ export function buildDeliveryEmail({
                                 </td>
                               </tr>
                             </table>
-                            <p style="margin:0;color:#b8c1cf;font-size:14px;line-height:1.8;">
+                            <p style="margin:0;color:#b8c1cf;font-size:14px;line-height:1.8;text-align:center;">
                               This will open in your browser. You can download or read it online anytime.
                             </p>
                           </td>
