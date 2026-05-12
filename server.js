@@ -2906,6 +2906,11 @@ app.post(
   requireAdmin,
   async (req, res) => {
     const resendAll = req.body?.resendAll === true;
+    const requestedBackerIds = Array.isArray(req.body?.backerIds)
+      ? req.body.backerIds.filter((id) => typeof id === "string" && id)
+      : null;
+    const testTo = typeof req.body?.testTo === "string" ? req.body.testTo.trim() : "";
+
     if (!resendIsConfigured()) {
       res.status(501).json({
         error:
@@ -2925,22 +2930,69 @@ app.post(
       return;
     }
 
+    const siteOrigin = getPublicSiteOrigin();
+
+    if (testTo) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testTo)) {
+        res.status(400).json({ error: "Provide a valid email address for the test send." });
+        return;
+      }
+
+      const previewBacker = detail.backers[0] || null;
+      const accessUrl = previewBacker
+        ? `${siteOrigin}/a/${previewBacker.accessToken}`
+        : `${siteOrigin}/a/preview`;
+      const coverImageUrl =
+        previewBacker && detail.currentCover
+          ? `${siteOrigin}${buildAccessCoverUrl(previewBacker.accessToken)}`
+          : "";
+      const tier =
+        (previewBacker && detail.tiers.find((entry) => entry.id === previewBacker.tierId)) ||
+        detail.tiers[0] ||
+        null;
+      const email = buildDeliveryEmail({
+        projectTitle: detail.project.title,
+        creatorName: detail.project.creatorName,
+        shortMessage: tier?.messageOverride || detail.project.shortMessage,
+        accessUrl,
+        coverImageUrl,
+      });
+
+      try {
+        await sendResendEmail({
+          to: testTo,
+          subject: `[TEST] ${email.subject}`,
+          html: email.html,
+          text: email.text,
+        });
+        res.json({ ok: true, testSent: true, testTo });
+      } catch (error) {
+        res.status(502).json({ error: error.message || "Test send failed." });
+      }
+      return;
+    }
+
     if (!detail.backers.length) {
       res.status(400).json({ error: "Import at least one backer before sending emails." });
       return;
     }
 
-    const siteOrigin = getPublicSiteOrigin();
+    let pool = detail.backers;
+    if (requestedBackerIds && requestedBackerIds.length) {
+      const requestedSet = new Set(requestedBackerIds);
+      pool = detail.backers.filter((backer) => requestedSet.has(backer.id));
+    }
+
     const backersToSend = resendAll
-      ? detail.backers
-      : detail.backers.filter((backer) => !backer.lastEmailedAt);
+      ? pool
+      : pool.filter((backer) => !backer.lastEmailedAt);
 
     if (!backersToSend.length) {
       res.json({
         ok: true,
         sentCount: 0,
         failedCount: 0,
-        skippedCount: detail.backers.length,
+        skippedCount: pool.length,
         targetedCount: 0,
         failures: [],
       });
@@ -2993,7 +3045,7 @@ app.post(
       ok: failures.length === 0,
       sentCount: sentBackerIds.length,
       failedCount: failures.length,
-      skippedCount: Math.max(detail.backers.length - backersToSend.length, 0),
+      skippedCount: Math.max(pool.length - backersToSend.length, 0),
       targetedCount: backersToSend.length,
       failures,
     });

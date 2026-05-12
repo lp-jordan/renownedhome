@@ -333,6 +333,12 @@ export const api = {
       body: JSON.stringify(options),
     });
   },
+  testDeliveryEmail(projectId, testTo) {
+    return request(`/api/admin/delivery/projects/${encodeURIComponent(projectId)}/send-emails`, {
+      method: "POST",
+      body: JSON.stringify({ testTo }),
+    });
+  },
   async uploadDeliveryCover(projectId, file) {
     const formData = new FormData();
     formData.append("file", file);
