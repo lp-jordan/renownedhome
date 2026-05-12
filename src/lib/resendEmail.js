@@ -15,12 +15,10 @@ export function buildDeliveryEmail({
   projectTitle,
   creatorName,
   accessUrl,
-  coverImageUrl,
 }) {
   const safeProjectTitle = escapeHtml(projectTitle);
   const safeCreatorName = escapeHtml(creatorName);
   const safeAccessUrl = escapeHtml(accessUrl);
-  const safeCoverImageUrl = escapeHtml(coverImageUrl || "");
 
   return {
     subject: `${projectTitle} is ready`,
@@ -34,25 +32,8 @@ export function buildDeliveryEmail({
           <title>${safeProjectTitle} is ready</title>
           <style>
             @media only screen and (max-width: 620px) {
-              .delivery-stack,
-              .delivery-stack tbody,
-              .delivery-stack tr,
-              .delivery-stack td {
-                display: block !important;
-                width: 100% !important;
-              }
-
-              .delivery-stack__left {
-                padding-right: 0 !important;
-                padding-bottom: 18px !important;
-              }
-
-              .delivery-stack__right {
-                padding-left: 0 !important;
-              }
-
-              .delivery-cover {
-                max-width: 220px !important;
+              .delivery-body td {
+                padding: 0 !important;
               }
             }
           </style>
@@ -81,55 +62,23 @@ export function buildDeliveryEmail({
                   </tr>
 
                   <tr>
-                    <td style="padding:20px 24px 22px;">
-                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="delivery-stack" style="width:100%;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+                    <td class="delivery-body" align="center" style="padding:28px 24px 30px;text-align:center;">
+                      <p style="margin:0 0 18px;color:#f2f4f8;font-size:16px;line-height:1.6;text-align:center;">Your digital package is ready for download!</p>
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 18px;">
                         <tr>
-                          <td valign="middle" width="236" class="delivery-stack__left" style="width:236px;padding:0 22px 0 0;vertical-align:middle;">
-                            ${
-                              safeCoverImageUrl
-                                ? `
-                                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="220" class="delivery-cover" style="width:220px;max-width:220px;">
-                                    <tr>
-                                      <td style="overflow:hidden;border-radius:18px;border:1px solid #252b38;background:#1a2230;">
-                                        <img
-                                          src="${safeCoverImageUrl}"
-                                          alt="${safeProjectTitle} cover"
-                                          width="218"
-                                          style="display:block;width:100%;max-width:218px;height:auto;border:0;"
-                                        />
-                                      </td>
-                                    </tr>
-                                  </table>
-                                `
-                                : `
-                                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="220" class="delivery-cover" style="width:220px;max-width:220px;">
-                                    <tr>
-                                      <td height="300" style="height:300px;border-radius:18px;border:1px solid #252b38;background:#1a2230;font-size:0;line-height:0;">&nbsp;</td>
-                                    </tr>
-                                  </table>
-                                `
-                            }
-                          </td>
-                          <td valign="middle" align="center" class="delivery-stack__right" style="padding:0 0 0 2px;vertical-align:middle;text-align:center;">
-                            <p style="margin:0 0 14px;color:#f2f4f8;font-size:15px;line-height:1.6;text-align:center;">Your digital package is ready for download!</p>
-                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 14px;">
-                              <tr>
-                                <td align="center" bgcolor="#ffffff" style="border-radius:16px;">
-                                  <a
-                                    href="${safeAccessUrl}"
-                                    style="display:block;padding:16px 24px;border-radius:16px;background:#ffffff;color:#05070b;text-decoration:none;font-size:15px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;"
-                                  >
-                                    Access Here
-                                  </a>
-                                </td>
-                              </tr>
-                            </table>
-                            <p style="margin:0;color:#b8c1cf;font-size:14px;line-height:1.8;text-align:center;">
-                              This will open in your browser. You can download or read it online anytime.
-                            </p>
+                          <td align="center" bgcolor="#ffffff" style="border-radius:16px;">
+                            <a
+                              href="${safeAccessUrl}"
+                              style="display:block;padding:16px 28px;border-radius:16px;background:#ffffff;color:#05070b;text-decoration:none;font-size:15px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;"
+                            >
+                              Access Here
+                            </a>
                           </td>
                         </tr>
                       </table>
+                      <p style="margin:0;color:#b8c1cf;font-size:14px;line-height:1.8;text-align:center;">
+                        This will open in your browser. You can download or read it online anytime.
+                      </p>
                     </td>
                   </tr>
 

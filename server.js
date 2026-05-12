@@ -3000,10 +3000,6 @@ app.post(
       const accessUrl = previewBacker
         ? `${siteOrigin}/a/${previewBacker.accessToken}`
         : `${siteOrigin}/a/preview`;
-      const coverImageUrl =
-        previewBacker && detail.currentCover
-          ? `${siteOrigin}${buildAccessCoverUrl(previewBacker.accessToken)}`
-          : "";
       const tier =
         (previewBacker && detail.tiers.find((entry) => entry.id === previewBacker.tierId)) ||
         detail.tiers[0] ||
@@ -3013,7 +3009,6 @@ app.post(
         creatorName: detail.project.creatorName,
         shortMessage: tier?.messageOverride || detail.project.shortMessage,
         accessUrl,
-        coverImageUrl,
       });
 
       try {
@@ -3062,9 +3057,6 @@ app.post(
 
     for (const backer of backersToSend) {
       const accessUrl = `${siteOrigin}/a/${backer.accessToken}`;
-      const coverImageUrl = detail.currentCover
-        ? `${siteOrigin}${buildAccessCoverUrl(backer.accessToken)}`
-        : "";
       const tier =
         detail.tiers.find((entry) => entry.id === backer.tierId) || detail.tiers[0] || null;
       const email = buildDeliveryEmail({
@@ -3072,7 +3064,6 @@ app.post(
         creatorName: detail.project.creatorName,
         shortMessage: tier?.messageOverride || detail.project.shortMessage,
         accessUrl,
-        coverImageUrl,
       });
 
       try {
