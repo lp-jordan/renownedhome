@@ -1456,6 +1456,30 @@ async function streamStorageFile(res, { key, contentType, disposition, filename 
   throw new Error("Storage response body could not be streamed.");
 }
 
+async function fetchStorageBytes(key) {
+  const client = createStorageClient();
+  const response = await client.send(
+    new GetObjectCommand({
+      Bucket: getStorageEnv().bucket,
+      Key: key,
+    })
+  );
+
+  if (response.Body?.transformToByteArray) {
+    return Buffer.from(await response.Body.transformToByteArray());
+  }
+
+  if (response.Body?.[Symbol.asyncIterator]) {
+    const chunks = [];
+    for await (const chunk of response.Body) {
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks);
+  }
+
+  throw new Error("Storage response body could not be read.");
+}
+
 function getSessionTtlMs() {
   const configuredSeconds = parsePositiveInteger(
     process.env.SESSION_TTL_SECONDS || "604800"
@@ -2990,6 +3014,52 @@ app.post(
 
     const siteOrigin = getPublicSiteOrigin();
 
+    // Try to embed the cover inline as an attachment with a Content-ID. Gmail
+    // and most clients are reliable about rendering cid: images while remote
+    // <img src=...> URLs are routinely blocked or proxied. Fall back to the
+    // public access-cover URL if the byte fetch fails.
+    const COVER_CID = "delivery-cover";
+    let coverAttachment = null;
+    if (detail.currentCover?.storageKey && storageIsConfigured()) {
+      try {
+        const bytes = await fetchStorageBytes(detail.currentCover.storageKey);
+        coverAttachment = {
+          filename: detail.currentCover.originalFilename || "cover",
+          content: bytes.toString("base64"),
+          content_type: detail.currentCover.mimeType || "image/jpeg",
+          content_id: COVER_CID,
+          disposition: "inline",
+        };
+      } catch (coverError) {
+        console.warn("Could not inline cover for delivery email:", coverError.message);
+        coverAttachment = null;
+      }
+    }
+
+    function buildEmailFor(backer) {
+      const accessUrl = backer
+        ? `${siteOrigin}/a/${backer.accessToken}`
+        : `${siteOrigin}/a/preview`;
+      const coverImageUrl = coverAttachment
+        ? `cid:${COVER_CID}`
+        : backer && detail.currentCover
+          ? `${siteOrigin}${buildAccessCoverUrl(backer.accessToken)}`
+          : "";
+      const tier =
+        (backer && detail.tiers.find((entry) => entry.id === backer.tierId)) ||
+        detail.tiers[0] ||
+        null;
+      return buildDeliveryEmail({
+        projectTitle: detail.project.title,
+        creatorName: detail.project.creatorName,
+        shortMessage: tier?.messageOverride || detail.project.shortMessage,
+        accessUrl,
+        coverImageUrl,
+      });
+    }
+
+    const attachmentsForSend = coverAttachment ? [coverAttachment] : undefined;
+
     if (testTo) {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testTo)) {
         res.status(400).json({ error: "Provide a valid email address for the test send." });
@@ -2997,24 +3067,7 @@ app.post(
       }
 
       const previewBacker = detail.backers[0] || null;
-      const accessUrl = previewBacker
-        ? `${siteOrigin}/a/${previewBacker.accessToken}`
-        : `${siteOrigin}/a/preview`;
-      const coverImageUrl =
-        previewBacker && detail.currentCover
-          ? `${siteOrigin}${buildAccessCoverUrl(previewBacker.accessToken)}`
-          : "";
-      const tier =
-        (previewBacker && detail.tiers.find((entry) => entry.id === previewBacker.tierId)) ||
-        detail.tiers[0] ||
-        null;
-      const email = buildDeliveryEmail({
-        projectTitle: detail.project.title,
-        creatorName: detail.project.creatorName,
-        shortMessage: tier?.messageOverride || detail.project.shortMessage,
-        accessUrl,
-        coverImageUrl,
-      });
+      const email = buildEmailFor(previewBacker);
 
       try {
         await sendResendEmail({
@@ -3022,6 +3075,7 @@ app.post(
           subject: `[TEST] ${email.subject}`,
           html: email.html,
           text: email.text,
+          attachments: attachmentsForSend,
         });
         res.json({ ok: true, testSent: true, testTo });
       } catch (error) {
@@ -3061,19 +3115,7 @@ app.post(
     const failures = [];
 
     for (const backer of backersToSend) {
-      const accessUrl = `${siteOrigin}/a/${backer.accessToken}`;
-      const coverImageUrl = detail.currentCover
-        ? `${siteOrigin}${buildAccessCoverUrl(backer.accessToken)}`
-        : "";
-      const tier =
-        detail.tiers.find((entry) => entry.id === backer.tierId) || detail.tiers[0] || null;
-      const email = buildDeliveryEmail({
-        projectTitle: detail.project.title,
-        creatorName: detail.project.creatorName,
-        shortMessage: tier?.messageOverride || detail.project.shortMessage,
-        accessUrl,
-        coverImageUrl,
-      });
+      const email = buildEmailFor(backer);
 
       try {
         await sendResendEmail({
@@ -3081,6 +3123,7 @@ app.post(
           subject: email.subject,
           html: email.html,
           text: email.text,
+          attachments: attachmentsForSend,
         });
         sentBackerIds.push(backer.id);
       } catch (error) {
