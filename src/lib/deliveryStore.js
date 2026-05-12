@@ -1205,12 +1205,15 @@ export class DeliveryPgStore {
             b.updated_at AS "updatedAt",
             t.name AS "tierName",
             t.slug AS "tierSlug",
-            COALESCE(ARRAY_AGG(bf.file_id ORDER BY bf.created_at ASC) FILTER (WHERE bf.file_id IS NOT NULL), ARRAY[]::uuid[]) AS "addonFileIds"
+            COALESCE(
+              (SELECT ARRAY_AGG(bf.file_id ORDER BY bf.created_at ASC)
+               FROM delivery_backer_files bf
+               WHERE bf.backer_id = b.id),
+              ARRAY[]::uuid[]
+            ) AS "addonFileIds"
           FROM delivery_backers b
           LEFT JOIN delivery_tiers t ON t.id = b.tier_id
-          LEFT JOIN delivery_backer_files bf ON bf.backer_id = b.id
           WHERE b.project_id = $1
-          GROUP BY b.id, t.name, t.slug
           ORDER BY b.created_at DESC
         `,
         [projectId]
@@ -1686,6 +1689,16 @@ export class DeliveryPgStore {
           projectId,
           removedTierIds,
         ]);
+      }
+
+      // Clear slugs on existing tiers first to avoid transient UNIQUE (project_id, slug) violations
+      // when renaming tiers in the same save (e.g. swapping names between two tiers).
+      const existingTierIds = existingTiers.map((t) => t.id);
+      if (existingTierIds.length) {
+        await client.query(
+          `UPDATE delivery_tiers SET slug = '_tmp_' || id::text WHERE project_id = $1 AND id = ANY($2::uuid[])`,
+          [projectId, existingTierIds]
+        );
       }
 
       for (const tier of submittedTiers) {
