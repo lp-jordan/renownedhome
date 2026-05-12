@@ -1700,6 +1700,37 @@ textarea {
   flex-wrap: wrap;
 }
 
+.delivery-tier-card__collapse {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.45rem;
+  margin-left: -0.45rem;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.delivery-tier-card__collapse:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.delivery-tier-card__caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.8rem;
+  color: var(--text-dim);
+  transition: transform 0.18s ease;
+  transform: rotate(-90deg);
+}
+
+.delivery-tier-card__caret.is-open {
+  transform: rotate(0deg);
+}
+
 .delivery-tier-card__link-button {
   background: none;
   border: 0;

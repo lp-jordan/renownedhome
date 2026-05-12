@@ -291,6 +291,7 @@ function TierCard({
 }) {
   const [showCustomize, setShowCustomize] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showBackers, setShowBackers] = useState(true);
   const customizeRef = useRef(null);
 
   useEffect(() => {
@@ -381,7 +382,7 @@ function TierCard({
         <div className="delivery-tier-card__files-head">
           <span className="delivery-tier-card__section-label">Files for this tier</span>
           <span className="delivery-tier-card__files-count">
-            {tier.fileIds.length} of {sortedFiles.length}
+            {sortedFiles.filter((file) => tier.fileIds.includes(file.id)).length} of {sortedFiles.length}
           </span>
         </div>
         {sortedFiles.length ? (
@@ -412,12 +413,31 @@ function TierCard({
 
       <div className="delivery-tier-card__backers">
         <div className="delivery-tier-card__section-head">
-          <span className="delivery-tier-card__section-label">Backers</span>
+          <button
+            className="delivery-tier-card__collapse"
+            type="button"
+            onClick={() => setShowBackers((current) => !current)}
+            aria-expanded={showBackers}
+          >
+            <span
+              className={`delivery-tier-card__caret${showBackers ? " is-open" : ""}`}
+              aria-hidden="true"
+            >
+              ▾
+            </span>
+            <span className="delivery-tier-card__section-label">Backers</span>
+            <span className="delivery-tier-card__files-count">
+              {tierBackers.length}
+            </span>
+          </button>
           <div className="delivery-tier-card__section-actions">
             <button
               className="delivery-tier-card__link-button"
               type="button"
-              onClick={() => setShowImport((current) => !current)}
+              onClick={() => {
+                setShowImport((current) => !current);
+                setShowBackers(true);
+              }}
             >
               {showImport ? "Hide import" : "Import emails"}
             </button>
@@ -443,7 +463,7 @@ function TierCard({
           </div>
         </div>
 
-        {showImport ? (
+        {showBackers && showImport ? (
           <div className="delivery-tier-card__import">
             <textarea
               rows={4}
@@ -464,7 +484,7 @@ function TierCard({
           </div>
         ) : null}
 
-        {tierBackers.length ? (
+        {showBackers && tierBackers.length ? (
           <div className="delivery-tier-card__backer-list">
             {tierBackers.map((backer) => {
               const isSelected = selectedBackerIds.includes(backer.id);
@@ -500,9 +520,10 @@ function TierCard({
               );
             })}
           </div>
-        ) : (
+        ) : null}
+        {showBackers && !tierBackers.length ? (
           <p className="status-line">No backers in this tier yet. Drop emails above to add some.</p>
-        )}
+        ) : null}
       </div>
     </section>
   );
