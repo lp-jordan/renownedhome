@@ -562,15 +562,11 @@ function LettersAdmin({ letters, onSave }) {
     .filter((letter) => letter.status === "archived")
     .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
   const pendingLetters = activeLetters.filter((letter) => letter.status !== "approved" && letter.status !== "rejected");
-  const defaultLetter = activeLetters[0] || letters[0];
-  const [selectedId, setSelectedId] = useState(defaultLetter?.id || "");
+  const [selectedId, setSelectedId] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const selected =
     activeLetters.find((letter) => letter.id === selectedId) ||
-    archivedLetters.find((letter) => letter.id === selectedId) ||
-    activeLetters[0] ||
-    archivedLetters[0] ||
-    letters[0];
+    archivedLetters.find((letter) => letter.id === selectedId);
   const [draft, setDraft] = useState(selected);
   const [search, setSearch] = useState("");
   const [replyText, setReplyText] = useState(selected?.editorReply || "");
@@ -578,10 +574,7 @@ function LettersAdmin({ letters, onSave }) {
   const replyRef = useRef(null);
 
   useEffect(() => {
-    if (!letters.length) {
-      if (selectedId) {
-        setSelectedId("");
-      }
+    if (!selectedId) {
       return;
     }
 
@@ -589,10 +582,10 @@ function LettersAdmin({ letters, onSave }) {
       activeLetters.some((letter) => letter.id === selectedId) ||
       archivedLetters.some((letter) => letter.id === selectedId);
 
-    if (!selected || !letterStillExists) {
-      setSelectedId(defaultLetter?.id || activeLetters[0]?.id || archivedLetters[0]?.id || letters[0]?.id || "");
+    if (!letterStillExists) {
+      setSelectedId("");
     }
-  }, [activeLetters, archivedLetters, defaultLetter, letters, selected, selectedId]);
+  }, [activeLetters, archivedLetters, selectedId]);
 
   useEffect(() => {
     setDraft(selected);
@@ -616,10 +609,6 @@ function LettersAdmin({ letters, onSave }) {
     } catch (error) {
       autosave.setStatus(error.message || "Error");
     }
-  }
-
-  if (!draft) {
-    return null;
   }
 
   const filteredLetters = activeLetters.filter((letter) =>
@@ -772,6 +761,8 @@ function LettersAdmin({ letters, onSave }) {
       </aside>
 
       <section className="workspace-detail">
+        {draft ? (
+        <>
         <header className="workspace-detail__header">
           <div className="workspace-detail__heading">
             <h1>{draft.name || "Anonymous"}</h1>
@@ -854,6 +845,10 @@ function LettersAdmin({ letters, onSave }) {
             </label>
           </section>
         </div>
+        </>
+        ) : (
+          <div className="workspace-detail__placeholder">Open a letter</div>
+        )}
       </section>
     </section>
   );

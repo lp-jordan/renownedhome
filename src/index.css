@@ -7383,6 +7383,15 @@ textarea {
   font-size: 0.82rem;
 }
 
+.workspace-detail__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
 .workspace-reply textarea {
   min-height: 140px;
   padding: 1rem;
