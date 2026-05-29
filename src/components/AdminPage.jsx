@@ -1797,6 +1797,7 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
     ["pages", "Pages"],
     ["letters", "Letters"],
     ["assets", "Assets"],
+    ["redirects", "Redirects"],
     ["general", "Settings"],
   ];
 
