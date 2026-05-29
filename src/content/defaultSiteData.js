@@ -495,7 +495,7 @@ export const defaultSiteData = {
       id: "redirect-go",
       sourcePath: "/go",
       destination:
-        "https://www.kickstarter.com/projects/jmintonjohnson/renowned-2-supernatural-detective-series",
+        "https://www.kickstarter.com/projects/jmintonjohnson/renowned-3-historical-fiction-detective-series",
       type: "302",
       active: true,
     },
