@@ -349,13 +349,14 @@ function buildContentSecurityPolicy() {
   const directives = [
     "default-src 'self'",
     "base-uri 'self'",
-    "connect-src 'self'",
+    "connect-src 'self' https://api.stripe.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "form-action 'self'",
     "frame-ancestors 'none'",
+    "frame-src https://js.stripe.com https://hooks.stripe.com",
     "img-src 'self' https: data: blob:",
     "object-src 'none'",
-    "script-src 'self'",
+    "script-src 'self' https://js.stripe.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   ];
 
