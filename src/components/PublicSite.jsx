@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
 import {
@@ -249,13 +249,8 @@ function HomePage({ bootstrap }) {
   );
 }
 
-function useStripeInstance(publishableKey) {
-  const [stripe, setStripe] = useState(null);
-  useEffect(() => {
-    if (!publishableKey) return;
-    loadStripe(publishableKey).then(setStripe);
-  }, [publishableKey]);
-  return stripe;
+function useStripePromise(publishableKey) {
+  return useMemo(() => (publishableKey ? loadStripe(publishableKey) : null), [publishableKey]);
 }
 
 function CheckoutModal({ issueId, format, stripeInstance, onClose }) {
@@ -284,7 +279,7 @@ function CheckoutModal({ issueId, format, stripeInstance, onClose }) {
 
 function BuyPage({ bootstrap }) {
   const page = findPage(bootstrap, "/buy");
-  const stripeInstance = useStripeInstance(bootstrap.stripePublishableKey);
+  const stripePromise = useStripePromise(bootstrap.stripePublishableKey);
   const [checkout, setCheckout] = useState(null); // { issueId, format }
 
   const listedIssues = sortByOrder(bootstrap.issues).filter((i) => i.shop?.listedInShop);
@@ -339,7 +334,7 @@ function BuyPage({ bootstrap }) {
                               type="button"
                               className="button-secondary shop-format__button"
                               onClick={() => openCheckout(issue.id, "digital")}
-                              disabled={!stripeInstance}
+                              disabled={!stripePromise}
                             >
                               Buy Digital
                             </button>
@@ -355,7 +350,7 @@ function BuyPage({ bootstrap }) {
                               type="button"
                               className="button-secondary shop-format__button"
                               onClick={() => openCheckout(issue.id, "physical")}
-                              disabled={!stripeInstance}
+                              disabled={!stripePromise}
                             >
                               Buy Physical
                             </button>
@@ -399,11 +394,11 @@ function BuyPage({ bootstrap }) {
         <p className="section-note">{page.content.footerNote}</p>
       </section>
 
-      {checkout && stripeInstance && (
+      {checkout && stripePromise && (
         <CheckoutModal
           issueId={checkout.issueId}
           format={checkout.format}
-          stripeInstance={stripeInstance}
+          stripeInstance={stripePromise}
           onClose={() => setCheckout(null)}
         />
       )}
