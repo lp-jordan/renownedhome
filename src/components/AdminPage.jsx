@@ -548,6 +548,15 @@ function IssueEditor({ issues, assets, onSave, title = "Issues" }) {
           <section className="workspace-read-section">
             <h2>Content</h2>
             <div className="editor-card">
+              <AssetField
+                label="Cover image (used on buy page and issue cards)"
+                value={draft.coverImage || ""}
+                assets={assets}
+                filter="image"
+                onChange={(v) => saveImageUpdate({ ...draft, coverImage: v, featuredImage: v })}
+              />
+            </div>
+            <div className="editor-card">
               <div className="delivery-form-grid">
                 <Field label="Title" value={draft.title || ""} onChange={(v) => setDraft((d) => ({ ...d, title: v }))} />
                 <Field label="Short label (e.g. Chapter 1)" value={draft.shortLabel || ""} onChange={(v) => setDraft((d) => ({ ...d, shortLabel: v }))} />
