@@ -1770,6 +1770,76 @@ app.post("/api/checkout", async (req, res) => {
   }
 });
 
+app.get("/api/checkout/session/:sessionId", async (req, res) => {
+  const { sessionId } = req.params;
+
+  const stripe = getStripeClient();
+  if (!stripe) {
+    res.status(503).json({ error: "Payments are not configured." });
+    return;
+  }
+
+  let session;
+  try {
+    session = await stripe.checkout.sessions.retrieve(sessionId);
+  } catch (err) {
+    res.status(404).json({ error: "Checkout session not found." });
+    return;
+  }
+
+  const paid = session.status === "complete" || session.payment_status === "paid";
+
+  // The order + delivery token are created asynchronously by the Stripe webhook,
+  // so the token may not exist yet on the first poll after returning from checkout.
+  let deliveryToken = null;
+  if (paid && process.env.DATABASE_URL) {
+    const pool = repository.pool;
+    const row = await pool.query(
+      `SELECT d.token
+         FROM order_deliveries d
+         JOIN orders o ON o.id = d.order_id
+        WHERE o.stripe_session_id = $1`,
+      [session.id]
+    );
+    if (row.rows.length > 0) deliveryToken = row.rows[0].token;
+  }
+
+  res.json({
+    paid,
+    status: session.status,
+    email: session.customer_details?.email || "",
+    deliveryToken,
+  });
+});
+
+app.get("/api/admin/orders", requireAdminAuth, async (_req, res) => {
+  try {
+    const result = await repository.db.query(`
+      SELECT
+        o.id,
+        o.stripe_session_id,
+        o.customer_email,
+        o.status,
+        o.created_at,
+        json_agg(json_build_object(
+          'issueId', oi.issue_id,
+          'issueTitle', oi.issue_title,
+          'format', oi.format,
+          'pricePaid', oi.price_paid
+        ) ORDER BY oi.issue_title) AS items
+      FROM orders o
+      LEFT JOIN order_items oi ON oi.order_id = o.id
+      GROUP BY o.id
+      ORDER BY o.created_at DESC
+      LIMIT 200
+    `);
+    res.json({ orders: result.rows });
+  } catch (err) {
+    console.error("Failed to fetch orders:", err?.message);
+    res.status(500).json({ error: "Failed to fetch orders." });
+  }
+});
+
 app.get("/api/order-delivery/:token", async (req, res) => {
   const { token } = req.params;
 

@@ -1828,6 +1828,68 @@ function PageWorkspace({
     </section>
   );
 }
+function OrdersAdmin() {
+  const [orders, setOrders] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/orders", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) throw new Error(d.error);
+        setOrders(d.orders);
+      })
+      .catch((e) => setError(e.message));
+  }, []);
+
+  if (error) return <div className="admin-empty-state">{error}</div>;
+  if (!orders) return <div className="admin-empty-state">Loading orders…</div>;
+  if (!orders.length) return <div className="admin-empty-state">No orders yet.</div>;
+
+  return (
+    <div className="admin-orders">
+      <div className="admin-workspace-header">
+        <h2>Orders</h2>
+        <p className="field-help">{orders.length} order{orders.length !== 1 ? "s" : ""}</p>
+      </div>
+      <table className="orders-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Email</th>
+            <th>Items</th>
+            <th>Total</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {orders.map((order) => {
+            const total = (order.items || []).reduce((sum, i) => sum + (i.pricePaid || 0), 0);
+            const date = new Date(order.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+            return (
+              <tr key={order.id}>
+                <td className="orders-table__date">{date}</td>
+                <td className="orders-table__email">{order.customer_email}</td>
+                <td className="orders-table__items">
+                  {(order.items || []).map((item) => (
+                    <span key={item.issueId} className="orders-table__item-badge">
+                      {item.issueTitle} <em>{item.format}</em>
+                    </span>
+                  ))}
+                </td>
+                <td className="orders-table__total">${(total / 100).toFixed(2)}</td>
+                <td className="orders-table__status">
+                  <span className={`status-badge status-badge--${order.status}`}>{order.status}</span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function IssuesWorkspace({ issues, assets, onSaveIssue }) {
   const sorted = [...issues].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   const [selectedId, setSelectedId] = useState(null);
@@ -1953,6 +2015,7 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
   }
 
   const tabs = [
+    ["orders", "Orders"],
     ["delivery", "Delivery"],
     ["share-links", "Share Links"],
     ["pages", "Pages"],
@@ -1985,6 +2048,7 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
             onSave={async (letter) => syncAfterSave(await api.saveLetter(letter))}
           />
         ) : null}
+        {activeTab === "orders" ? <OrdersAdmin /> : null}
         {activeTab === "delivery" ? <DeliveryAdmin /> : null}
         {activeTab === "share-links" ? <ShareLinksAdmin assets={adminData.assets || []} /> : null}
         {activeTab === "issues" ? (

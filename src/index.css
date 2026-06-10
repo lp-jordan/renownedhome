@@ -3402,6 +3402,71 @@ textarea {
   color: var(--text-muted);
 }
 
+/* Orders admin */
+.admin-orders {
+  padding: 2rem;
+}
+
+.orders-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.orders-table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+}
+
+.orders-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  vertical-align: top;
+}
+
+.orders-table tr:last-child td { border-bottom: none; }
+
+.orders-table__date { color: var(--text-muted); white-space: nowrap; }
+.orders-table__email { font-family: monospace; font-size: 0.8rem; }
+.orders-table__total { white-space: nowrap; }
+
+.orders-table__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.orders-table__item-badge {
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+.orders-table__item-badge em {
+  color: var(--text-muted);
+  font-style: normal;
+  margin-left: 0.25rem;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  text-transform: capitalize;
+}
+
+.status-badge--paid { background: rgba(34,197,94,0.15); color: #4ade80; }
+.status-badge--pending { background: rgba(234,179,8,0.15); color: #fbbf24; }
+.status-badge--failed { background: rgba(239,68,68,0.15); color: #f87171; }
+
 /* Order delivery page */
 .order-delivery-shell {
   width: min(100%, 680px);
