@@ -1812,7 +1812,7 @@ app.get("/api/checkout/session/:sessionId", async (req, res) => {
   });
 });
 
-app.get("/api/admin/orders", requireAdminAuth, async (_req, res) => {
+app.get("/api/admin/orders", requireAdmin, async (_req, res) => {
   try {
     const result = await repository.db.query(`
       SELECT
