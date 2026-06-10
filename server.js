@@ -1758,7 +1758,7 @@ app.post("/api/checkout", async (req, res) => {
   const origin = getPublicSiteOrigin();
   try {
     const session = await stripe.checkout.sessions.create({
-      ui_mode: "embedded",
+      ui_mode: "embedded_page",
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "payment",
       return_url: `${origin}/buy?session_id={CHECKOUT_SESSION_ID}`,
