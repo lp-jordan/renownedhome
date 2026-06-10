@@ -1693,11 +1693,9 @@ function AssetsEditor({
 
 function PageWorkspace({
   pages,
-  issues,
   assets,
   teamMembers,
   onSavePage,
-  onSaveIssue,
   onSaveTeamMember,
 }) {
   const entries = [
@@ -1708,16 +1706,6 @@ function PageWorkspace({
       subtitle: page.slug,
       page,
     })),
-    ...issues
-      .slice()
-      .sort((left, right) => left.sortOrder - right.sortOrder)
-      .map((issue) => ({
-        id: `issue:${issue.id}`,
-        type: "issue",
-        title: issue.title,
-        subtitle: issue.slug,
-        issue,
-      })),
   ];
 
   const [selectedEntryId, setSelectedEntryId] = useState(entries[0]?.id || "");
@@ -1740,7 +1728,6 @@ function PageWorkspace({
   }
 
   const selectedPage = selectedEntry.type === "page" ? selectedEntry.page : null;
-  const selectedIssue = selectedEntry.type === "issue" ? selectedEntry.issue : null;
 
   return (
     <section className="workspace-grid">
@@ -1777,14 +1764,6 @@ function PageWorkspace({
             title={selectedPage.title}
             teamMembers={selectedPage.slug === "/meet" ? teamMembers : []}
             onSaveTeamMember={onSaveTeamMember}
-          />
-        ) : null}
-        {selectedIssue ? (
-          <IssueEditor
-            issues={[selectedIssue]}
-            assets={assets}
-            onSave={onSaveIssue}
-            title={selectedIssue.title}
           />
         ) : null}
       </div>
@@ -1960,12 +1939,9 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
         {activeTab === "pages" ? (
           <PageWorkspace
             pages={adminData.pages}
-            issues={adminData.issues}
-            letters={adminData.lettersSubmissions}
             assets={adminData.assets}
             teamMembers={adminData.teamMembers || []}
             onSavePage={async (page) => syncAfterSave(await api.savePage(page))}
-            onSaveIssue={async (issue) => syncAfterSave(await api.saveIssue(issue))}
             onSaveTeamMember={async (member) => syncAfterSave(await api.saveTeamMember(member))}
           />
         ) : null}
