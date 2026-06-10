@@ -589,7 +589,7 @@ function IssueEditor({ issues, assets, onSave, title = "Issues" }) {
               featuredImage={draft.featuredImage || draft.coverImage || ""}
               galleryImages={draft.heroAssets || []}
               assets={assets}
-              onChangeFeatured={(value) => saveImageUpdate({ ...draft, featuredImage: value })}
+              onChangeFeatured={(value) => saveImageUpdate({ ...draft, featuredImage: value, coverImage: value })}
               onChangeGallery={(value) => saveImageUpdate({ ...draft, heroAssets: value })}
             />
           </section>
