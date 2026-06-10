@@ -1791,6 +1791,40 @@ function PageWorkspace({
     </section>
   );
 }
+function IssuesWorkspace({ issues, assets, onSaveIssue }) {
+  const sorted = [...issues].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  const [selectedId, setSelectedId] = useState(sorted[0]?.id || "");
+  const selected = sorted.find((i) => i.id === selectedId) || sorted[0];
+
+  if (!selected) return <div className="state-shell">No issues found.</div>;
+
+  return (
+    <section className="workspace-grid">
+      <aside className="workspace-list">
+        {sorted.map((issue) => (
+          <button
+            key={issue.id}
+            type="button"
+            className={`workspace-list__item ${issue.id === selectedId ? "is-active" : ""}`}
+            onClick={() => setSelectedId(issue.id)}
+          >
+            <span>{issue.title}</span>
+            <small>{issue.shop?.listedInShop ? "Listed" : issue.status === "published" ? "Published" : "Draft"}</small>
+          </button>
+        ))}
+      </aside>
+      <div className="workspace-main">
+        <IssueEditor
+          key={selected.id}
+          issues={[selected]}
+          assets={assets}
+          onSave={onSaveIssue}
+        />
+      </div>
+    </section>
+  );
+}
+
 export default function AdminPage({ refreshBootstrap, session, refreshSession }) {
   const [loginState, setLoginState] = useState({ username: "", password: "" });
   const [loginError, setLoginError] = useState("");
@@ -1872,6 +1906,7 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
     ["delivery", "Delivery"],
     ["share-links", "Share Links"],
     ["pages", "Pages"],
+    ["issues", "Issues"],
     ["letters", "Letters"],
     ["assets", "Assets"],
     ["redirects", "Redirects"],
@@ -1902,6 +1937,13 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
         ) : null}
         {activeTab === "delivery" ? <DeliveryAdmin /> : null}
         {activeTab === "share-links" ? <ShareLinksAdmin assets={adminData.assets || []} /> : null}
+        {activeTab === "issues" ? (
+          <IssuesWorkspace
+            issues={adminData.issues || []}
+            assets={adminData.assets || []}
+            onSaveIssue={async (issue) => syncAfterSave(await api.saveIssue(issue))}
+          />
+        ) : null}
         {activeTab === "pages" ? (
           <PageWorkspace
             pages={adminData.pages}
