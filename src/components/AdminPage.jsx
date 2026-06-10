@@ -1793,27 +1793,15 @@ function PageWorkspace({
 }
 function IssuesWorkspace({ issues, assets, onSaveIssue }) {
   const sorted = [...issues].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-  const [selectedId, setSelectedId] = useState(sorted[0]?.id || "");
-  const selected = sorted.find((i) => i.id === selectedId) || sorted[0];
+  const [selectedId, setSelectedId] = useState(null);
+  const selected = sorted.find((i) => i.id === selectedId);
 
-  if (!selected) return <div className="state-shell">No issues found.</div>;
-
-  return (
-    <section className="workspace-grid">
-      <aside className="workspace-list">
-        {sorted.map((issue) => (
-          <button
-            key={issue.id}
-            type="button"
-            className={`workspace-list__item ${issue.id === selectedId ? "is-active" : ""}`}
-            onClick={() => setSelectedId(issue.id)}
-          >
-            <span>{issue.title}</span>
-            <small>{issue.shop?.listedInShop ? "Listed" : issue.status === "published" ? "Published" : "Draft"}</small>
-          </button>
-        ))}
-      </aside>
-      <div className="workspace-main">
+  if (selected) {
+    return (
+      <div className="shop-workspace">
+        <button type="button" className="shop-workspace__back" onClick={() => setSelectedId(null)}>
+          ← Back to products
+        </button>
         <IssueEditor
           key={selected.id}
           issues={[selected]}
@@ -1821,7 +1809,32 @@ function IssuesWorkspace({ issues, assets, onSaveIssue }) {
           onSave={onSaveIssue}
         />
       </div>
-    </section>
+    );
+  }
+
+  return (
+    <div className="shop-workspace">
+      <header className="shop-workspace__header">
+        <h1>Shop</h1>
+        <p>Click a product to edit its shop settings, pricing, and digital PDF.</p>
+      </header>
+      <div className="shop-product-list">
+        {sorted.map((issue) => (
+          <button
+            key={issue.id}
+            type="button"
+            className="shop-product-row"
+            onClick={() => setSelectedId(issue.id)}
+          >
+            <span className="shop-product-row__title">{issue.title}</span>
+            <span className={`shop-product-row__badge ${issue.shop?.listedInShop ? "shop-product-row__badge--listed" : ""}`}>
+              {issue.shop?.listedInShop ? "Listed" : "Unlisted"}
+            </span>
+            <span className="shop-product-row__arrow">→</span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -1906,7 +1919,7 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
     ["delivery", "Delivery"],
     ["share-links", "Share Links"],
     ["pages", "Pages"],
-    ["issues", "Issues"],
+    ["issues", "Shop"],
     ["letters", "Letters"],
     ["assets", "Assets"],
     ["redirects", "Redirects"],

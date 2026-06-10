@@ -3483,6 +3483,95 @@ textarea {
   margin-bottom: 0.75rem;
 }
 
+/* Shop workspace */
+.shop-workspace {
+  padding: 2rem;
+  max-width: 720px;
+}
+
+.shop-workspace__header {
+  margin-bottom: 2rem;
+}
+
+.shop-workspace__header h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0 0 0.4rem;
+}
+
+.shop-workspace__header p {
+  font-size: 0.875rem;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.shop-workspace__back {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 1.5rem;
+  display: block;
+}
+
+.shop-workspace__back:hover {
+  color: var(--text);
+}
+
+.shop-product-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.shop-product-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+  color: var(--text);
+}
+
+.shop-product-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.shop-product-row__title {
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.shop-product-row__badge {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.shop-product-row__badge--listed {
+  color: #7dffb3;
+  border-color: rgba(125, 255, 179, 0.3);
+}
+
+.shop-product-row__arrow {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
 /* Admin issue editor helpers */
 .editor-card__label {
   font-size: 0.75rem;
