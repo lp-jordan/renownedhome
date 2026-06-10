@@ -479,78 +479,155 @@ function PageEditor({ pages, assets, onSave, title = "Pages", teamMembers = [], 
 }
 
 function IssueEditor({ issues, assets, onSave, title = "Issues" }) {
-  const selectedIssue = issues[0];
-  const [draft, setDraft] = useState(selectedIssue);
+  const selected = issues[0];
+  const [draft, setDraft] = useState(selected);
   const [saveStatus, setSaveStatus] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    setDraft(selectedIssue);
+    setDraft(selected);
     setSaveStatus("");
-  }, [selectedIssue]);
+  }, [selected?.id]);
 
-  async function saveNextDraft(nextDraft, statusLabel) {
+  function setShopField(field, value) {
+    setDraft((d) => ({ ...d, shop: { ...(d.shop || {}), [field]: value } }));
+  }
+
+  async function save() {
+    if (!draft || isSaving) return;
+    setIsSaving(true);
+    setSaveStatus("Saving…");
+    try {
+      await onSave(draft);
+      setSaveStatus("Saved.");
+    } catch (err) {
+      setSaveStatus(err.message || "Save failed.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function saveImageUpdate(nextDraft) {
     setDraft(nextDraft);
-    setSaveStatus("Updating image...");
+    setSaveStatus("Saving…");
     try {
       await onSave(nextDraft);
-      setSaveStatus(statusLabel);
-    } catch (error) {
-      setSaveStatus(error.message || "Unable to update image.");
+      setSaveStatus("Saved.");
+    } catch (err) {
+      setSaveStatus(err.message || "Save failed.");
     }
   }
 
-  async function update(path, value, statusLabel) {
-    if (!draft) {
-      return;
-    }
+  if (!draft) return null;
 
-    const nextDraft = structuredClone(draft);
-    let cursor = nextDraft;
-    for (let index = 0; index < path.length - 1; index += 1) {
-      cursor = cursor[path[index]];
-    }
-    cursor[path[path.length - 1]] = value;
-    await saveNextDraft(nextDraft, statusLabel);
-  }
-
-  if (!draft) {
-    return null;
-  }
+  const shop = draft.shop || {};
+  const pdfAssets = assets.filter((a) => {
+    const ct = a?.metadata?.contentType || "";
+    return ct === "application/pdf" || a?.filename?.endsWith(".pdf");
+  });
 
   return (
     <section className="workspace-detail">
-      <header className="workspace-detail__header">
-        <div className="workspace-detail__heading">
-          <h1>{draft.title || title}</h1>
-          <p>
-            <span>{draft.slug || "/"}</span>
-            <span className="workspace-detail__meta-sep">
-              {draft.status === "published" ? "Published" : "Draft"}
-            </span>
-          </p>
-        </div>
-      </header>
+        <header className="workspace-detail__header">
+          <div className="workspace-detail__heading">
+            <h1>{draft.title}</h1>
+            <p>
+              <span>{draft.slug}</span>
+              <span className="workspace-detail__meta-sep">
+                {draft.status === "published" ? "Published" : "Draft"}
+              </span>
+            </p>
+          </div>
+          <div className="workspace-detail__actions">
+            {saveStatus && <span className="status-line">{saveStatus}</span>}
+            <button type="button" className="button-primary" onClick={save} disabled={isSaving}>
+              Save
+            </button>
+          </div>
+        </header>
 
-      <p className="workspace-inline-note">
-        This page is managed in code. Only images can be updated here.
-      </p>
-      {saveStatus ? <p className="workspace-inline-note">{saveStatus}</p> : null}
+        <div className="workspace-read-view">
 
-      <div className="workspace-read-view">
-        <section className="workspace-read-section">
-          <h2>Images</h2>
-          <div className="workspace-image-list">
+          {/* Images */}
+          <section className="workspace-read-section">
+            <h2>Images</h2>
             <IssueGalleryManager
               featuredImage={draft.featuredImage || draft.coverImage || ""}
               galleryImages={draft.heroAssets || []}
               assets={assets}
-              onChangeFeatured={(value) => update(["featuredImage"], value, "Featured image updated.")}
-              onChangeGallery={(value) => update(["heroAssets"], value, "Issue images updated.")}
+              onChangeFeatured={(value) => saveImageUpdate({ ...draft, featuredImage: value })}
+              onChangeGallery={(value) => saveImageUpdate({ ...draft, heroAssets: value })}
             />
-          </div>
-        </section>
-      </div>
-    </section>
+          </section>
+
+          {/* Shop */}
+          <section className="workspace-read-section">
+            <h2>Shop</h2>
+
+            <div className="editor-card">
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={Boolean(shop.listedInShop)}
+                  onChange={(e) => setShopField("listedInShop", e.target.checked)}
+                />
+                <span>Listed in shop</span>
+              </label>
+            </div>
+
+            <div className="editor-card">
+              <h3 className="editor-card__label">Digital</h3>
+              <div className="delivery-form-grid">
+                <Field
+                  label="Display price (e.g. $9.99)"
+                  value={shop.digitalPrice || ""}
+                  onChange={(v) => setShopField("digitalPrice", v)}
+                />
+                <Field
+                  label="Stripe Price ID"
+                  value={shop.digitalPriceId || ""}
+                  onChange={(v) => setShopField("digitalPriceId", v)}
+                />
+              </div>
+              <div className="delivery-form-grid delivery-form-grid--full" style={{ marginTop: "12px" }}>
+                <AssetField
+                  label="Digital PDF asset"
+                  value={shop.digitalAssetId || ""}
+                  assets={pdfAssets.length > 0 ? pdfAssets : assets}
+                  onChange={(v) => setShopField("digitalAssetId", v)}
+                />
+              </div>
+            </div>
+
+            <div className="editor-card">
+              <h3 className="editor-card__label">Physical</h3>
+              <div className="delivery-form-grid">
+                <Field
+                  label="Display price (e.g. $19.99)"
+                  value={shop.physicalPrice || ""}
+                  onChange={(v) => setShopField("physicalPrice", v)}
+                />
+                <Field
+                  label="Stripe Price ID"
+                  value={shop.physicalPriceId || ""}
+                  onChange={(v) => setShopField("physicalPriceId", v)}
+                />
+              </div>
+            </div>
+
+            <div className="editor-card">
+              <h3 className="editor-card__label">External URL</h3>
+              <p className="editor-card__hint">Used as the buy button link when no Stripe Price ID is set — for pre-launch pages, Kickstarter campaigns, etc.</p>
+              <Field
+                label="URL"
+                value={shop.externalUrl || ""}
+                onChange={(v) => setShopField("externalUrl", v)}
+              />
+            </div>
+          </section>
+
+        </div>
+      </section>
   );
 }
 

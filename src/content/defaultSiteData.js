@@ -290,6 +290,7 @@ export const defaultSiteData = {
         "https://renownedcomic.com/wp-content/uploads/2025/09/bronco.png",
       ],
       readerImages: [],
+      shop: { listedInShop: false, digitalPriceId: "", digitalPrice: "", physicalPriceId: "", physicalPrice: "", externalUrl: "", digitalAssetId: "" },
     },
     {
       id: "issue-1",
@@ -333,6 +334,7 @@ export const defaultSiteData = {
         "https://renownedcomic.com/wp-content/uploads/2025/09/family.png",
       ],
       readerImages: [],
+      shop: { listedInShop: false, digitalPriceId: "", digitalPrice: "", physicalPriceId: "", physicalPrice: "", externalUrl: "", digitalAssetId: "" },
     },
     {
       id: "issue-2",
@@ -376,6 +378,7 @@ export const defaultSiteData = {
         "https://renownedcomic.com/wp-content/uploads/2025/09/oneshotcover.png",
       ],
       readerImages: [],
+      shop: { listedInShop: false, digitalPriceId: "", digitalPrice: "", physicalPriceId: "", physicalPrice: "", externalUrl: "", digitalAssetId: "" },
     },
     {
       id: "issue-3",
@@ -405,6 +408,7 @@ export const defaultSiteData = {
       description: "Issue #3 will follow the same story-page structure.",
       heroAssets: [],
       readerImages: [],
+      shop: { listedInShop: false, digitalPriceId: "", digitalPrice: "", physicalPriceId: "", physicalPrice: "", externalUrl: "", digitalAssetId: "" },
     },
   ],
   teamMembers: [

@@ -3338,6 +3338,168 @@ textarea {
   min-width: 10.75rem;
 }
 
+.shop-empty {
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  padding: 2rem 0;
+}
+
+/* Checkout overlay */
+.checkout-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(5, 7, 11, 0.85);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.checkout-modal {
+  position: relative;
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--bg-deep);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1.5rem;
+}
+
+.checkout-modal__close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.checkout-modal__close:hover {
+  color: var(--text);
+}
+
+/* Order delivery page */
+.order-delivery-shell {
+  width: min(100%, 680px);
+  margin: 0 auto;
+  padding: 4rem 1.5rem 6rem;
+}
+
+.order-delivery__header {
+  margin-bottom: 2.5rem;
+}
+
+.order-delivery__eyebrow {
+  display: inline-block;
+  margin-bottom: 1rem;
+  padding: 5px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.order-delivery__header h1 {
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+  color: var(--text);
+}
+
+.order-delivery__header p {
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.order-delivery__items {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.order-delivery__item {
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+}
+
+.order-delivery__cover {
+  flex-shrink: 0;
+  width: 72px;
+}
+
+.order-delivery__cover img {
+  width: 100%;
+  border-radius: 8px;
+  display: block;
+}
+
+.order-delivery__item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.order-delivery__item-info h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+  color: var(--text);
+}
+
+.order-delivery__download {
+  display: inline-block;
+  text-decoration: none;
+}
+
+.order-delivery__pending {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.order-delivery__error {
+  text-align: center;
+  padding: 4rem 1rem;
+}
+
+.order-delivery__error h1 {
+  margin-bottom: 0.75rem;
+}
+
+/* Admin issue editor helpers */
+.editor-card__label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 0 0 0.75rem;
+}
+
+.editor-card__hint {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  margin: 0 0 0.75rem;
+  line-height: 1.5;
+}
+
 .quote-section {
   width: min(100%, 1100px);
   padding-top: 0;

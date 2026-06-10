@@ -1,3 +1,4 @@
+import Stripe from "stripe";
 import cookieParser from "cookie-parser";
 import bcrypt from "bcryptjs";
 import express from "express";
@@ -30,6 +31,7 @@ import {
 } from "./src/lib/deliveryStore.js";
 import {
   buildDeliveryEmail,
+  buildOrderDeliveryEmail,
   escapeHtml,
   resendIsConfigured,
   sendResendEmail,
@@ -169,6 +171,107 @@ const normalizedRasterMimeTypes = new Set([
 
 app.disable("x-powered-by");
 app.set("trust proxy", isProduction ? 1 : false);
+
+// Stripe webhooks require the raw request body for signature verification.
+// This must be registered before express.json() so the route gets the buffer.
+app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), async (req, res) => {
+  const sig = req.headers["stripe-signature"];
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const stripe = getStripeClient();
+
+  if (!stripe || !webhookSecret) {
+    res.status(503).json({ error: "Stripe not configured." });
+    return;
+  }
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+  } catch (err) {
+    res.status(400).json({ error: `Webhook signature invalid: ${err.message}` });
+    return;
+  }
+
+  if (event.type !== "checkout.session.completed") {
+    res.json({ received: true });
+    return;
+  }
+
+  // Idempotency: skip if we already processed this event
+  if (process.env.DATABASE_URL) {
+    const pool = repository.pool;
+    const existing = await pool.query("SELECT event_id FROM stripe_events WHERE event_id = $1", [event.id]);
+    if (existing.rows.length > 0) {
+      res.json({ received: true });
+      return;
+    }
+    await pool.query("INSERT INTO stripe_events (event_id) VALUES ($1) ON CONFLICT DO NOTHING", [event.id]);
+  }
+
+  const session = event.data.object;
+  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { expand: ["data.price.product"] });
+  const data = await repository.getAllData();
+
+  const orderId = crypto.randomUUID();
+  const deliveryToken = crypto.randomBytes(32).toString("hex");
+  const customerEmail = session.customer_details?.email || "";
+
+  // Resolve purchased issues from price IDs
+  const purchasedItems = [];
+  for (const item of lineItems.data) {
+    const priceId = item.price?.id;
+    const issue = data.issues?.find(
+      (i) => i.shop?.digitalPriceId === priceId || i.shop?.physicalPriceId === priceId
+    );
+    if (!issue) continue;
+    const format = issue.shop?.digitalPriceId === priceId ? "digital" : "physical";
+    purchasedItems.push({
+      id: crypto.randomUUID(),
+      orderId,
+      issueId: issue.id,
+      issueTitle: issue.title,
+      format,
+      pricePaid: item.amount_total || 0,
+      digitalAssetId: format === "digital" ? (issue.shop?.digitalAssetId || "") : "",
+    });
+  }
+
+  if (process.env.DATABASE_URL) {
+    const pool = repository.pool;
+    await pool.query(
+      "INSERT INTO orders (id, stripe_session_id, customer_email, status) VALUES ($1, $2, $3, $4)",
+      [orderId, session.id, customerEmail, "paid"]
+    );
+    for (const item of purchasedItems) {
+      await pool.query(
+        "INSERT INTO order_items (id, order_id, issue_id, issue_title, format, price_paid) VALUES ($1, $2, $3, $4, $5, $6)",
+        [item.id, orderId, item.issueId, item.issueTitle, item.format, item.pricePaid]
+      );
+    }
+    await pool.query(
+      "INSERT INTO order_deliveries (token, order_id) VALUES ($1, $2)",
+      [deliveryToken, orderId]
+    );
+  }
+
+  const digitalItems = purchasedItems.filter((i) => i.format === "digital" && i.digitalAssetId);
+
+  if (digitalItems.length > 0 && resendIsConfigured() && customerEmail) {
+    const origin = getPublicSiteOrigin();
+    const accessUrl = `${origin}/order/${deliveryToken}`;
+    const itemList = digitalItems.map((i) => i.issueTitle).join(", ");
+    const { subject, html, text } = buildOrderDeliveryEmail({
+      itemList,
+      accessUrl,
+      creatorName: data.siteSettings?.siteName || "Renowned",
+    });
+    await sendResendEmail({ to: customerEmail, subject, html, text }).catch((err) => {
+      console.error("Order delivery email failed:", err.message);
+    });
+  }
+
+  res.json({ received: true });
+});
 
 app.use(express.json({ limit: "3mb" }));
 app.use(cookieParser());
@@ -762,6 +865,42 @@ class PgRepository {
       );
     `);
 
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS stripe_events (
+        event_id TEXT PRIMARY KEY,
+        processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS orders (
+        id TEXT PRIMARY KEY,
+        stripe_session_id TEXT UNIQUE NOT NULL,
+        customer_email TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'paid',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS order_items (
+        id TEXT PRIMARY KEY,
+        order_id TEXT NOT NULL REFERENCES orders(id),
+        issue_id TEXT NOT NULL,
+        issue_title TEXT NOT NULL,
+        format TEXT NOT NULL,
+        price_paid INTEGER NOT NULL
+      );
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS order_deliveries (
+        token TEXT PRIMARY KEY,
+        order_id TEXT NOT NULL REFERENCES orders(id),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
     const seed = cloneDefaultSiteData();
     const keys = [
       "siteSettings",
@@ -964,8 +1103,15 @@ const publicFormRateLimiter = createRateLimiter({
 
 setInterval(cleanupRateLimits, 5 * 60 * 1000).unref();
 
+function getStripeClient() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) return null;
+  return new Stripe(key, { apiVersion: "2026-05-27.dahlia" });
+}
+
 function sanitizePublicData(data) {
   return {
+    stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "",
     siteSettings: data.siteSettings,
     pages: data.pages,
     issues: data.issues,
@@ -1580,6 +1726,109 @@ async function getRedirectForPath(pathname) {
 app.get("/api/bootstrap", async (_req, res) => {
   const data = await repository.getAllData();
   res.json(sanitizePublicData(data));
+});
+
+app.post("/api/checkout", async (req, res) => {
+  const { issueId, format } = req.body || {};
+  if (!issueId || !format) {
+    res.status(400).json({ error: "issueId and format are required." });
+    return;
+  }
+
+  const stripe = getStripeClient();
+  if (!stripe) {
+    res.status(503).json({ error: "Payments are not configured." });
+    return;
+  }
+
+  const data = await repository.getAllData();
+  const issue = data.issues?.find((i) => i.id === issueId);
+  if (!issue) {
+    res.status(404).json({ error: "Issue not found." });
+    return;
+  }
+
+  const priceId = format === "digital" ? issue.shop?.digitalPriceId : issue.shop?.physicalPriceId;
+  if (!priceId) {
+    res.status(400).json({ error: "This format is not available for purchase." });
+    return;
+  }
+
+  const origin = getPublicSiteOrigin();
+  const session = await stripe.checkout.sessions.create({
+    ui_mode: "embedded",
+    line_items: [{ price: priceId, quantity: 1 }],
+    mode: "payment",
+    return_url: `${origin}/buy?session_id={CHECKOUT_SESSION_ID}`,
+  });
+
+  res.json({ clientSecret: session.client_secret });
+});
+
+app.get("/api/order-delivery/:token", async (req, res) => {
+  const { token } = req.params;
+
+  if (!process.env.DATABASE_URL) {
+    res.status(503).json({ error: "Order delivery requires a database." });
+    return;
+  }
+
+  const pool = repository.pool;
+  const deliveryRow = await pool.query(
+    "SELECT order_id FROM order_deliveries WHERE token = $1",
+    [token]
+  );
+  if (deliveryRow.rows.length === 0) {
+    res.status(404).json({ error: "Delivery link not found." });
+    return;
+  }
+
+  const orderId = deliveryRow.rows[0].order_id;
+  const [orderRow, itemRows] = await Promise.all([
+    pool.query("SELECT customer_email, created_at FROM orders WHERE id = $1", [orderId]),
+    pool.query("SELECT issue_id, issue_title, format, price_paid FROM order_items WHERE order_id = $1", [orderId]),
+  ]);
+
+  if (orderRow.rows.length === 0) {
+    res.status(404).json({ error: "Order not found." });
+    return;
+  }
+
+  const data = await repository.getAllData();
+  const items = await Promise.all(
+    itemRows.rows
+      .filter((row) => row.format === "digital")
+      .map(async (row) => {
+        const issue = data.issues?.find((i) => i.id === row.issue_id);
+        const assetId = issue?.shop?.digitalAssetId;
+        const asset = assetId ? (data.assets || []).find((a) => a.id === assetId) : null;
+
+        let downloadUrl = null;
+        if (asset?.storageKey && storageIsConfigured()) {
+          const client = createStorageClient();
+          const { bucket } = getStorageEnv();
+          downloadUrl = await getSignedUrl(
+            client,
+            new GetObjectCommand({ Bucket: bucket, Key: asset.storageKey }),
+            { expiresIn: 60 * 60 * 48 }
+          );
+        }
+
+        return {
+          issueId: row.issue_id,
+          issueTitle: row.issue_title,
+          coverImage: issue?.coverImage || "",
+          downloadUrl,
+          hasAsset: Boolean(asset),
+        };
+      })
+  );
+
+  res.json({
+    orderId,
+    createdAt: orderRow.rows[0].created_at,
+    items,
+  });
 });
 
 app.get("/api/auth/session", async (req, res) => {

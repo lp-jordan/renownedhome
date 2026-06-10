@@ -1,4 +1,6 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { loadStripe } from "@stripe/stripe-js";
+import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
 import {
   Link,
   Route,
@@ -8,6 +10,7 @@ import {
 import { api } from "../lib/api";
 import DeliveryAccessPage from "./DeliveryAccessPage";
 import ShareAccessPage from "./ShareAccessPage";
+import OrderDeliveryPage from "./OrderDeliveryPage";
 import { resolveSeo, usePageSeo, useSeo } from "../lib/seo";
 
 const SWIPE_THRESHOLD = 44;
@@ -136,6 +139,7 @@ export default function PublicSite({ bootstrap, refreshBootstrap }) {
           <Route path="/go" element={<RedirectPage bootstrap={bootstrap} pathName="/go" />} />
           <Route path="/a/:token" element={<DeliveryAccessPage />} />
           <Route path="/share/:token" element={<ShareAccessPage />} />
+          <Route path="/order/:token" element={<OrderDeliveryPage />} />
           <Route
             path="/3-10-to-nowhere"
             element={<RedirectPage bootstrap={bootstrap} pathName="/3-10-to-nowhere" />}
@@ -245,24 +249,51 @@ function HomePage({ bootstrap }) {
   );
 }
 
+function useStripeInstance(publishableKey) {
+  const [stripe, setStripe] = useState(null);
+  useEffect(() => {
+    if (!publishableKey) return;
+    loadStripe(publishableKey).then(setStripe);
+  }, [publishableKey]);
+  return stripe;
+}
+
+function CheckoutModal({ issueId, format, stripeInstance, onClose }) {
+  const fetchClientSecret = useCallback(async () => {
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ issueId, format }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Checkout unavailable.");
+    return data.clientSecret;
+  }, [issueId, format]);
+
+  return (
+    <div className="checkout-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="checkout-modal">
+        <button className="checkout-modal__close" onClick={onClose} aria-label="Close checkout">✕</button>
+        <EmbeddedCheckoutProvider stripe={stripeInstance} options={{ fetchClientSecret }}>
+          <EmbeddedCheckout />
+        </EmbeddedCheckoutProvider>
+      </div>
+    </div>
+  );
+}
+
 function BuyPage({ bootstrap }) {
   const page = findPage(bootstrap, "/buy");
-  const products = sortByOrder(bootstrap.issues).map((issue) => ({
-    issue,
-    formats: [
-      {
-        key: "digital",
-        label: "Digital",
-        href: issue.purchaseLinks?.digital || "",
-      },
-      {
-        key: "physical",
-        label: "Physical",
-        href: issue.purchaseLinks?.physical || "",
-      },
-    ],
-  }));
+  const stripeInstance = useStripeInstance(bootstrap.stripePublishableKey);
+  const [checkout, setCheckout] = useState(null); // { issueId, format }
+
+  const listedIssues = sortByOrder(bootstrap.issues).filter((i) => i.shop?.listedInShop);
+
   usePageSeo(page, { siteSettings: bootstrap.siteSettings });
+
+  function openCheckout(issueId, format) {
+    setCheckout({ issueId, format });
+  }
 
   return (
     <main className="page-stack page-stack--subpage">
@@ -270,64 +301,112 @@ function BuyPage({ bootstrap }) {
       <section className="section-shell section-shell--subpage">
         <div className="shop-intro">
           <h2>{page.content.heading}</h2>
-          <p>
-            Pick an issue, choose digital or physical, and keep the details contained to the item
-            itself. This layout is ready to plug into per-format checkout links as soon as the
-            store side is in place.
-          </p>
         </div>
         <div className="shop-grid shop-grid--catalog">
-          {products.map(({ issue, formats }) => (
-            <article key={issue.id} className="shop-product">
-              <div className="shop-product__media">
-                {issue.coverImage ? (
-                  <img src={issue.coverImage} alt={`${issue.title} cover`} />
-                ) : (
-                  <div className="shop-product__placeholder">Cover coming soon</div>
-                )}
-              </div>
-              <div className="shop-product__content">
-                <div className="shop-product__header">
-                  <p>{issue.shortLabel || issue.title}</p>
-                  <h3>{issue.title}</h3>
+          {listedIssues.map((issue) => {
+            const shop = issue.shop || {};
+            const hasDigital = Boolean(shop.digitalPriceId);
+            const hasPhysical = Boolean(shop.physicalPriceId);
+            const hasExternal = Boolean(shop.externalUrl);
+
+            return (
+              <article key={issue.id} className="shop-product">
+                <div className="shop-product__media">
+                  {issue.coverImage ? (
+                    <img src={issue.coverImage} alt={`${issue.title} cover`} />
+                  ) : (
+                    <div className="shop-product__placeholder">Cover coming soon</div>
+                  )}
                 </div>
-                <p className="shop-product__summary">
-                  {issue.seo.description || "A new case from the world of Renowned."}
-                </p>
-                <div className="shop-product__formats" aria-label={`${issue.title} formats`}>
-                  {formats.map((format) => (
-                    <div key={format.key} className="shop-format">
-                      <div className="shop-format__copy">
-                        <span>{format.label}</span>
-                        <small>{format.href ? "Available now" : "Coming soon"}</small>
-                      </div>
-                      {format.href ? (
-                        <a
-                          className="button-secondary shop-format__button"
-                          href={format.href}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Buy {format.label}
-                        </a>
-                      ) : (
-                        <button
-                          type="button"
-                          className="button-secondary button-secondary--disabled shop-format__button"
-                          disabled
-                        >
-                          {format.label} Soon
+                <div className="shop-product__content">
+                  <div className="shop-product__header">
+                    <p>{issue.shortLabel || issue.title}</p>
+                    <h3>{issue.title}</h3>
+                  </div>
+                  <p className="shop-product__summary">
+                    {issue.seo?.description || "A new case from the world of Renowned."}
+                  </p>
+                  <div className="shop-product__formats" aria-label={`${issue.title} formats`}>
+                    {(hasDigital || hasPhysical || hasExternal) ? (
+                      <>
+                        {hasDigital && (
+                          <div className="shop-format">
+                            <div className="shop-format__copy">
+                              <span>Digital</span>
+                              {shop.digitalPrice && <small>{shop.digitalPrice}</small>}
+                            </div>
+                            <button
+                              type="button"
+                              className="button-secondary shop-format__button"
+                              onClick={() => openCheckout(issue.id, "digital")}
+                              disabled={!stripeInstance}
+                            >
+                              Buy Digital
+                            </button>
+                          </div>
+                        )}
+                        {hasPhysical && (
+                          <div className="shop-format">
+                            <div className="shop-format__copy">
+                              <span>Physical</span>
+                              {shop.physicalPrice && <small>{shop.physicalPrice}</small>}
+                            </div>
+                            <button
+                              type="button"
+                              className="button-secondary shop-format__button"
+                              onClick={() => openCheckout(issue.id, "physical")}
+                              disabled={!stripeInstance}
+                            >
+                              Buy Physical
+                            </button>
+                          </div>
+                        )}
+                        {!hasDigital && !hasPhysical && hasExternal && (
+                          <div className="shop-format">
+                            <div className="shop-format__copy">
+                              <span>Available</span>
+                            </div>
+                            <a
+                              className="button-secondary shop-format__button"
+                              href={shop.externalUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Get it
+                            </a>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="shop-format">
+                        <div className="shop-format__copy">
+                          <span>Coming soon</span>
+                        </div>
+                        <button type="button" className="button-secondary button-secondary--disabled shop-format__button" disabled>
+                          Soon
                         </button>
-                      )}
-                    </div>
-                  ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
+          {listedIssues.length === 0 && (
+            <p className="shop-empty">No items are available yet. Check back soon.</p>
+          )}
         </div>
         <p className="section-note">{page.content.footerNote}</p>
       </section>
+
+      {checkout && stripeInstance && (
+        <CheckoutModal
+          issueId={checkout.issueId}
+          format={checkout.format}
+          stripeInstance={stripeInstance}
+          onClose={() => setCheckout(null)}
+        />
+      )}
     </main>
   );
 }
