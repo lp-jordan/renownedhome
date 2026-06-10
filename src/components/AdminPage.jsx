@@ -1434,6 +1434,51 @@ function AssetsEditor({
     }
   }
 
+  function renderAssetCard(asset) {
+    const isSelected = selectedAssetIds.includes(asset.id);
+    return (
+      <div
+        key={asset.id}
+        className={`asset-gallery-card asset-gallery-card--library${isSelected ? " is-selected" : ""}`}
+        draggable
+        onClick={(event) => handleAssetClick(asset.id, event)}
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = "move";
+          const ids = isSelected && selectedAssetIds.length > 1 ? selectedAssetIds : [asset.id];
+          setDraggedAssetIds(ids);
+          if (!isSelected) { setSelectedAssetIds([asset.id]); setLastSelectedId(asset.id); }
+        }}
+        onDragEnd={() => { setDraggedAssetIds([]); }}
+      >
+        {isPdfAsset(asset) ? (
+          <div className="asset-gallery-card__pdf-thumb">
+            <span className="asset-gallery-card__pdf-badge">PDF</span>
+            <span className="asset-gallery-card__pdf-filename">{asset.label || asset.metadata?.fileName || "Untitled"}</span>
+          </div>
+        ) : (
+          <img src={asset.url} alt={asset.label} className="asset-gallery-card__image" draggable={false} />
+        )}
+        <div className="asset-gallery-card__overlay">
+          <div className="asset-gallery-card__actions">
+            <button
+              className="button-secondary asset-gallery-card__delete"
+              type="button"
+              onClick={(event) => { event.stopPropagation(); setVariantAssetId(asset.id); }}
+            >Crop</button>
+            <button
+              className="button-secondary asset-gallery-card__delete"
+              type="button"
+              onClick={(event) => { event.stopPropagation(); void handleDeleteAsset(asset); }}
+            >Delete</button>
+          </div>
+        </div>
+        {draggedAssetIds.includes(asset.id) && draggedAssetIds.length > 1 ? (
+          <span className="asset-gallery-card__drag-count">{draggedAssetIds.length}</span>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <section className="editor-shell">
       <EditorHeader title="Assets" subtitle="" status="Library" onSave={() => {}} />
@@ -1619,80 +1664,25 @@ function AssetsEditor({
                     </div>
                   </div>
                 ) : null}
+                {assetTypeFilter === "all" && activeFolderAssets.some(isImageAsset) && activeFolderAssets.some(isPdfAsset) ? (
+                  <>
+                    <p className="asset-section-label">Images</p>
+                    <div className="asset-gallery-grid">
+                      {activeFolderAssets.filter(isImageAsset).map((asset) => renderAssetCard(asset))}
+                    </div>
+                    <p className="asset-section-label asset-section-label--pdfs">PDFs</p>
+                    <div className="asset-gallery-grid">
+                      {activeFolderAssets.filter(isPdfAsset).map((asset) => renderAssetCard(asset))}
+                    </div>
+                  </>
+                ) : (
                 <div className="asset-gallery-grid">
-                  {activeFolderAssets.map((asset) => {
-                    const isSelected = selectedAssetIds.includes(asset.id);
-                    return (
-                      <div
-                        key={asset.id}
-                        className={`asset-gallery-card asset-gallery-card--library${isSelected ? " is-selected" : ""}`}
-                        draggable
-                        onClick={(event) => handleAssetClick(asset.id, event)}
-                        onDragStart={(event) => {
-                          event.dataTransfer.effectAllowed = "move";
-                          const ids = isSelected && selectedAssetIds.length > 1
-                            ? selectedAssetIds
-                            : [asset.id];
-                          setDraggedAssetIds(ids);
-                          if (!isSelected) {
-                            setSelectedAssetIds([asset.id]);
-                            setLastSelectedId(asset.id);
-                          }
-                        }}
-                        onDragEnd={() => {
-                          setDraggedAssetIds([]);
-                          // Do NOT reset justDraggedRef here — onDrop sets it and the
-                          // setTimeout clears it. onDragEnd fires before the browser's
-                          // synthetic click on the drop target, so clearing it here would
-                          // defeat the guard that prevents the folder from switching.
-                        }}
-                      >
-                        {isPdfAsset(asset) ? (
-                          <div className="asset-gallery-card__pdf-thumb">
-                            <span>PDF</span>
-                          </div>
-                        ) : (
-                          <img
-                            src={asset.url}
-                            alt={asset.label}
-                            className="asset-gallery-card__image"
-                            draggable={false}
-                          />
-                        )}
-                        <div className="asset-gallery-card__overlay">
-                          <div className="asset-gallery-card__actions">
-                            <button
-                              className="button-secondary asset-gallery-card__delete"
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setVariantAssetId(asset.id);
-                              }}
-                            >
-                              Crop
-                            </button>
-                            <button
-                              className="button-secondary asset-gallery-card__delete"
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void handleDeleteAsset(asset);
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                        {draggedAssetIds.includes(asset.id) && draggedAssetIds.length > 1 ? (
-                          <span className="asset-gallery-card__drag-count">{draggedAssetIds.length}</span>
-                        ) : null}
-                      </div>
-                    );
-                  })}
+                  {activeFolderAssets.map((asset) => renderAssetCard(asset))}
                 </div>
-                {!imageAssets.length ? <p className="field-help">No uploaded images are in the library yet.</p> : null}
-                {imageAssets.length && !activeFolderAssets.length ? (
-                  <p className="field-help">No images are in this folder yet.</p>
+                )}
+                {!assets.length ? <p className="field-help">No assets uploaded yet.</p> : null}
+                {assets.length && !activeFolderAssets.length ? (
+                  <p className="field-help">No assets in this folder yet.</p>
                 ) : null}
               </div>
             </div>
