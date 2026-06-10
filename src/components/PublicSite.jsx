@@ -254,6 +254,8 @@ function useStripePromise(publishableKey) {
 }
 
 function CheckoutModal({ issueId, format, stripeInstance, onClose }) {
+  const [error, setError] = useState("");
+
   const fetchClientSecret = useCallback(async () => {
     const res = await fetch("/api/checkout", {
       method: "POST",
@@ -261,7 +263,11 @@ function CheckoutModal({ issueId, format, stripeInstance, onClose }) {
       body: JSON.stringify({ issueId, format }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Checkout unavailable.");
+    if (!res.ok) {
+      const msg = data.error || "Checkout unavailable.";
+      setError(msg);
+      throw new Error(msg);
+    }
     return data.clientSecret;
   }, [issueId, format]);
 
@@ -269,9 +275,16 @@ function CheckoutModal({ issueId, format, stripeInstance, onClose }) {
     <div className="checkout-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="checkout-modal">
         <button className="checkout-modal__close" onClick={onClose} aria-label="Close checkout">✕</button>
-        <EmbeddedCheckoutProvider stripe={stripeInstance} options={{ fetchClientSecret }}>
-          <EmbeddedCheckout />
-        </EmbeddedCheckoutProvider>
+        {error ? (
+          <div className="checkout-modal__error">
+            <p>{error}</p>
+            <button className="button-secondary" type="button" onClick={onClose}>Close</button>
+          </div>
+        ) : (
+          <EmbeddedCheckoutProvider stripe={stripeInstance} options={{ fetchClientSecret }}>
+            <EmbeddedCheckout />
+          </EmbeddedCheckoutProvider>
+        )}
       </div>
     </div>
   );

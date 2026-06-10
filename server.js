@@ -1755,14 +1755,18 @@ app.post("/api/checkout", async (req, res) => {
   }
 
   const origin = getPublicSiteOrigin();
-  const session = await stripe.checkout.sessions.create({
-    ui_mode: "embedded",
-    line_items: [{ price: priceId, quantity: 1 }],
-    mode: "payment",
-    return_url: `${origin}/buy?session_id={CHECKOUT_SESSION_ID}`,
-  });
-
-  res.json({ clientSecret: session.client_secret });
+  try {
+    const session = await stripe.checkout.sessions.create({
+      ui_mode: "embedded",
+      line_items: [{ price: priceId, quantity: 1 }],
+      mode: "payment",
+      return_url: `${origin}/buy?session_id={CHECKOUT_SESSION_ID}`,
+    });
+    res.json({ clientSecret: session.client_secret });
+  } catch (err) {
+    console.error("Stripe checkout session error:", err?.message || err);
+    res.status(500).json({ error: err?.message || "Failed to create checkout session." });
+  }
 });
 
 app.get("/api/order-delivery/:token", async (req, res) => {

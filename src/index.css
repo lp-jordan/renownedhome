@@ -3388,6 +3388,16 @@ textarea {
   color: var(--text);
 }
 
+.checkout-modal__error {
+  padding: 2rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: var(--text-muted);
+}
+
 /* Order delivery page */
 .order-delivery-shell {
   width: min(100%, 680px);
