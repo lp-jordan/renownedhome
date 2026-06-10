@@ -21,11 +21,14 @@ export function formatAssetMeta(asset) {
 
 export function isImageAsset(asset) {
   const contentType = asset?.metadata?.contentType || "";
-  if (contentType.startsWith("image/")) {
-    return true;
-  }
-
+  if (contentType.startsWith("image/")) return true;
   return /\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(asset?.url || "");
+}
+
+export function isPdfAsset(asset) {
+  const contentType = asset?.metadata?.contentType || "";
+  if (contentType === "application/pdf") return true;
+  return /\.pdf(\?.*)?$/i.test(asset?.url || "");
 }
 
 function getAssetSelectionItems(assets) {
@@ -51,26 +54,30 @@ function getAssetSelectionItems(assets) {
   });
 }
 
-export function AssetPickerModal({ title, assets, isOpen, onClose, onPick }) {
+export function AssetPickerModal({ title, assets, isOpen, onClose, onPick, filter = "image" }) {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    if (!isOpen) {
-      setSearch("");
-    }
+    if (!isOpen) setSearch("");
   }, [isOpen]);
 
-  if (!isOpen) {
-    return null;
-  }
+  if (!isOpen) return null;
 
-  const filteredAssets = getAssetSelectionItems(assets).filter((asset) =>
+  const typeFiltered = assets.filter((a) => {
+    if (filter === "pdf") return isPdfAsset(a);
+    if (filter === "image") return isImageAsset(a);
+    return true;
+  });
+
+  const filteredAssets = getAssetSelectionItems(typeFiltered).filter((asset) =>
     [asset.label, asset.url, asset.meta, asset.sourceLabel]
       .filter(Boolean)
       .join(" ")
       .toLowerCase()
       .includes(search.trim().toLowerCase())
   );
+
+  const isPdf = filter === "pdf";
 
   return (
     <div className="asset-gallery-modal" role="dialog" aria-modal="true">
@@ -80,50 +87,57 @@ export function AssetPickerModal({ title, assets, isOpen, onClose, onPick }) {
           <div>
             <p className="editor-header__eyebrow">Asset library</p>
             <h3>{title}</h3>
-            <p className="field-help">Choose any uploaded image from the media library.</p>
+            <p className="field-help">{isPdf ? "Choose an uploaded PDF from the library." : "Choose any uploaded image from the media library."}</p>
           </div>
-          <button className="button-secondary" type="button" onClick={onClose}>
-            Close
-          </button>
+          <button className="button-secondary" type="button" onClick={onClose}>Close</button>
         </div>
         <label className="asset-picker__search">
-          <span>Search images</span>
+          <span>{isPdf ? "Search PDFs" : "Search images"}</span>
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search asset library"
           />
         </label>
-        <div className="asset-gallery-grid">
+        <div className={isPdf ? "asset-pdf-list" : "asset-gallery-grid"}>
           {filteredAssets.map((asset) => (
-            <button
-              key={asset.key}
-              className="asset-gallery-card"
-              type="button"
-              onClick={() => {
-                onPick(asset.url);
-                onClose();
-              }}
-            >
-              <img src={asset.previewUrl} alt={asset.label} className="asset-gallery-card__image" />
-              <span className="asset-gallery-card__title">{asset.label}</span>
-              <span className="asset-gallery-card__meta">
-                {asset.meta}
-              </span>
-            </button>
+            isPdf ? (
+              <button
+                key={asset.key}
+                className="asset-pdf-row"
+                type="button"
+                onClick={() => { onPick(asset.url); onClose(); }}
+              >
+                <span className="asset-pdf-row__icon">PDF</span>
+                <span className="asset-pdf-row__label">{asset.label}</span>
+                <span className="asset-pdf-row__meta">{asset.meta}</span>
+              </button>
+            ) : (
+              <button
+                key={asset.key}
+                className="asset-gallery-card"
+                type="button"
+                onClick={() => { onPick(asset.url); onClose(); }}
+              >
+                <img src={asset.previewUrl} alt={asset.label} className="asset-gallery-card__image" />
+                <span className="asset-gallery-card__title">{asset.label}</span>
+                <span className="asset-gallery-card__meta">{asset.meta}</span>
+              </button>
+            )
           ))}
         </div>
         {!filteredAssets.length ? (
-          <p className="field-help">No images match that search right now.</p>
+          <p className="field-help">{isPdf ? "No PDFs uploaded yet." : "No images match that search right now."}</p>
         ) : null}
       </div>
     </div>
   );
 }
 
-export function AssetField({ label, value, onChange, assets, helperText = "" }) {
-  const imageAssets = assets.filter(isImageAsset);
+export function AssetField({ label, value, onChange, assets, helperText = "", filter = "image" }) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const isPdf = filter === "pdf";
+  const filename = value ? value.split("/").pop().split("?")[0] : "";
 
   return (
     <div className="asset-field">
@@ -137,7 +151,14 @@ export function AssetField({ label, value, onChange, assets, helperText = "" }) 
           onClick={() => setPickerOpen(true)}
         >
           {value ? (
-            <img className="asset-field__preview" src={value} alt={label} />
+            isPdf ? (
+              <span className="asset-field__pdf-selected">
+                <span className="asset-field__pdf-icon">PDF</span>
+                <span className="asset-field__pdf-name">{filename}</span>
+              </span>
+            ) : (
+              <img className="asset-field__preview" src={value} alt={label} />
+            )
           ) : (
             <span className="asset-field__empty">Click to choose from library</span>
           )}
@@ -146,10 +167,11 @@ export function AssetField({ label, value, onChange, assets, helperText = "" }) 
       {helperText ? <p className="field-help">{helperText}</p> : null}
       <AssetPickerModal
         title={`Choose ${label}`}
-        assets={imageAssets}
+        assets={assets}
         isOpen={pickerOpen}
         onClose={() => setPickerOpen(false)}
         onPick={onChange}
+        filter={filter}
       />
     </div>
   );

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import AssetVariantEditorModal from "./AssetVariantEditorModal";
-import { AssetField, AssetPickerModal, isImageAsset } from "./AssetField";
+import { AssetField, AssetPickerModal, isImageAsset, isPdfAsset } from "./AssetField";
 import DeliveryAdmin from "./DeliveryAdmin";
 import ShareLinksAdmin from "./ShareLinksAdmin";
 import { usePageSeo } from "../lib/seo";
@@ -521,10 +521,6 @@ function IssueEditor({ issues, assets, onSave, title = "Issues" }) {
   if (!draft) return null;
 
   const shop = draft.shop || {};
-  const pdfAssets = assets.filter((a) => {
-    const ct = a?.metadata?.contentType || "";
-    return ct === "application/pdf" || a?.filename?.endsWith(".pdf");
-  });
 
   return (
     <section className="workspace-detail">
@@ -593,7 +589,8 @@ function IssueEditor({ issues, assets, onSave, title = "Issues" }) {
                 <AssetField
                   label="Digital PDF asset"
                   value={shop.digitalAssetId || ""}
-                  assets={pdfAssets.length > 0 ? pdfAssets : assets}
+                  assets={assets}
+                  filter="pdf"
                   onChange={(v) => setShopField("digitalAssetId", v)}
                 />
               </div>
@@ -1186,6 +1183,7 @@ function AssetsEditor({
   // Tracks whether a drag just ended so folder onClick doesn't fire immediately after drop.
   const justDraggedRef = useRef(false);
 
+  const [assetTypeFilter, setAssetTypeFilter] = useState("images");
   const imageAssets = assets.filter(isImageAsset);
   const persistedFolders = (assetFolders || [])
     .map((folder, index) => ({
@@ -1197,7 +1195,12 @@ function AssetsEditor({
     .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name));
   const activeVariantAsset =
     imageAssets.find((asset) => asset.id === variantAssetId) || null;
-  const folderedAssets = imageAssets.map((asset) => ({
+  const typeFilteredAssets = assets.filter((a) => {
+    if (assetTypeFilter === "images") return isImageAsset(a);
+    if (assetTypeFilter === "pdfs") return isPdfAsset(a);
+    return true;
+  });
+  const folderedAssets = typeFilteredAssets.map((asset) => ({
     ...asset,
     folderId: asset.metadata?.folderId || "",
   }));
@@ -1445,9 +1448,9 @@ function AssetsEditor({
           }}
           onDrop={handleDrop}
         >
-          <input name="files" type="file" multiple onChange={handleInputChange} />
-          <span className="upload-dropzone__eyebrow">Upload images</span>
-          <span className="upload-dropzone__title">Drop images anywhere in this zone</span>
+          <input name="files" type="file" multiple accept="image/*,application/pdf" onChange={handleInputChange} />
+          <span className="upload-dropzone__eyebrow">Upload assets</span>
+          <span className="upload-dropzone__title">Drop images or PDFs anywhere in this zone</span>
           <span className="upload-dropzone__copy">Or click to browse files from your computer. Uploads start immediately.</span>
         </label>
         {uploadStatus ? <p className="status-line">{uploadStatus}</p> : null}
@@ -1565,6 +1568,18 @@ function AssetsEditor({
                 </div>
               </aside>
               <div className="asset-gallery-pane">
+                <div className="asset-type-filter">
+                  {["images", "pdfs", "all"].map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      className={`asset-type-filter__btn ${assetTypeFilter === type ? "is-active" : ""}`}
+                      onClick={() => { setAssetTypeFilter(type); setSelectedAssetIds([]); }}
+                    >
+                      {type === "images" ? "Images" : type === "pdfs" ? "PDFs" : "All"}
+                    </button>
+                  ))}
+                </div>
                 {selectedInView.length > 0 ? (
                   <div className="asset-selection-bar">
                     <span>{selectedInView.length} selected</span>
@@ -1632,12 +1647,18 @@ function AssetsEditor({
                           // defeat the guard that prevents the folder from switching.
                         }}
                       >
-                        <img
-                          src={asset.url}
-                          alt={asset.label}
-                          className="asset-gallery-card__image"
-                          draggable={false}
-                        />
+                        {isPdfAsset(asset) ? (
+                          <div className="asset-gallery-card__pdf-thumb">
+                            <span>PDF</span>
+                          </div>
+                        ) : (
+                          <img
+                            src={asset.url}
+                            alt={asset.label}
+                            className="asset-gallery-card__image"
+                            draggable={false}
+                          />
+                        )}
                         <div className="asset-gallery-card__overlay">
                           <div className="asset-gallery-card__actions">
                             <button
