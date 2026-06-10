@@ -1814,7 +1814,7 @@ app.get("/api/checkout/session/:sessionId", async (req, res) => {
 
 app.get("/api/admin/orders", requireAdmin, async (_req, res) => {
   try {
-    const result = await repository.db.query(`
+    const result = await repository.pool.query(`
       SELECT
         o.id,
         o.stripe_session_id,
