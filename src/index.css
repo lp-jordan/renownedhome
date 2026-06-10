@@ -3361,12 +3361,16 @@ textarea {
   position: relative;
   width: 100%;
   max-width: 540px;
-  max-height: 90vh;
+  height: 90vh;
   overflow-y: auto;
   background: var(--bg-deep);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px;
   padding: 1.5rem;
+}
+
+.checkout-modal #embedded-checkout {
+  min-height: 100%;
 }
 
 .checkout-modal__close {
