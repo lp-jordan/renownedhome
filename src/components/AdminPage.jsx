@@ -544,6 +544,44 @@ function IssueEditor({ issues, assets, onSave, title = "Issues" }) {
 
         <div className="workspace-read-view">
 
+          {/* Content */}
+          <section className="workspace-read-section">
+            <h2>Content</h2>
+            <div className="editor-card">
+              <div className="delivery-form-grid">
+                <Field label="Title" value={draft.title || ""} onChange={(v) => setDraft((d) => ({ ...d, title: v }))} />
+                <Field label="Short label (e.g. Chapter 1)" value={draft.shortLabel || ""} onChange={(v) => setDraft((d) => ({ ...d, shortLabel: v }))} />
+                <Field label="Release date" value={draft.releaseDate || ""} onChange={(v) => setDraft((d) => ({ ...d, releaseDate: v }))} />
+                <Field label="Writer" value={draft.writer || ""} onChange={(v) => setDraft((d) => ({ ...d, writer: v }))} />
+                <Field label="Artist" value={draft.artist || ""} onChange={(v) => setDraft((d) => ({ ...d, artist: v }))} />
+                <Field label="Colorist" value={draft.colorist || ""} onChange={(v) => setDraft((d) => ({ ...d, colorist: v }))} />
+              </div>
+              <div className="delivery-form-grid delivery-form-grid--full" style={{ marginTop: "12px" }}>
+                <Field label="Description" value={draft.description || ""} multiline onChange={(v) => setDraft((d) => ({ ...d, description: v }))} />
+              </div>
+            </div>
+            <div className="editor-card">
+              <h3 className="editor-card__label">Preview / Reader</h3>
+              <div className="delivery-form-grid">
+                <Field label="Preview button label" value={draft.previewLabel || ""} onChange={(v) => setDraft((d) => ({ ...d, previewLabel: v }))} />
+                <Field label="Preview URL" value={draft.previewUrl || ""} onChange={(v) => setDraft((d) => ({ ...d, previewUrl: v }))} />
+                <Field label="Reader button label" value={draft.readerLabel || ""} onChange={(v) => setDraft((d) => ({ ...d, readerLabel: v }))} />
+                <Field label="Reader PDF URL" value={draft.readerPdfUrl || ""} onChange={(v) => setDraft((d) => ({ ...d, readerPdfUrl: v }))} />
+              </div>
+            </div>
+            <div className="editor-card">
+              <h3 className="editor-card__label">Status</h3>
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={draft.status === "published"}
+                  onChange={(e) => setDraft((d) => ({ ...d, status: e.target.checked ? "published" : "draft" }))}
+                />
+                <span>Published</span>
+              </label>
+            </div>
+          </section>
+
           {/* Images */}
           <section className="workspace-read-section">
             <h2>Images</h2>
