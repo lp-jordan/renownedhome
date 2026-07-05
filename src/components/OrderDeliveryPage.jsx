@@ -48,6 +48,20 @@ export default function OrderDeliveryPage() {
     );
   }
 
+  if (order.items.length === 0) {
+    return (
+      <main className="page-stack page-stack--subpage">
+        <div className="order-delivery-shell">
+          <header className="order-delivery__header">
+            <div className="order-delivery__eyebrow">Order Confirmed</div>
+            <h1>Thanks for your order!</h1>
+            <p>This order doesn't include any digital downloads. A confirmation was sent to your email.</p>
+          </header>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="page-stack page-stack--subpage">
       <div className="order-delivery-shell">

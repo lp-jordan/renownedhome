@@ -349,14 +349,13 @@ function buildContentSecurityPolicy() {
   const directives = [
     "default-src 'self'",
     "base-uri 'self'",
-    "connect-src 'self' https://api.stripe.com",
+    "connect-src 'self'",
     "font-src 'self' https://fonts.gstatic.com data:",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    "frame-src https://js.stripe.com https://hooks.stripe.com",
     "img-src 'self' https: data: blob:",
     "object-src 'none'",
-    "script-src 'self' https://js.stripe.com",
+    "script-src 'self'",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   ];
 
@@ -1112,7 +1111,6 @@ function getStripeClient() {
 
 function sanitizePublicData(data) {
   return {
-    stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "",
     siteSettings: data.siteSettings,
     pages: data.pages,
     issues: data.issues,
@@ -1729,8 +1727,17 @@ app.get("/api/bootstrap", async (_req, res) => {
   res.json(sanitizePublicData(data));
 });
 
+const SAFE_RELATIVE_PATH = /^\/[A-Za-z0-9\-_/]*$/;
+
+function safeCancelPath(cancelPath) {
+  if (typeof cancelPath === "string" && cancelPath.length <= 200 && SAFE_RELATIVE_PATH.test(cancelPath)) {
+    return cancelPath;
+  }
+  return "/buy";
+}
+
 app.post("/api/checkout", async (req, res) => {
-  const { issueId, format } = req.body || {};
+  const { issueId, format, cancelPath } = req.body || {};
   if (!issueId || !format) {
     res.status(400).json({ error: "issueId and format are required." });
     return;
@@ -1758,12 +1765,12 @@ app.post("/api/checkout", async (req, res) => {
   const origin = getPublicSiteOrigin();
   try {
     const session = await stripe.checkout.sessions.create({
-      ui_mode: "embedded_page",
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "payment",
-      return_url: `${origin}/buy?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}${safeCancelPath(cancelPath)}`,
     });
-    res.json({ clientSecret: session.client_secret });
+    res.json({ url: session.url });
   } catch (err) {
     console.error("Stripe checkout session error:", err?.message || err);
     res.status(500).json({ error: err?.message || "Failed to create checkout session." });

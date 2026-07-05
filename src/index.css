@@ -3248,6 +3248,12 @@ textarea {
   box-shadow: var(--shadow);
 }
 
+.shop-product__media,
+.shop-product__header {
+  color: inherit;
+  text-decoration: none;
+}
+
 .shop-product__media img,
 .shop-product__placeholder {
   width: 100%;
@@ -3344,62 +3350,10 @@ textarea {
   padding: 2rem 0;
 }
 
-/* Checkout overlay */
-.checkout-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  background: rgba(5, 7, 11, 0.85);
-  backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-
-.checkout-modal {
-  position: relative;
-  width: 100%;
-  max-width: 540px;
-  height: 90vh;
-  overflow-y: auto;
-  background: var(--bg-deep);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
-  padding: 1.5rem;
-}
-
-.checkout-modal #embedded-checkout {
-  min-height: 100%;
-}
-
-.checkout-modal__close {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  font-size: 1.1rem;
-  cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
-  line-height: 1;
-  transition: color 0.15s;
-}
-
-.checkout-modal__close:hover {
-  color: var(--text);
-}
-
-.checkout-modal__error {
-  padding: 2rem;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  color: var(--text-muted);
+.shop-format__error {
+  margin: 0;
+  color: #ff9d9d;
+  font-size: 0.85rem;
 }
 
 /* Orders admin */
@@ -3560,6 +3514,12 @@ textarea {
 
 .order-delivery__error h1 {
   margin-bottom: 0.75rem;
+}
+
+.order-delivery__actions {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: center;
 }
 
 /* Shop workspace */
