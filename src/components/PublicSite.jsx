@@ -60,12 +60,11 @@ function getIssueReaderImages(issue) {
   return uniqueItems([getIssueFeaturedImage(issue), ...getIssueGallery(issue)]);
 }
 
-const HOME_PANEL_ORDER = ["/read", "/meet", "/letters", "/buy"];
+const HOME_PANEL_ORDER = ["/buy", "/meet", "/letters"];
 const HOME_PANEL_DEFAULTS = {
-  "/read": { label: "Read", href: "/read" },
+  "/buy": { label: "Buy", href: "/buy" },
   "/meet": { label: "Meet", href: "/meet" },
   "/letters": { label: "Letters", href: "/letters" },
-  "/buy": { label: "Buy", href: "/buy" },
 };
 
 function getHomePanels(page, lettersPage) {
@@ -85,16 +84,12 @@ function getHomePanels(page, lettersPage) {
       };
     }
 
-    if (href === "/read") {
-      return { ...base, layout: "hero" };
-    }
-
     if (href === "/meet") {
       return { ...base, layout: "half" };
     }
 
-    return { ...base, layout: "footer" };
-  }).filter((panel) => panel.href && panel.image);
+    return { ...base, layout: "hero" };
+  }).filter((panel) => panel.href && (panel.image || panel.href === "/buy"));
 }
 
 export default function PublicSite({ bootstrap, refreshBootstrap }) {
@@ -115,7 +110,7 @@ export default function PublicSite({ bootstrap, refreshBootstrap }) {
           <Route path="/buy" element={<BuyPage bootstrap={bootstrap} />} />
           <Route path="/connect" element={<TeamPage bootstrap={bootstrap} routeSlug="/connect" />} />
           <Route path="/meet" element={<TeamPage bootstrap={bootstrap} routeSlug="/meet" />} />
-          <Route path="/read" element={<ReadPage bootstrap={bootstrap} />} />
+          <Route path="/read" element={<RedirectPage bootstrap={bootstrap} pathName="/read" />} />
           <Route path="/issue-1" element={<IssuePage bootstrap={bootstrap} slug="/issue-1" />} />
           <Route path="/issue-2" element={<IssuePage bootstrap={bootstrap} slug="/issue-2" />} />
           <Route path="/issue-3" element={<IssuePage bootstrap={bootstrap} slug="/issue-3" />} />
@@ -218,14 +213,22 @@ function HomePage({ bootstrap }) {
       <main className="page-stack">
         <section className="panel-grid panel-grid--home">
           {homePanels.map((panel, index) => (
-            <RevealOnScroll key={panel.href} delay={index * 120} className={`panel-slot panel-slot--${panel.layout}`}>
-              <Link className={`panel-card panel-card--home panel-card--${panel.layout}`} to={panel.href}>
-                <div
-                  className="panel-card__image"
-                  style={{ backgroundImage: `url(${panel.image})` }}
-                />
-                <span className="panel-card__label">{panel.label}</span>
-              </Link>
+            <RevealOnScroll
+              key={panel.href}
+              delay={index * 120}
+              className={`panel-slot panel-slot--${panel.layout} panel-slot--${panel.href.slice(1)}`}
+            >
+              {panel.href === "/buy" ? (
+                <BuyCarouselPanel issues={bootstrap.issues} label={panel.label} />
+              ) : (
+                <Link className={`panel-card panel-card--home panel-card--${panel.layout}`} to={panel.href}>
+                  <div
+                    className="panel-card__image"
+                    style={{ backgroundImage: `url(${panel.image})` }}
+                  />
+                  <span className="panel-card__label">{panel.label}</span>
+                </Link>
+              )}
             </RevealOnScroll>
           ))}
         </section>
@@ -347,10 +350,99 @@ function ShopFormatActions({ issue, checkout }) {
   );
 }
 
+function BuyCarouselPanel({ issues, label }) {
+  const slides = sortByOrder(issues);
+  const [index, setIndex] = useState(0);
+  const touchStartRef = useRef(null);
+  const count = slides.length;
+
+  function goTo(next) {
+    setIndex(((next % count) + count) % count);
+  }
+
+  function handleTouchStart(event) {
+    touchStartRef.current = event.changedTouches[0]?.clientX ?? null;
+  }
+
+  function handleTouchEnd(event) {
+    if (touchStartRef.current == null) {
+      return;
+    }
+    const delta = (event.changedTouches[0]?.clientX ?? 0) - touchStartRef.current;
+    touchStartRef.current = null;
+    if (Math.abs(delta) < SWIPE_THRESHOLD) {
+      return;
+    }
+    goTo(delta < 0 ? index + 1 : index - 1);
+  }
+
+  if (!count) {
+    return (
+      <div className="panel-card panel-card--home panel-card--hero buy-carousel buy-carousel--empty">
+        <span className="panel-card__label">{label}</span>
+      </div>
+    );
+  }
+
+  const issue = slides[index];
+  const price = issue.shop?.digitalPrice || issue.shop?.physicalPrice || "Coming soon";
+
+  return (
+    <div
+      className="panel-card panel-card--home panel-card--hero buy-carousel"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <Link className="buy-carousel__slide" to={issue.slug}>
+        <div
+          className="panel-card__image"
+          style={{ backgroundImage: `url(${getIssueFeaturedImage(issue)})` }}
+        />
+        <div className="buy-carousel__meta">
+          <span className="panel-card__label">{label}</span>
+          <h3>{issue.shortLabel || issue.title}</h3>
+          <p>{price}</p>
+        </div>
+      </Link>
+      {count > 1 && (
+        <>
+          <button
+            type="button"
+            className="buy-carousel__arrow buy-carousel__arrow--prev"
+            onClick={() => goTo(index - 1)}
+            aria-label="Previous issue"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            className="buy-carousel__arrow buy-carousel__arrow--next"
+            onClick={() => goTo(index + 1)}
+            aria-label="Next issue"
+          >
+            ›
+          </button>
+          <div className="buy-carousel__dots">
+            {slides.map((slide, slideIndex) => (
+              <button
+                key={slide.id}
+                type="button"
+                className={`buy-carousel__dot ${slideIndex === index ? "is-active" : ""}`}
+                onClick={() => goTo(slideIndex)}
+                aria-label={`Go to ${slide.title}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function BuyPage({ bootstrap }) {
   const page = findPage(bootstrap, "/buy");
   const checkout = useCheckout();
-  const listedIssues = sortByOrder(bootstrap.issues).filter((i) => i.shop?.listedInShop);
+  const allIssues = sortByOrder(bootstrap.issues);
 
   usePageSeo(page, { siteSettings: bootstrap.siteSettings });
 
@@ -360,10 +452,11 @@ function BuyPage({ bootstrap }) {
       <section className="section-shell section-shell--subpage">
         <div className="shop-intro">
           <h2>{page.content.heading}</h2>
+          {page.content.intro && <p>{page.content.intro}</p>}
         </div>
         {checkout.error && <p className="shop-format__error">{checkout.error}</p>}
         <div className="shop-grid shop-grid--catalog">
-          {listedIssues.map((issue) => (
+          {allIssues.map((issue) => (
             <article key={issue.id} className="shop-product">
               <Link className="shop-product__media" to={issue.slug}>
                 {issue.coverImage ? (
@@ -386,9 +479,6 @@ function BuyPage({ bootstrap }) {
               </div>
             </article>
           ))}
-          {listedIssues.length === 0 && (
-            <p className="shop-empty">No items are available yet. Check back soon.</p>
-          )}
         </div>
         <p className="section-note">{page.content.footerNote}</p>
       </section>
@@ -454,41 +544,6 @@ function TeamPage({ bootstrap, routeSlug }) {
             </div>
           </div>
         </section>
-    </main>
-  );
-}
-
-function ReadPage({ bootstrap }) {
-  const page = findPage(bootstrap, "/read");
-  usePageSeo(page, { siteSettings: bootstrap.siteSettings });
-  return (
-    <main className="page-stack page-stack--subpage">
-      <HeroSection hero={page.hero} variant="subpage" />
-      <section className="section-shell section-shell--narrow section-shell--subpage section-shell--story">
-        <SectionHeading title={page.content.heading} />
-        <p className="body-copy body-copy--centered">{page.content.intro}</p>
-      </section>
-      <section className="section-shell section-shell--subpage">
-        <div className="read-grid">
-          {sortByOrder(bootstrap.issues).map((issue) => (
-            <Link key={issue.id} className="issue-card" to={issue.slug}>
-              <div
-                className="issue-card__image"
-                style={{ backgroundImage: `url(${getIssueFeaturedImage(issue) || page.hero.backgroundImage})` }}
-              />
-              <div className="issue-card__content">
-                <h3>{issue.shortLabel || issue.title}</h3>
-              </div>
-            </Link>
-          ))}
-          <div className="issue-card issue-card--placeholder">
-            <div className="issue-card__content">
-              <h3>Chapter 3</h3>
-              <p>Coming Soon</p>
-            </div>
-          </div>
-        </div>
-      </section>
     </main>
   );
 }
@@ -581,15 +636,13 @@ function IssuePage({ bootstrap, slug }) {
               ))}
             </div>
           </section>
-          {issue.shop?.listedInShop ? (
-            <section className="issue-meta-card issue-story__buy">
-              <p className="issue-meta-card__eyebrow">Get this issue</p>
-              {checkout.error && <p className="shop-format__error">{checkout.error}</p>}
-              <div className="shop-product__formats">
-                <ShopFormatActions issue={issue} checkout={checkout} />
-              </div>
-            </section>
-          ) : null}
+          <section className="issue-meta-card issue-story__buy">
+            <p className="issue-meta-card__eyebrow">Get this issue</p>
+            {checkout.error && <p className="shop-format__error">{checkout.error}</p>}
+            <div className="shop-product__formats">
+              <ShopFormatActions issue={issue} checkout={checkout} />
+            </div>
+          </section>
         </section>
         {galleryImages.length ? (
           <section className="section-shell issue-gallery-section">
@@ -1242,7 +1295,7 @@ function BreadcrumbBar({ bootstrap }) {
   if (currentIssue) {
     const crumbs = [
       { label: "HOME", href: "/" },
-      { label: "READ", href: "/read" },
+      { label: "BUY", href: "/buy" },
       { label: currentIssue.title.toUpperCase(), href: currentIssue.slug },
     ];
 

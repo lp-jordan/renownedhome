@@ -10,7 +10,6 @@ export const defaultSiteData = {
     defaultOgImage:
       "https://renownedcomic.com/wp-content/uploads/2025/09/logowhite_nodrop-small.png",
     nav: [
-      { label: "Read", href: "/read" },
       { label: "Buy", href: "/buy" },
       { label: "Connect", href: "/connect" },
       { label: "Meet", href: "/meet" },
@@ -114,6 +113,8 @@ export const defaultSiteData = {
       },
       content: {
         heading: "Shop the Series",
+        intro:
+          "Renowned is a supernatural detective mystery set in 1920s America, following legendary detective and beloved author Abraham Bone as he navigates the strange, the unknown, and the impossible.",
         footerNote: "Digital and physical checkout links can be added per issue as they go live.",
       },
     },
@@ -177,33 +178,6 @@ export const defaultSiteData = {
       },
       content: {
         heading: "Creative Team",
-      },
-    },
-    {
-      id: "page-read",
-      slug: "/read",
-      title: "Read",
-      status: "published",
-      pageType: "collection",
-      seo: {
-        title: "Renowned - Read",
-        description:
-          "Preview upcoming issues and the one-shot set in the world of Renowned.",
-        canonicalUrl: "https://renownedcomic.com/read",
-        noindex: false,
-        ogImage:
-          "https://renownedcomic.com/wp-content/uploads/2025/09/read.jpg",
-      },
-      hero: {
-        title: "READ",
-        subtitle: "Preview upcoming issues!",
-        backgroundImage:
-          "https://renownedcomic.com/wp-content/uploads/2025/09/read.jpg",
-      },
-      content: {
-        heading: "The Story",
-        intro:
-          "Renowned is a supernatural detective mystery set in 1920s America, following legendary detective and beloved author Abraham Bone as he navigates the strange, the unknown, and the impossible.",
       },
     },
     {
@@ -290,7 +264,7 @@ export const defaultSiteData = {
         "https://renownedcomic.com/wp-content/uploads/2025/09/bronco.png",
       ],
       readerImages: [],
-      shop: { listedInShop: false, digitalPriceId: "", digitalPrice: "", physicalPriceId: "", physicalPrice: "", externalUrl: "", digitalAssetId: "" },
+      shop: { listedInShop: false, digitalPriceId: "", physicalPriceId: "", externalUrl: "", digitalAssetId: "" },
     },
     {
       id: "issue-1",
@@ -334,7 +308,7 @@ export const defaultSiteData = {
         "https://renownedcomic.com/wp-content/uploads/2025/09/family.png",
       ],
       readerImages: [],
-      shop: { listedInShop: false, digitalPriceId: "", digitalPrice: "", physicalPriceId: "", physicalPrice: "", externalUrl: "", digitalAssetId: "" },
+      shop: { listedInShop: false, digitalPriceId: "", physicalPriceId: "", externalUrl: "", digitalAssetId: "" },
     },
     {
       id: "issue-2",
@@ -378,7 +352,7 @@ export const defaultSiteData = {
         "https://renownedcomic.com/wp-content/uploads/2025/09/oneshotcover.png",
       ],
       readerImages: [],
-      shop: { listedInShop: false, digitalPriceId: "", digitalPrice: "", physicalPriceId: "", physicalPrice: "", externalUrl: "", digitalAssetId: "" },
+      shop: { listedInShop: false, digitalPriceId: "", physicalPriceId: "", externalUrl: "", digitalAssetId: "" },
     },
     {
       id: "issue-3",
@@ -408,7 +382,7 @@ export const defaultSiteData = {
       description: "Issue #3 will follow the same story-page structure.",
       heroAssets: [],
       readerImages: [],
-      shop: { listedInShop: false, digitalPriceId: "", digitalPrice: "", physicalPriceId: "", physicalPrice: "", externalUrl: "", digitalAssetId: "" },
+      shop: { listedInShop: false, digitalPriceId: "", physicalPriceId: "", externalUrl: "", digitalAssetId: "" },
     },
   ],
   teamMembers: [
@@ -549,6 +523,13 @@ export const defaultSiteData = {
       id: "redirect-read-one-shot",
       sourcePath: "/read/3-10-to-nowhere",
       destination: "/one-shot",
+      type: "301",
+      active: true,
+    },
+    {
+      id: "redirect-read-root",
+      sourcePath: "/read",
+      destination: "/buy",
       type: "301",
       active: true,
     },

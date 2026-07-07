@@ -32,6 +32,7 @@ import {
 import {
   buildDeliveryEmail,
   buildOrderDeliveryEmail,
+  buildPhysicalOrderEmail,
   escapeHtml,
   resendIsConfigured,
   sendResendEmail,
@@ -215,6 +216,7 @@ app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), asyn
   const orderId = crypto.randomUUID();
   const deliveryToken = crypto.randomBytes(32).toString("hex");
   const customerEmail = session.customer_details?.email || "";
+  const shippingAddress = session.shipping_details?.address || null;
 
   // Resolve purchased issues from price IDs
   const purchasedItems = [];
@@ -239,8 +241,8 @@ app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), asyn
   if (process.env.DATABASE_URL) {
     const pool = repository.pool;
     await pool.query(
-      "INSERT INTO orders (id, stripe_session_id, customer_email, status) VALUES ($1, $2, $3, $4)",
-      [orderId, session.id, customerEmail, "paid"]
+      "INSERT INTO orders (id, stripe_session_id, customer_email, status, shipping_address) VALUES ($1, $2, $3, $4, $5)",
+      [orderId, session.id, customerEmail, "paid", shippingAddress ? JSON.stringify(shippingAddress) : null]
     );
     for (const item of purchasedItems) {
       await pool.query(
@@ -255,18 +257,23 @@ app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), asyn
   }
 
   const digitalItems = purchasedItems.filter((i) => i.format === "digital" && i.digitalAssetId);
+  const creatorName = data.siteSettings?.brandName || "Renowned";
 
-  if (digitalItems.length > 0 && resendIsConfigured() && customerEmail) {
-    const origin = getPublicSiteOrigin();
-    const accessUrl = `${origin}/order/${deliveryToken}`;
-    const itemList = digitalItems.map((i) => i.issueTitle).join(", ");
-    const { subject, html, text } = buildOrderDeliveryEmail({
-      itemList,
-      accessUrl,
-      creatorName: data.siteSettings?.siteName || "Renowned",
-    });
+  if (resendIsConfigured() && customerEmail && purchasedItems.length > 0) {
+    let emailContent;
+    if (digitalItems.length > 0) {
+      const origin = getPublicSiteOrigin();
+      const accessUrl = `${origin}/order/${deliveryToken}`;
+      const itemList = digitalItems.map((i) => i.issueTitle).join(", ");
+      emailContent = buildOrderDeliveryEmail({ itemList, accessUrl, creatorName });
+    } else {
+      const itemList = purchasedItems.map((i) => i.issueTitle).join(", ");
+      emailContent = buildPhysicalOrderEmail({ itemList, creatorName, shippingAddress });
+    }
+
+    const { subject, html, text } = emailContent;
     await sendResendEmail({ to: customerEmail, subject, html, text }).catch((err) => {
-      console.error("Order delivery email failed:", err.message);
+      console.error("Order confirmation email failed:", err.message);
     });
   }
 
@@ -883,6 +890,10 @@ class PgRepository {
     `);
 
     await this.pool.query(`
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_address JSONB;
+    `);
+
+    await this.pool.query(`
       CREATE TABLE IF NOT EXISTS order_items (
         id TEXT PRIMARY KEY,
         order_id TEXT NOT NULL REFERENCES orders(id),
@@ -1107,6 +1118,79 @@ function getStripeClient() {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) return null;
   return new Stripe(key, { apiVersion: "2026-05-27.dahlia" });
+}
+
+// Physical-format checkout only. Adjust here if shipping destinations or rates change.
+const SHIPPING_ALLOWED_COUNTRIES = ["US"];
+const SHIPPING_FLAT_RATE_CENTS = 500;
+
+// Display prices are never stored — they're always resolved live from Stripe by
+// Price ID so the site can never show a stale/mismatched price. Cached briefly
+// since the same handful of Price IDs get looked up on every bootstrap request.
+const stripePriceCache = new Map();
+const PRICE_CACHE_TTL_MS = 5 * 60 * 1000;
+const PRICE_CACHE_NEGATIVE_TTL_MS = 60 * 1000;
+
+function formatStripeAmount(unitAmount, currency) {
+  if (typeof unitAmount !== "number") {
+    return null;
+  }
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: (currency || "usd").toUpperCase(),
+    }).format(unitAmount / 100);
+  } catch {
+    return null;
+  }
+}
+
+async function getLivePriceDisplay(stripe, priceId) {
+  if (!priceId) {
+    return null;
+  }
+
+  const cached = stripePriceCache.get(priceId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.display;
+  }
+
+  if (!stripe) {
+    return null;
+  }
+
+  let display = null;
+  try {
+    const price = await stripe.prices.retrieve(priceId);
+    display = formatStripeAmount(price.unit_amount, price.currency);
+  } catch (err) {
+    console.error(`Failed to fetch Stripe price ${priceId}:`, err?.message || err);
+  }
+
+  stripePriceCache.set(priceId, {
+    display,
+    expiresAt: Date.now() + (display ? PRICE_CACHE_TTL_MS : PRICE_CACHE_NEGATIVE_TTL_MS),
+  });
+
+  return display;
+}
+
+async function withLiveShopPrices(issues, stripe) {
+  return Promise.all(
+    issues.map(async (issue) => {
+      const shop = issue.shop;
+      if (!shop || (!shop.digitalPriceId && !shop.physicalPriceId)) {
+        return issue;
+      }
+
+      const [digitalPrice, physicalPrice] = await Promise.all([
+        getLivePriceDisplay(stripe, shop.digitalPriceId),
+        getLivePriceDisplay(stripe, shop.physicalPriceId),
+      ]);
+
+      return { ...issue, shop: { ...shop, digitalPrice, physicalPrice } };
+    })
+  );
 }
 
 function sanitizePublicData(data) {
@@ -1724,7 +1808,8 @@ async function getRedirectForPath(pathname) {
 
 app.get("/api/bootstrap", async (_req, res) => {
   const data = await repository.getAllData();
-  res.json(sanitizePublicData(data));
+  const issues = await withLiveShopPrices(data.issues, getStripeClient());
+  res.json(sanitizePublicData({ ...data, issues }));
 });
 
 const SAFE_RELATIVE_PATH = /^\/[A-Za-z0-9\-_/]*$/;
@@ -1764,12 +1849,27 @@ app.post("/api/checkout", async (req, res) => {
 
   const origin = getPublicSiteOrigin();
   try {
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams = {
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "payment",
       success_url: `${origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}${safeCancelPath(cancelPath)}`,
-    });
+    };
+
+    if (format === "physical") {
+      sessionParams.shipping_address_collection = { allowed_countries: SHIPPING_ALLOWED_COUNTRIES };
+      sessionParams.shipping_options = [
+        {
+          shipping_rate_data: {
+            type: "fixed_amount",
+            fixed_amount: { amount: SHIPPING_FLAT_RATE_CENTS, currency: "usd" },
+            display_name: "Standard shipping",
+          },
+        },
+      ];
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
     res.json({ url: session.url });
   } catch (err) {
     console.error("Stripe checkout session error:", err?.message || err);
@@ -1828,6 +1928,7 @@ app.get("/api/admin/orders", requireAdmin, async (_req, res) => {
         o.customer_email,
         o.status,
         o.created_at,
+        o.shipping_address,
         json_agg(json_build_object(
           'issueId', oi.issue_id,
           'issueTitle', oi.issue_title,
@@ -2082,7 +2183,8 @@ app.post(
 
 app.get("/api/admin/data", requireAdmin, async (_req, res) => {
   const data = await repository.getAllData();
-  res.json(sanitizeAdminData(data));
+  const issues = await withLiveShopPrices(data.issues, getStripeClient());
+  res.json(sanitizeAdminData({ ...data, issues }));
 });
 
 app.put("/api/admin/site-settings", requireTrustedOrigin, requireAdmin, async (req, res) => {

@@ -3077,9 +3077,8 @@ textarea {
   width: min(100%, 1220px);
   padding-top: 1.35rem;
   grid-template-areas:
-    "read read"
-    "meet letters"
-    "buy buy";
+    "buy buy"
+    "meet letters";
 }
 
 .panel-card,
@@ -3131,20 +3130,16 @@ textarea {
   min-width: 0;
 }
 
-.panel-slot--hero {
-  grid-area: read;
+.panel-slot--buy {
+  grid-area: buy;
 }
 
-.panel-slot:nth-child(2) {
+.panel-slot--meet {
   grid-area: meet;
 }
 
-.panel-slot:nth-child(3) {
+.panel-slot--letters {
   grid-area: letters;
-}
-
-.panel-slot:nth-child(4) {
-  grid-area: buy;
 }
 
 .panel-card__image {
@@ -3189,6 +3184,105 @@ textarea {
 .panel-card:hover {
   border-color: rgba(255, 255, 255, 0.18);
   box-shadow: 0 28px 70px rgba(0, 0, 0, 0.34);
+}
+
+.buy-carousel {
+  padding: 0;
+  display: block;
+}
+
+.buy-carousel--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.6rem;
+}
+
+.buy-carousel__slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  color: inherit;
+  text-decoration: none;
+}
+
+.buy-carousel__meta {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 1.6rem;
+  text-align: center;
+}
+
+.buy-carousel__meta h3 {
+  margin: 0.4rem 0 0.3rem;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: clamp(1.2rem, 2.4vw, 1.6rem);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.buy-carousel__meta p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.95rem;
+}
+
+.buy-carousel__arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  transform: translateY(-50%);
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: rgba(10, 13, 20, 0.55);
+  color: var(--text);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.buy-carousel__arrow:hover {
+  background: rgba(10, 13, 20, 0.75);
+}
+
+.buy-carousel__arrow--prev {
+  left: 1rem;
+}
+
+.buy-carousel__arrow--next {
+  right: 1rem;
+}
+
+.buy-carousel__dots {
+  position: absolute;
+  z-index: 2;
+  bottom: 1.1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+}
+
+.buy-carousel__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.buy-carousel__dot.is-active {
+  background: var(--accent);
 }
 
 .quote-grid,
@@ -6848,10 +6942,9 @@ textarea {
 
   .panel-grid--home {
     grid-template-areas:
-      "read"
+      "buy"
       "meet"
-      "letters"
-      "buy";
+      "letters";
   }
 
   .quote-grid--letters {

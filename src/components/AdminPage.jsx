@@ -620,12 +620,10 @@ function IssueEditor({ issues, assets, onSave, title = "Issues" }) {
 
             <div className="editor-card">
               <h3 className="editor-card__label">Digital</h3>
+              <p className="editor-card__hint">
+                Price is pulled live from Stripe — {shop.digitalPriceId ? (shop.digitalPrice || "not found in Stripe") : "set a Price ID to show a price"}.
+              </p>
               <div className="delivery-form-grid">
-                <Field
-                  label="Display price (e.g. $9.99)"
-                  value={shop.digitalPrice || ""}
-                  onChange={(v) => setShopField("digitalPrice", v)}
-                />
                 <Field
                   label="Stripe Price ID"
                   value={shop.digitalPriceId || ""}
@@ -645,12 +643,10 @@ function IssueEditor({ issues, assets, onSave, title = "Issues" }) {
 
             <div className="editor-card">
               <h3 className="editor-card__label">Physical</h3>
+              <p className="editor-card__hint">
+                Price is pulled live from Stripe — {shop.physicalPriceId ? (shop.physicalPrice || "not found in Stripe") : "set a Price ID to show a price"}.
+              </p>
               <div className="delivery-form-grid">
-                <Field
-                  label="Display price (e.g. $19.99)"
-                  value={shop.physicalPrice || ""}
-                  onChange={(v) => setShopField("physicalPrice", v)}
-                />
                 <Field
                   label="Stripe Price ID"
                   value={shop.physicalPriceId || ""}
@@ -1828,6 +1824,12 @@ function PageWorkspace({
     </section>
   );
 }
+function formatShippingAddress(address) {
+  if (!address) return "—";
+  const { line1, city, state, postal_code: postalCode } = address;
+  return [line1, [city, state, postalCode].filter(Boolean).join(", ")].filter(Boolean).join(", ") || "—";
+}
+
 function OrdersAdmin() {
   const [orders, setOrders] = useState(null);
   const [error, setError] = useState("");
@@ -1858,6 +1860,7 @@ function OrdersAdmin() {
             <th>Date</th>
             <th>Email</th>
             <th>Items</th>
+            <th>Shipping</th>
             <th>Total</th>
             <th>Status</th>
           </tr>
@@ -1877,6 +1880,7 @@ function OrdersAdmin() {
                     </span>
                   ))}
                 </td>
+                <td className="orders-table__shipping">{formatShippingAddress(order.shipping_address)}</td>
                 <td className="orders-table__total">${(total / 100).toFixed(2)}</td>
                 <td className="orders-table__status">
                   <span className={`status-badge status-badge--${order.status}`}>{order.status}</span>

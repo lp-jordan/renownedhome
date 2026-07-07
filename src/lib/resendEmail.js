@@ -221,13 +221,98 @@ export function buildOrderDeliveryEmail({ itemList, accessUrl, creatorName }) {
   };
 }
 
+function formatShippingAddressLines(shippingAddress) {
+  if (!shippingAddress) {
+    return [];
+  }
+  const { line1, line2, city, state, postal_code: postalCode, country } = shippingAddress;
+  return [
+    line1,
+    line2,
+    [city, state, postalCode].filter(Boolean).join(", "),
+    country,
+  ].filter(Boolean);
+}
+
+export function buildPhysicalOrderEmail({ itemList, creatorName, shippingAddress }) {
+  const safeItemList = escapeHtml(itemList);
+  const safeCreatorName = escapeHtml(creatorName);
+  const addressLines = formatShippingAddressLines(shippingAddress).map(escapeHtml);
+  const addressHtml = addressLines.length
+    ? addressLines.join("<br />")
+    : "We'll confirm your shipping details shortly.";
+  const addressText = addressLines.length
+    ? addressLines.join("\n")
+    : "We'll confirm your shipping details shortly.";
+
+  return {
+    subject: `Your order is confirmed — ${itemList}`,
+    html: `
+      <!doctype html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <meta name="x-apple-disable-message-reformatting" />
+          <title>Your order is confirmed</title>
+        </head>
+        <body style="margin:0;padding:0;background:#0b0f16;font-family:Arial,sans-serif;color:#f2f4f8;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;margin:0;padding:0;background:#0b0f16;border-collapse:collapse;">
+            <tr>
+              <td align="center" style="padding:24px 12px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;max-width:600px;margin:0 auto;background:#10131c;border:1px solid #252b38;border-radius:24px;border-collapse:separate;">
+                  <tr>
+                    <td style="padding:28px 24px 18px;">
+                      <div style="display:inline-block;margin:0 0 14px;padding:7px 12px;border:1px solid #303746;border-radius:999px;background:#171c27;color:#d5dbe6;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;">
+                        Order Confirmed
+                      </div>
+                      <h1 style="margin:0 0 10px;font-size:28px;line-height:1.12;font-weight:700;color:#ffffff;">Your order is confirmed.</h1>
+                      <p style="margin:0;color:#aeb7c5;font-size:14px;line-height:1.6;">
+                        From <span style="color:#ffffff;font-weight:700;">${safeCreatorName}</span> &mdash; ${safeItemList}
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:0 24px;">
+                      <div style="border-top:1px solid #252b38;font-size:0;line-height:0;">&nbsp;</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:20px 24px 22px;">
+                      <p style="margin:0 0 12px;color:#f2f4f8;font-size:16px;line-height:1.6;">We'll get this in the mail soon. Shipping to:</p>
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border:1px solid #252b38;border-radius:18px;background:#171c27;">
+                        <tr>
+                          <td style="padding:14px 16px;color:#f2f4f8;font-size:14px;line-height:1.6;">
+                            ${addressHtml}
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:18px 24px 22px;border-top:1px solid #252b38;text-align:center;color:#b6becc;font-size:13px;line-height:1.6;">
+                      Questions about your order? Just reply to this email.
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
+    `,
+    text: `Your order is confirmed — ${itemList}\n\nWe'll get this in the mail soon. Shipping to:\n${addressText}\n\nQuestions about your order? Just reply to this email.\n`,
+  };
+}
+
 // Resend allows 5 requests/second. We stay conservatively under that by
 // serializing every outbound request and enforcing a minimum gap between the
 // start of one request and the next. This gates ALL call sites (batch delivery,
 // test sends, reader correspondence) through a single promise chain, so even
 // concurrent callers are spaced out rather than bursting past the limit.
-const RESEND_MIN_INTERVAL_MS = Number(process.env.RESEND_MIN_INTERVAL_MS) || 250; // ~4 req/s
-const RESEND_MAX_RETRIES = Number(process.env.RESEND_MAX_RETRIES) || 3;
+const nodeEnv = typeof process !== "undefined" ? process.env : undefined;
+const RESEND_MIN_INTERVAL_MS = Number(nodeEnv?.RESEND_MIN_INTERVAL_MS) || 250; // ~4 req/s
+const RESEND_MAX_RETRIES = Number(nodeEnv?.RESEND_MAX_RETRIES) || 3;
 
 let lastRequestAt = 0;
 let throttleChain = Promise.resolve();
