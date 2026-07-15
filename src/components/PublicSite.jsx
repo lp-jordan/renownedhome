@@ -415,7 +415,7 @@ function HomeCarousel({ issues }) {
 
 function ShopPage({ bootstrap }) {
   const page = findPage(bootstrap, "/shop");
-  const allIssues = sortByOrder(bootstrap.issues);
+  const allIssues = sortByOrder(bootstrap.issues).filter((issue) => issue.shop?.listedInShop);
   const bundle = bootstrap.bundle;
   const [activeProductId, setActiveProductId] = useState(null);
 

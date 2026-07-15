@@ -23,6 +23,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import {
   cloneDefaultSiteData,
+  mergeCodeManagedPages,
 } from "./src/content/defaultSiteData.js";
 import {
   DeliveryFileStore,
@@ -897,7 +898,9 @@ class FileRepository {
 
   async getAllData() {
     const raw = await fs.readFile(this.filePath, "utf8");
-    return JSON.parse(raw);
+    const data = JSON.parse(raw);
+    data.pages = mergeCodeManagedPages(data.pages);
+    return data;
   }
 
   async writeAllData(data) {
@@ -1095,6 +1098,8 @@ class PgRepository {
       role: row.role,
       passwordHash: row.password_hash,
     }));
+
+    data.pages = mergeCodeManagedPages(data.pages);
 
     return data;
   }
@@ -2003,7 +2008,8 @@ async function getRedirectForPath(pathname) {
 app.get("/api/bootstrap", async (_req, res) => {
   const data = await repository.getAllData();
   const stripe = getStripeClient();
-  const issues = await withLiveShopPrices(data.issues, stripe);
+  const publishedIssues = data.issues.filter((issue) => issue.status === "published");
+  const issues = await withLiveShopPrices(publishedIssues, stripe);
   const bundle = await withLiveBundlePrice(data.bundle, stripe);
   res.json(sanitizePublicData({ ...data, issues, bundle }));
 });

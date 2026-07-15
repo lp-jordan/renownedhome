@@ -597,3 +597,58 @@ export const defaultSiteData = {
 export function cloneDefaultSiteData() {
   return JSON.parse(JSON.stringify(defaultSiteData));
 }
+
+// Pages in `defaultSiteData.pages` are "managed in code": every field except
+// image URLs is meant to come from this file, not from whatever got saved to
+// the content store. The admin UI only ever lets editors swap images for
+// these pages (see AdminPage's PageEditor), so on every read we overlay the
+// current code copy back onto the stored page and keep only the image URLs
+// the admin actually persisted. This is what makes "managed in code" true
+// instead of just a note that goes stale after the first deploy.
+function mergeHeroImages(codeHero, dbHero) {
+  const merged = { ...codeHero };
+  if ("backgroundImage" in codeHero) {
+    merged.backgroundImage = dbHero?.backgroundImage || codeHero.backgroundImage;
+  }
+  if ("titleImage" in codeHero) {
+    merged.titleImage = dbHero?.titleImage || codeHero.titleImage;
+  }
+  return merged;
+}
+
+function mergeContentPanels(codePanels, dbPanels) {
+  return codePanels.map((codePanel) => {
+    const dbPanel = (dbPanels || []).find((panel) => panel.href === codePanel.href);
+    return { ...codePanel, image: dbPanel?.image || codePanel.image };
+  });
+}
+
+export function mergeCodeManagedPage(dbPage, codePage) {
+  if (!codePage) {
+    return dbPage;
+  }
+
+  const merged = {
+    ...codePage,
+    hero: mergeHeroImages(codePage.hero, dbPage?.hero),
+  };
+
+  if (codePage.content) {
+    merged.content = {
+      ...codePage.content,
+      ...(codePage.content.panels
+        ? { panels: mergeContentPanels(codePage.content.panels, dbPage?.content?.panels) }
+        : null),
+      ...(codePage.content.testimonials
+        ? { testimonials: dbPage?.content?.testimonials ?? codePage.content.testimonials }
+        : null),
+    };
+  }
+
+  return merged;
+}
+
+export function mergeCodeManagedPages(dbPages) {
+  const codeById = new Map(cloneDefaultSiteData().pages.map((page) => [page.id, page]));
+  return (dbPages || []).map((dbPage) => mergeCodeManagedPage(dbPage, codeById.get(dbPage.id)));
+}
