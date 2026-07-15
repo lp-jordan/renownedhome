@@ -1070,8 +1070,8 @@ class PgRepository {
 
     if (changed) {
       await this.pool.query(
-        "UPDATE content_store SET data = $2::jsonb WHERE store_key = 'socialLinks'",
-        ["socialLinks", JSON.stringify(repaired)]
+        "UPDATE content_store SET data = $1::jsonb WHERE store_key = 'socialLinks'",
+        [JSON.stringify(repaired)]
       );
     }
   }
