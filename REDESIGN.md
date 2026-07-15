@@ -344,3 +344,14 @@ issue-specific in the data model and isn't being made so).
       (2026-07-15). No new fields, no gate, per decision above.
 - [x] Correspondence `/correspondence` visual refresh — user confirmed fine
       as-is (2026-07-15), no gate, no issue tagging.
+- [x] Shipped as the only storefront — removed the `?redesign` flag, its
+      localStorage persistence, and every legacy JSX branch it gated (old
+      three-panel home, old shop grid, old per-issue actions/gallery, old
+      `ComicReaderOverlay`, old checkout-return `redirect`/`thanks` states,
+      old footer/breadcrumb variants). Verified in-browser: home, shop,
+      issue-1, and letters all render correctly with no `?redesign` param
+      and no console errors; `npm run build` and `npx eslint` both clean, no
+      dead imports/vars left behind (2026-07-15, src/App.jsx,
+      src/components/PublicSite.jsx, src/components/CheckoutReturnPage.jsx,
+      src/components/OrderDeliveryPage.jsx, src/components/SystemPage.jsx).
+      Pushed directly to `main` (production).
