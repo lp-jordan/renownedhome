@@ -1,3 +1,7 @@
+function defaultSale(percent) {
+  return { enabled: false, percent, priceId: "", percentApplied: null, sourcePriceId: "" };
+}
+
 export const defaultSiteData = {
   users: [],
   siteSettings: {
@@ -10,7 +14,7 @@ export const defaultSiteData = {
     defaultOgImage:
       "https://renownedcomic.com/wp-content/uploads/2025/09/logowhite_nodrop-small.png",
     nav: [
-      { label: "Buy", href: "/buy" },
+      { label: "Shop", href: "/shop" },
       { label: "Connect", href: "/connect" },
       { label: "Meet", href: "/meet" },
       { label: "Letters", href: "/letters" },
@@ -63,8 +67,8 @@ export const defaultSiteData = {
             size: "wide",
           },
           {
-            label: "Buy",
-            href: "/buy",
+            label: "Shop",
+            href: "/shop",
             image:
               "https://renownedcomic.com/wp-content/uploads/2025/09/buy.jpg",
             size: "standard",
@@ -89,27 +93,23 @@ export const defaultSiteData = {
     },
     {
       id: "page-buy",
-      slug: "/buy",
-      title: "Buy",
+      slug: "/shop",
+      title: "Shop",
       status: "published",
       pageType: "standard",
       seo: {
-        title: "Renowned - Buy",
+        title: "Renowned - Shop",
         description: "Follow the campaign and shop the Renowned series.",
-        canonicalUrl: "https://renownedcomic.com/buy",
+        canonicalUrl: "https://renownedcomic.com/shop",
         noindex: false,
         ogImage:
           "https://renownedcomic.com/wp-content/uploads/2025/09/buy1.png",
       },
       hero: {
-        title: "BUY",
-        subtitle:
-          "Pick an issue. Choose digital or physical.",
+        title: "SHOP",
+        subtitle: "Catch up on the story so far.",
         backgroundImage:
           "https://renownedcomic.com/wp-content/uploads/2025/09/buy1.png",
-        ctaLabel: "Follow Campaign",
-        ctaUrl:
-          "https://www.kickstarter.com/projects/jmintonjohnson/renowned-2-supernatural-detective-series",
       },
       content: {
         heading: "Shop the Series",
@@ -248,12 +248,15 @@ export const defaultSiteData = {
       previewUrl: "https://bindings.app/read/LuIWDiMt",
       readerLabel: "Read preview",
       readerPdfUrl: "",
+      isFree: false,
+      previewPageLimit: 5,
       releaseDate: "September 2024",
       writer: "Jordan Johnson",
       artist: "Azrael Aguiar",
       colorist: "Maja Opacic",
       description:
         "IN 1923, TIME STOOD STILL.\n\nWorld-famous author and supernatural detective Abraham Bone has spent a lifetime unraveling impossible mysteries. Now, it's time to step away from it all.\n\nBut while waiting at a desolate train station in middle-of-nowhere Colorado, Bone and a group of strangers all bound for Denver find themselves in an unsettling limbo; the train isn't coming, the clocks aren't ticking, and the snow isn't falling... they're stuck.\n\nAs the temperature drops and threats close in, Bone must investigate the strange circumstances that have them trapped, and contend with each of his fellow travelers who, for better or worse, know he's likely their only hope.\n\nBut time waits for no man... especially in a race to restart the clock.",
+      homeHook: "A supernatural mystery trapped in a moment that refuses to end.",
       heroAssets: [
         "https://renownedcomic.com/wp-content/uploads/2025/09/walking.png",
         "https://renownedcomic.com/wp-content/uploads/2025/09/train.png",
@@ -264,7 +267,15 @@ export const defaultSiteData = {
         "https://renownedcomic.com/wp-content/uploads/2025/09/bronco.png",
       ],
       readerImages: [],
-      shop: { listedInShop: false, digitalPriceId: "", physicalPriceId: "", externalUrl: "", digitalAssetId: "" },
+      shop: {
+        listedInShop: false,
+        digitalPriceId: "",
+        digitalSale: defaultSale(20),
+        physicalPriceId: "",
+        physicalSale: defaultSale(20),
+        externalUrl: "",
+        digitalAssetId: "",
+      },
     },
     {
       id: "issue-1",
@@ -292,12 +303,15 @@ export const defaultSiteData = {
         "https://www.kickstarter.com/projects/jmintonjohnson/renowned-2-supernatural-detective-series",
       readerLabel: "Read preview",
       readerPdfUrl: "",
+      isFree: true,
+      previewPageLimit: null,
       releaseDate: "June 2025",
       writer: "Jordan Johnson",
       artist: "Azrael Aguiar",
       colorist: "Maja Opacic",
       description:
         "Denver. 1923. Abraham Bone arrives in town for a gala to be thrown in his honor and finds himself the focus of both peers and strangers alike.\n\nRenowned issue #1 sets in motion one of the most important cases of the legendary detective's career that will take him from underground speakeasies to Rocky Mountain mining camps.\n\nIn a town that's seen just as much growth and change as he has, Bone must face the twilight of his career, an elusive killer, and something much scarier... a family looking to him for protection.",
+      homeHook: "The legendary detective's most important case begins.",
       heroAssets: [
         "https://renownedcomic.com/wp-content/uploads/2025/09/knock.png",
         "https://renownedcomic.com/wp-content/uploads/2025/09/speakeasy.png",
@@ -308,7 +322,15 @@ export const defaultSiteData = {
         "https://renownedcomic.com/wp-content/uploads/2025/09/family.png",
       ],
       readerImages: [],
-      shop: { listedInShop: false, digitalPriceId: "", physicalPriceId: "", externalUrl: "", digitalAssetId: "" },
+      shop: {
+        listedInShop: false,
+        digitalPriceId: "",
+        digitalSale: defaultSale(20),
+        physicalPriceId: "",
+        physicalSale: defaultSale(20),
+        externalUrl: "",
+        digitalAssetId: "",
+      },
     },
     {
       id: "issue-2",
@@ -336,12 +358,15 @@ export const defaultSiteData = {
         "https://www.kickstarter.com/projects/jmintonjohnson/renowned-2-supernatural-detective-series",
       readerLabel: "Read preview",
       readerPdfUrl: "",
+      isFree: false,
+      previewPageLimit: 5,
       releaseDate: "December 2025",
       writer: "Jordan Johnson",
       artist: "Azrael Aguiar",
       colorist: "Maja Opacic",
       description:
         "Thomas Harding is dead. A tragedy that might have quietly faded instead pulls Bone deeper into the mystery and into the headlines, as the press seizes on the return of the famed detective.\n\nFollowing the trail to a neighborhood drugstore in Denver's Five Points, Bone discovers something even more startling than a lead: someone's beaten him to the punch...\n\nFollow the Kickstarter campaign and back Issue #2 now!",
+      homeHook: "A tragedy pulls Bone back into the headlines — and into danger.",
       heroAssets: [
         "https://renownedcomic.com/wp-content/uploads/2025/09/world.jpg",
         "https://renownedcomic.com/wp-content/uploads/2025/09/read.jpg",
@@ -352,7 +377,15 @@ export const defaultSiteData = {
         "https://renownedcomic.com/wp-content/uploads/2025/09/oneshotcover.png",
       ],
       readerImages: [],
-      shop: { listedInShop: false, digitalPriceId: "", physicalPriceId: "", externalUrl: "", digitalAssetId: "" },
+      shop: {
+        listedInShop: false,
+        digitalPriceId: "",
+        digitalSale: defaultSale(20),
+        physicalPriceId: "",
+        physicalSale: defaultSale(20),
+        externalUrl: "",
+        digitalAssetId: "",
+      },
     },
     {
       id: "issue-3",
@@ -375,16 +408,34 @@ export const defaultSiteData = {
       previewUrl: "",
       readerLabel: "Read preview",
       readerPdfUrl: "",
+      isFree: false,
+      previewPageLimit: 5,
       releaseDate: "",
       writer: "Jordan Johnson",
       artist: "Azrael Aguiar",
       colorist: "Maja Opacic",
       description: "Issue #3 will follow the same story-page structure.",
+      homeHook: "The next chapter of the Renowned run.",
       heroAssets: [],
       readerImages: [],
-      shop: { listedInShop: false, digitalPriceId: "", physicalPriceId: "", externalUrl: "", digitalAssetId: "" },
+      shop: {
+        listedInShop: false,
+        digitalPriceId: "",
+        digitalSale: defaultSale(20),
+        physicalPriceId: "",
+        physicalSale: defaultSale(20),
+        externalUrl: "",
+        digitalAssetId: "",
+      },
     },
   ],
+  bundle: {
+    id: "bundle-complete-run",
+    title: "The Complete Run",
+    includedIssueIds: ["issue-one-shot", "issue-1", "issue-2"],
+    digitalPriceId: "",
+    digitalSale: defaultSale(25),
+  },
   teamMembers: [
     {
       id: "team-jordan",
@@ -419,8 +470,7 @@ export const defaultSiteData = {
       personName: "Jordan Johnson",
       label: "Instagram",
       url: "https://www.instagram.com/renownedcomic/",
-      iconUrl:
-        "https://renownedcomic.com/wp-content/uploads/2025/09/Instagram_icon-1.png",
+      iconUrl: "/icons/instagram.svg",
       sortOrder: 1,
     },
     {
@@ -428,8 +478,7 @@ export const defaultSiteData = {
       personName: "Jordan Johnson",
       label: "YouTube",
       url: "https://www.youtube.com/@jmintonjohnson",
-      iconUrl:
-        "https://renownedcomic.com/wp-content/uploads/2025/09/youtube.png",
+      iconUrl: "/icons/youtube.svg",
       sortOrder: 2,
     },
     {
@@ -437,8 +486,7 @@ export const defaultSiteData = {
       personName: "Azrael Aguiar",
       label: "Instagram",
       url: "https://www.instagram.com/azrael.maxim/",
-      iconUrl:
-        "https://renownedcomic.com/wp-content/uploads/2025/09/Instagram_icon-1.png",
+      iconUrl: "/icons/instagram.svg",
       sortOrder: 3,
     },
     {
@@ -446,8 +494,7 @@ export const defaultSiteData = {
       personName: "Azrael Aguiar",
       label: "Patreon",
       url: "https://www.patreon.com/AzraelMaxim",
-      iconUrl:
-        "https://renownedcomic.com/wp-content/uploads/2025/09/patreon.png",
+      iconUrl: "/icons/patreon.svg",
       sortOrder: 4,
     },
     {
@@ -455,8 +502,7 @@ export const defaultSiteData = {
       personName: "Maja Opacic",
       label: "Instagram",
       url: "https://www.instagram.com/maja_colorist/",
-      iconUrl:
-        "https://renownedcomic.com/wp-content/uploads/2025/09/Instagram_icon-1.png",
+      iconUrl: "/icons/instagram.svg",
       sortOrder: 5,
     },
     {
@@ -464,7 +510,7 @@ export const defaultSiteData = {
       personName: "Maja Opacic",
       label: "Website",
       url: "https://majaopacic.com/comic-coloring",
-      iconUrl: "https://renownedcomic.com/wp-content/uploads/2025/09/web.jpg",
+      iconUrl: "/icons/website.svg",
       sortOrder: 6,
     },
   ],
@@ -529,7 +575,14 @@ export const defaultSiteData = {
     {
       id: "redirect-read-root",
       sourcePath: "/read",
-      destination: "/buy",
+      destination: "/shop",
+      type: "301",
+      active: true,
+    },
+    {
+      id: "redirect-buy-shop",
+      sourcePath: "/buy",
+      destination: "/shop",
       type: "301",
       active: true,
     },
@@ -538,6 +591,7 @@ export const defaultSiteData = {
   assetFolders: [],
   assets: [],
   shareLinks: [],
+  leads: [],
 };
 
 export function cloneDefaultSiteData() {

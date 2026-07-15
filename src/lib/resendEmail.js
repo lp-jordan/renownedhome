@@ -221,6 +221,73 @@ export function buildOrderDeliveryEmail({ itemList, accessUrl, creatorName }) {
   };
 }
 
+export function buildLibraryLinkEmail({ accessUrl, creatorName }) {
+  const safeAccessUrl = escapeHtml(accessUrl);
+  const safeCreatorName = escapeHtml(creatorName);
+
+  return {
+    subject: "Your library sign-in link",
+    html: `
+      <!doctype html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <meta name="x-apple-disable-message-reformatting" />
+          <title>Your library sign-in link</title>
+        </head>
+        <body style="margin:0;padding:0;background:#0b0f16;font-family:Arial,sans-serif;color:#f2f4f8;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;margin:0;padding:0;background:#0b0f16;border-collapse:collapse;">
+            <tr>
+              <td align="center" style="padding:24px 12px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;max-width:600px;margin:0 auto;background:#10131c;border:1px solid #252b38;border-radius:24px;border-collapse:separate;">
+                  <tr>
+                    <td style="padding:28px 24px 18px;">
+                      <div style="display:inline-block;margin:0 0 14px;padding:7px 12px;border:1px solid #303746;border-radius:999px;background:#171c27;color:#d5dbe6;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;">
+                        Your Library
+                      </div>
+                      <h1 style="margin:0 0 10px;font-size:28px;line-height:1.12;font-weight:700;color:#ffffff;">Here's your sign-in link.</h1>
+                      <p style="margin:0;color:#aeb7c5;font-size:14px;line-height:1.6;">
+                        From <span style="color:#ffffff;font-weight:700;">${safeCreatorName}</span> &mdash; no password needed.
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:0 24px;">
+                      <div style="border-top:1px solid #252b38;font-size:0;line-height:0;">&nbsp;</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center" style="padding:28px 24px 30px;text-align:center;">
+                      <p style="margin:0 0 18px;color:#f2f4f8;font-size:16px;line-height:1.6;">Click below to open your library — everything you own, ready to read or download.</p>
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 18px;">
+                        <tr>
+                          <td align="center" bgcolor="#ffffff" style="border-radius:16px;">
+                            <a href="${safeAccessUrl}" style="display:block;padding:16px 28px;border-radius:16px;background:#ffffff;color:#05070b;text-decoration:none;font-size:15px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">
+                              Open My Library
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                      <p style="margin:0;color:#b8c1cf;font-size:14px;line-height:1.8;">This link works once and expires in 30 minutes. You can always request a new one.</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:18px 24px 22px;border-top:1px solid #252b38;text-align:center;color:#b6becc;font-size:13px;line-height:1.6;">
+                      Didn't request this? You can safely ignore this email.
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
+    `,
+    text: `Your library sign-in link\n\nOpen your library here (works once, expires in 30 minutes):\n${accessUrl}\n\nDidn't request this? You can safely ignore this email.\n`,
+  };
+}
+
 function formatShippingAddressLines(shippingAddress) {
   if (!shippingAddress) {
     return [];

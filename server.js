@@ -31,12 +31,18 @@ import {
 } from "./src/lib/deliveryStore.js";
 import {
   buildDeliveryEmail,
+  buildLibraryLinkEmail,
   buildOrderDeliveryEmail,
   buildPhysicalOrderEmail,
   escapeHtml,
   resendIsConfigured,
   sendResendEmail,
 } from "./src/lib/resendEmail.js";
+import {
+  FileOrdersStore,
+  LIBRARY_SESSION_TTL_MS,
+  PgOrdersStore,
+} from "./src/lib/ordersStore.js";
 
 const { Pool } = pg;
 const execFile = promisify(execFileCallback);
@@ -111,6 +117,7 @@ function getStorageEnv() {
 const runtimeDir = path.join(__dirname, "runtime");
 const runtimeFile = path.join(runtimeDir, "content-store.json");
 const deliveryRuntimeFile = path.join(runtimeDir, "delivery-store.json");
+const commerceRuntimeFile = path.join(runtimeDir, "commerce-store.json");
 const uploadTempDir = path.join(runtimeDir, "uploads");
 const distDir = path.join(__dirname, "dist");
 const distIndexFile = path.join(distDir, "index.html");
@@ -199,15 +206,11 @@ app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), asyn
   }
 
   // Idempotency: skip if we already processed this event
-  if (process.env.DATABASE_URL) {
-    const pool = repository.pool;
-    const existing = await pool.query("SELECT event_id FROM stripe_events WHERE event_id = $1", [event.id]);
-    if (existing.rows.length > 0) {
-      res.json({ received: true });
-      return;
-    }
-    await pool.query("INSERT INTO stripe_events (event_id) VALUES ($1) ON CONFLICT DO NOTHING", [event.id]);
+  if (await ordersStore.hasProcessedStripeEvent(event.id)) {
+    res.json({ received: true });
+    return;
   }
+  await ordersStore.markStripeEventProcessed(event.id);
 
   const session = event.data.object;
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { expand: ["data.price.product"] });
@@ -218,43 +221,72 @@ app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), asyn
   const customerEmail = session.customer_details?.email || "";
   const shippingAddress = session.shipping_details?.address || null;
 
-  // Resolve purchased issues from price IDs
+  // Resolve purchased issues from price IDs — matches either a format's base
+  // price or its currently-active sale price, since a paid session may
+  // reference either depending on when it was checked out.
+  function findIssueByPriceId(priceId) {
+    for (const issue of data.issues || []) {
+      const shop = issue.shop || {};
+      if (priceId === shop.digitalPriceId || priceId === shop.digitalSale?.priceId) {
+        return { issue, format: "digital" };
+      }
+      if (priceId === shop.physicalPriceId || priceId === shop.physicalSale?.priceId) {
+        return { issue, format: "physical" };
+      }
+    }
+    return null;
+  }
+
   const purchasedItems = [];
   for (const item of lineItems.data) {
     const priceId = item.price?.id;
-    const issue = data.issues?.find(
-      (i) => i.shop?.digitalPriceId === priceId || i.shop?.physicalPriceId === priceId
-    );
-    if (!issue) continue;
-    const format = issue.shop?.digitalPriceId === priceId ? "digital" : "physical";
-    purchasedItems.push({
-      id: crypto.randomUUID(),
-      orderId,
-      issueId: issue.id,
-      issueTitle: issue.title,
-      format,
-      pricePaid: item.amount_total || 0,
-      digitalAssetId: format === "digital" ? (issue.shop?.digitalAssetId || "") : "",
-    });
+    const match = findIssueByPriceId(priceId);
+    if (match) {
+      const { issue, format } = match;
+      purchasedItems.push({
+        id: crypto.randomUUID(),
+        orderId,
+        issueId: issue.id,
+        issueTitle: issue.title,
+        format,
+        pricePaid: item.amount_total || 0,
+        digitalAssetId: format === "digital" ? (issue.shop?.digitalAssetId || "") : "",
+      });
+      continue;
+    }
+
+    const bundle = data.bundle;
+    if (bundle && (priceId === bundle.digitalPriceId || priceId === bundle.digitalSale?.priceId)) {
+      const includedIssues = bundle.includedIssueIds
+        .map((id) => data.issues?.find((i) => i.id === id))
+        .filter(Boolean);
+      if (includedIssues.length === 0) continue;
+      const perIssueCents = Math.floor((item.amount_total || 0) / includedIssues.length);
+      includedIssues.forEach((issue, idx) => {
+        purchasedItems.push({
+          id: crypto.randomUUID(),
+          orderId,
+          issueId: issue.id,
+          issueTitle: issue.title,
+          format: "digital",
+          pricePaid: idx === 0
+            ? (item.amount_total || 0) - perIssueCents * (includedIssues.length - 1)
+            : perIssueCents,
+          digitalAssetId: issue.shop?.digitalAssetId || "",
+        });
+      });
+    }
   }
 
-  if (process.env.DATABASE_URL) {
-    const pool = repository.pool;
-    await pool.query(
-      "INSERT INTO orders (id, stripe_session_id, customer_email, status, shipping_address) VALUES ($1, $2, $3, $4, $5)",
-      [orderId, session.id, customerEmail, "paid", shippingAddress ? JSON.stringify(shippingAddress) : null]
-    );
-    for (const item of purchasedItems) {
-      await pool.query(
-        "INSERT INTO order_items (id, order_id, issue_id, issue_title, format, price_paid) VALUES ($1, $2, $3, $4, $5, $6)",
-        [item.id, orderId, item.issueId, item.issueTitle, item.format, item.pricePaid]
-      );
-    }
-    await pool.query(
-      "INSERT INTO order_deliveries (token, order_id) VALUES ($1, $2)",
-      [deliveryToken, orderId]
-    );
-  }
+  await ordersStore.insertOrder({
+    id: orderId,
+    stripeSessionId: session.id,
+    customerEmail,
+    status: "paid",
+    shippingAddress,
+    items: purchasedItems,
+    deliveryToken,
+  });
 
   const digitalItems = purchasedItems.filter((i) => i.format === "digital" && i.digitalAssetId);
   const creatorName = data.siteSettings?.brandName || "Renowned";
@@ -343,10 +375,12 @@ function getAllowedRequestOrigins() {
   const origins = new Set([getPublicSiteOrigin()]);
 
   if (!isProduction) {
-    origins.add("http://localhost:3001");
-    origins.add("http://localhost:5173");
-    origins.add("http://127.0.0.1:3001");
-    origins.add("http://127.0.0.1:5173");
+    // Default dev pair plus side-by-side alt stacks (see .claude/launch.json
+    // "dev-alt": API_PORT=3002 / vite on 5174; "dev-alt2": API_PORT=3003 / vite on 5175).
+    for (const port of [3001, 5173, 3002, 5174, 3003, 5175]) {
+      origins.add(`http://localhost:${port}`);
+      origins.add(`http://127.0.0.1:${port}`);
+    }
   }
 
   return origins;
@@ -827,6 +861,38 @@ class FileRepository {
       data.users = this.bootstrapAdminUser ? [this.bootstrapAdminUser] : [];
       await this.writeAllData(data);
     }
+
+    if (this.repairLegacySocialIconUrls(data)) {
+      await this.writeAllData(data);
+    }
+  }
+
+  repairLegacySocialIconUrls(data) {
+    const legacyIconMap = {
+      "https://renownedcomic.com/wp-content/uploads/2025/09/Instagram_icon-1.png":
+        "/icons/instagram.svg",
+      "https://renownedcomic.com/wp-content/uploads/2025/09/youtube.png":
+        "/icons/youtube.svg",
+      "https://renownedcomic.com/wp-content/uploads/2025/09/patreon.png":
+        "/icons/patreon.svg",
+      "https://renownedcomic.com/wp-content/uploads/2025/09/web.jpg":
+        "/icons/website.svg",
+    };
+
+    if (!Array.isArray(data.socialLinks)) {
+      return false;
+    }
+
+    let changed = false;
+    data.socialLinks = data.socialLinks.map((link) => {
+      const replacement = legacyIconMap[link.iconUrl];
+      if (!replacement) {
+        return link;
+      }
+      changed = true;
+      return { ...link, iconUrl: replacement };
+    });
+    return changed;
   }
 
   async getAllData() {
@@ -894,6 +960,10 @@ class PgRepository {
     `);
 
     await this.pool.query(`
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS fulfillment_status TEXT;
+    `);
+
+    await this.pool.query(`
       CREATE TABLE IF NOT EXISTS order_items (
         id TEXT PRIMARY KEY,
         order_id TEXT NOT NULL REFERENCES orders(id),
@@ -917,12 +987,14 @@ class PgRepository {
       "siteSettings",
       "pages",
       "issues",
+      "bundle",
       "teamMembers",
       "socialLinks",
       "redirects",
       "lettersSubmissions",
       "assets",
       "shareLinks",
+      "leads",
     ];
 
     for (const key of keys) {
@@ -935,6 +1007,8 @@ class PgRepository {
         [key, JSON.stringify(seed[key] ?? [])]
       );
     }
+
+    await this.repairLegacySocialIconUrls();
 
     const existingUsers = await this.pool.query(
       "SELECT COUNT(*)::int AS count FROM users"
@@ -961,6 +1035,44 @@ class PgRepository {
           ]
         );
       }
+    }
+  }
+
+  async repairLegacySocialIconUrls() {
+    const legacyIconMap = {
+      "https://renownedcomic.com/wp-content/uploads/2025/09/Instagram_icon-1.png":
+        "/icons/instagram.svg",
+      "https://renownedcomic.com/wp-content/uploads/2025/09/youtube.png":
+        "/icons/youtube.svg",
+      "https://renownedcomic.com/wp-content/uploads/2025/09/patreon.png":
+        "/icons/patreon.svg",
+      "https://renownedcomic.com/wp-content/uploads/2025/09/web.jpg":
+        "/icons/website.svg",
+    };
+
+    const result = await this.pool.query(
+      "SELECT data FROM content_store WHERE store_key = 'socialLinks'"
+    );
+    const socialLinks = result.rows[0]?.data;
+    if (!Array.isArray(socialLinks)) {
+      return;
+    }
+
+    let changed = false;
+    const repaired = socialLinks.map((link) => {
+      const replacement = legacyIconMap[link.iconUrl];
+      if (!replacement) {
+        return link;
+      }
+      changed = true;
+      return { ...link, iconUrl: replacement };
+    });
+
+    if (changed) {
+      await this.pool.query(
+        "UPDATE content_store SET data = $2::jsonb WHERE store_key = 'socialLinks'",
+        ["socialLinks", JSON.stringify(repaired)]
+      );
     }
   }
 
@@ -995,12 +1107,14 @@ class PgRepository {
         "siteSettings",
         "pages",
         "issues",
+        "bundle",
         "teamMembers",
         "socialLinks",
         "redirects",
         "lettersSubmissions",
         "assets",
         "shareLinks",
+        "leads",
       ];
 
       for (const key of keys) {
@@ -1095,6 +1209,9 @@ const repository = process.env.DATABASE_URL
 const deliveryStore = process.env.DATABASE_URL
   ? new DeliveryPgStore(process.env.DATABASE_URL)
   : new DeliveryFileStore(deliveryRuntimeFile);
+const ordersStore = process.env.DATABASE_URL
+  ? new PgOrdersStore(repository.pool)
+  : new FileOrdersStore(commerceRuntimeFile);
 
 app.use(setSecurityHeaders);
 app.use(setCacheHeaders);
@@ -1111,6 +1228,12 @@ const publicFormRateLimiter = createRateLimiter({
   maxRequests: 25,
   message: "Too many submissions. Please wait and try again.",
 });
+const libraryLinkRateLimiter = createRateLimiter({
+  keyPrefix: "library-link",
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 6,
+  message: "Too many link requests. Please wait and try again.",
+});
 
 setInterval(cleanupRateLimits, 5 * 60 * 1000).unref();
 
@@ -1118,6 +1241,38 @@ function getStripeClient() {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) return null;
   return new Stripe(key, { apiVersion: "2026-05-27.dahlia" });
+}
+
+// Sale prices never mutate the base Stripe Price (amounts are immutable in
+// Stripe anyway) — toggling a sale on creates a second Price under the same
+// Product and swaps which one checkout/display use; toggling off reverts to
+// the base price, which is never touched. Recomputes only when the percent
+// or the base price actually changed, so a save that doesn't touch pricing
+// is a no-op here.
+async function ensureSalePrice(stripe, basePriceId, sale) {
+  if (!sale?.enabled || !basePriceId) return sale;
+  if (sale.priceId && sale.percentApplied === sale.percent && sale.sourcePriceId === basePriceId) {
+    return sale;
+  }
+  if (!stripe) return sale;
+
+  const basePrice = await stripe.prices.retrieve(basePriceId);
+  const discountedAmount = Math.round(basePrice.unit_amount * (1 - sale.percent / 100));
+  const newPrice = await stripe.prices.create({
+    product: basePrice.product,
+    unit_amount: discountedAmount,
+    currency: basePrice.currency,
+  });
+
+  if (sale.priceId) {
+    stripe.prices.update(sale.priceId, { active: false }).catch(() => {});
+  }
+
+  return { ...sale, priceId: newPrice.id, percentApplied: sale.percent, sourcePriceId: basePriceId };
+}
+
+function effectivePriceId(basePriceId, sale) {
+  return sale?.enabled && sale.priceId ? sale.priceId : basePriceId;
 }
 
 // Physical-format checkout only. Adjust here if shipping destinations or rates change.
@@ -1175,6 +1330,20 @@ async function getLivePriceDisplay(stripe, priceId) {
   return display;
 }
 
+// Resolves the display price for one format, preferring the sale price (with
+// the base price alongside for a strikethrough) when a sale is active and
+// its Price ID actually resolves in Stripe.
+async function resolveFormatPricing(stripe, basePriceId, sale) {
+  const baseDisplay = await getLivePriceDisplay(stripe, basePriceId);
+  if (sale?.enabled && sale.priceId) {
+    const saleDisplay = await getLivePriceDisplay(stripe, sale.priceId);
+    if (saleDisplay) {
+      return { price: saleDisplay, basePrice: baseDisplay, onSale: true };
+    }
+  }
+  return { price: baseDisplay, basePrice: null, onSale: false };
+}
+
 async function withLiveShopPrices(issues, stripe) {
   return Promise.all(
     issues.map(async (issue) => {
@@ -1183,14 +1352,38 @@ async function withLiveShopPrices(issues, stripe) {
         return issue;
       }
 
-      const [digitalPrice, physicalPrice] = await Promise.all([
-        getLivePriceDisplay(stripe, shop.digitalPriceId),
-        getLivePriceDisplay(stripe, shop.physicalPriceId),
+      const [digital, physical] = await Promise.all([
+        resolveFormatPricing(stripe, shop.digitalPriceId, shop.digitalSale),
+        resolveFormatPricing(stripe, shop.physicalPriceId, shop.physicalSale),
       ]);
 
-      return { ...issue, shop: { ...shop, digitalPrice, physicalPrice } };
+      return {
+        ...issue,
+        shop: {
+          ...shop,
+          digitalPrice: digital.price,
+          digitalBasePrice: digital.basePrice,
+          digitalOnSale: digital.onSale,
+          physicalPrice: physical.price,
+          physicalBasePrice: physical.basePrice,
+          physicalOnSale: physical.onSale,
+        },
+      };
     })
   );
+}
+
+async function withLiveBundlePrice(bundle, stripe) {
+  if (!bundle || !bundle.digitalPriceId) {
+    return bundle;
+  }
+  const digital = await resolveFormatPricing(stripe, bundle.digitalPriceId, bundle.digitalSale);
+  return {
+    ...bundle,
+    digitalPrice: digital.price,
+    digitalBasePrice: digital.basePrice,
+    digitalOnSale: digital.onSale,
+  };
 }
 
 function sanitizePublicData(data) {
@@ -1198,6 +1391,7 @@ function sanitizePublicData(data) {
     siteSettings: data.siteSettings,
     pages: data.pages,
     issues: data.issues,
+    bundle: data.bundle,
     teamMembers: [...data.teamMembers].sort((a, b) => a.sortOrder - b.sortOrder),
     socialLinks: [...data.socialLinks].sort((a, b) => a.sortOrder - b.sortOrder),
     redirects: data.redirects.filter((redirect) => redirect.active),
@@ -1808,8 +2002,10 @@ async function getRedirectForPath(pathname) {
 
 app.get("/api/bootstrap", async (_req, res) => {
   const data = await repository.getAllData();
-  const issues = await withLiveShopPrices(data.issues, getStripeClient());
-  res.json(sanitizePublicData({ ...data, issues }));
+  const stripe = getStripeClient();
+  const issues = await withLiveShopPrices(data.issues, stripe);
+  const bundle = await withLiveBundlePrice(data.bundle, stripe);
+  res.json(sanitizePublicData({ ...data, issues, bundle }));
 });
 
 const SAFE_RELATIVE_PATH = /^\/[A-Za-z0-9\-_/]*$/;
@@ -1818,13 +2014,27 @@ function safeCancelPath(cancelPath) {
   if (typeof cancelPath === "string" && cancelPath.length <= 200 && SAFE_RELATIVE_PATH.test(cancelPath)) {
     return cancelPath;
   }
-  return "/buy";
+  return "/shop";
 }
 
+// Accepts either the legacy single-item body ({ issueId, format }) or a cart
+// ({ items: [{ issueId, format, quantity }] }). Both flow into one Stripe
+// hosted-checkout session; the webhook already resolves any number of line
+// items back to issues by price ID.
 app.post("/api/checkout", async (req, res) => {
-  const { issueId, format, cancelPath } = req.body || {};
-  if (!issueId || !format) {
-    res.status(400).json({ error: "issueId and format are required." });
+  const { issueId, format, items, cancelPath } = req.body || {};
+
+  const requestedItems = Array.isArray(items) && items.length
+    ? items
+    : issueId && format
+      ? [{ issueId, format, quantity: 1 }]
+      : null;
+  if (!requestedItems) {
+    res.status(400).json({ error: "items (or issueId and format) are required." });
+    return;
+  }
+  if (requestedItems.length > 20) {
+    res.status(400).json({ error: "Too many items in one checkout." });
     return;
   }
 
@@ -1835,28 +2045,56 @@ app.post("/api/checkout", async (req, res) => {
   }
 
   const data = await repository.getAllData();
-  const issue = data.issues?.find((i) => i.id === issueId);
-  if (!issue) {
-    res.status(404).json({ error: "Issue not found." });
-    return;
-  }
 
-  const priceId = format === "digital" ? issue.shop?.digitalPriceId : issue.shop?.physicalPriceId;
-  if (!priceId) {
-    res.status(400).json({ error: "This format is not available for purchase." });
-    return;
+  const lineItems = [];
+  let hasPhysical = false;
+  for (const entry of requestedItems) {
+    if (entry.kind === "bundle" || entry.bundleId) {
+      const bundle = data.bundle;
+      if (!bundle || entry.bundleId !== bundle.id) {
+        res.status(404).json({ error: "Bundle not found." });
+        return;
+      }
+      const priceId = effectivePriceId(bundle.digitalPriceId, bundle.digitalSale);
+      if (!priceId) {
+        res.status(400).json({ error: `${bundle.title} is not available for purchase yet.` });
+        return;
+      }
+      const quantity = Math.min(Math.max(Math.trunc(Number(entry.quantity) || 1), 1), 10);
+      lineItems.push({ price: priceId, quantity });
+      continue;
+    }
+
+    const issue = data.issues?.find((i) => i.id === entry.issueId);
+    if (!issue) {
+      res.status(404).json({ error: "Issue not found." });
+      return;
+    }
+    const entryFormat = entry.format === "physical" ? "physical" : entry.format === "digital" ? "digital" : null;
+    const priceId = entryFormat === "digital"
+      ? effectivePriceId(issue.shop?.digitalPriceId, issue.shop?.digitalSale)
+      : entryFormat === "physical"
+        ? effectivePriceId(issue.shop?.physicalPriceId, issue.shop?.physicalSale)
+        : null;
+    if (!priceId) {
+      res.status(400).json({ error: `${issue.title} is not available for purchase in that format.` });
+      return;
+    }
+    const quantity = Math.min(Math.max(Math.trunc(Number(entry.quantity) || 1), 1), 10);
+    hasPhysical = hasPhysical || entryFormat === "physical";
+    lineItems.push({ price: priceId, quantity });
   }
 
   const origin = getPublicSiteOrigin();
   try {
     const sessionParams = {
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: lineItems,
       mode: "payment",
       success_url: `${origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}${safeCancelPath(cancelPath)}`,
     };
 
-    if (format === "physical") {
+    if (hasPhysical) {
       sessionParams.shipping_address_collection = { allowed_countries: SHIPPING_ALLOWED_COUNTRIES };
       sessionParams.shipping_options = [
         {
@@ -1899,16 +2137,8 @@ app.get("/api/checkout/session/:sessionId", async (req, res) => {
   // The order + delivery token are created asynchronously by the Stripe webhook,
   // so the token may not exist yet on the first poll after returning from checkout.
   let deliveryToken = null;
-  if (paid && process.env.DATABASE_URL) {
-    const pool = repository.pool;
-    const row = await pool.query(
-      `SELECT d.token
-         FROM order_deliveries d
-         JOIN orders o ON o.id = d.order_id
-        WHERE o.stripe_session_id = $1`,
-      [session.id]
-    );
-    if (row.rows.length > 0) deliveryToken = row.rows[0].token;
+  if (paid) {
+    deliveryToken = await ordersStore.getDeliveryTokenBySessionId(session.id);
   }
 
   res.json({
@@ -1921,97 +2151,320 @@ app.get("/api/checkout/session/:sessionId", async (req, res) => {
 
 app.get("/api/admin/orders", requireAdmin, async (_req, res) => {
   try {
-    const result = await repository.pool.query(`
-      SELECT
-        o.id,
-        o.stripe_session_id,
-        o.customer_email,
-        o.status,
-        o.created_at,
-        o.shipping_address,
-        json_agg(json_build_object(
-          'issueId', oi.issue_id,
-          'issueTitle', oi.issue_title,
-          'format', oi.format,
-          'pricePaid', oi.price_paid
-        ) ORDER BY oi.issue_title) AS items
-      FROM orders o
-      LEFT JOIN order_items oi ON oi.order_id = o.id
-      GROUP BY o.id
-      ORDER BY o.created_at DESC
-      LIMIT 200
-    `);
-    res.json({ orders: result.rows });
+    const orders = await ordersStore.listOrders(200);
+    res.json({ orders });
   } catch (err) {
     console.error("Failed to fetch orders:", err?.message);
     res.status(500).json({ error: "Failed to fetch orders." });
   }
 });
 
+app.patch(
+  "/api/admin/orders/:id/fulfillment",
+  requireTrustedOrigin,
+  requireAdmin,
+  async (req, res) => {
+    const { status } = req.body || {};
+    if (status !== "pending" && status !== "shipped") {
+      res.status(400).json({ error: "status must be \"pending\" or \"shipped\"." });
+      return;
+    }
+    try {
+      await ordersStore.updateFulfillmentStatus(req.params.id, status);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("Failed to update fulfillment status:", err?.message);
+      res.status(500).json({ error: "Failed to update fulfillment status." });
+    }
+  }
+);
+
+app.get("/api/admin/dashboard", requireAdmin, async (_req, res) => {
+  try {
+    const [stats, data] = await Promise.all([ordersStore.getDashboardStats(), repository.getAllData()]);
+    const leadsCount = (data.leads || []).length;
+    const conversionRate = leadsCount > 0
+      ? Math.round((stats.payingCustomers / leadsCount) * 1000) / 10
+      : 0;
+    res.json({ ...stats, leadsCount, conversionRate });
+  } catch (err) {
+    console.error("Failed to load dashboard stats:", err?.message);
+    res.status(500).json({ error: "Failed to load dashboard stats." });
+  }
+});
+
+app.get("/api/admin/customers", requireAdmin, async (_req, res) => {
+  try {
+    const customers = await ordersStore.listCustomers();
+    res.json({ customers });
+  } catch (err) {
+    console.error("Failed to fetch customers:", err?.message);
+    res.status(500).json({ error: "Failed to fetch customers." });
+  }
+});
+
+app.get("/api/admin/customers/:email", requireAdmin, async (req, res) => {
+  const email = normalizeEmail(req.params.email);
+  if (!email) {
+    res.status(400).json({ error: "A valid email is required." });
+    return;
+  }
+  try {
+    const { orders, items } = await resolveOwnedIssuesForEmail(email);
+    res.json({ orders, owned: items });
+  } catch (err) {
+    console.error("Failed to fetch customer detail:", err?.message);
+    res.status(500).json({ error: "Failed to fetch customer detail." });
+  }
+});
+
+// An issue's shop.digitalAssetId may hold either a raw asset id or the asset's
+// public "/api/assets/<id>" URL (the admin picker has stored both forms).
+function resolveAssetByRef(data, assetRef) {
+  if (!assetRef) {
+    return null;
+  }
+  let id = String(assetRef).trim();
+  const urlMatch = id.match(/^\/api\/assets\/([^/?#]+)/);
+  if (urlMatch) {
+    id = urlMatch[1];
+  }
+  return (data.assets || []).find((asset) => asset.id === id) || null;
+}
+
+// One digital order item → what the customer sees on /order/:token and in the
+// library: cover, a 48h signed download URL when the file is in storage.
+async function buildDigitalItemPayload(data, { issueId, issueTitle }) {
+  const issue = data.issues?.find((i) => i.id === issueId);
+  const asset = resolveAssetByRef(data, issue?.shop?.digitalAssetId);
+
+  let downloadUrl = null;
+  const objectKey = asset?.metadata?.objectKey;
+  if (objectKey && storageIsConfigured()) {
+    const client = createStorageClient();
+    const { bucket } = getStorageEnv();
+    downloadUrl = await getSignedUrl(
+      client,
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: objectKey,
+        ResponseContentType: asset.metadata?.contentType || undefined,
+        ResponseContentDisposition: `attachment; filename="${asset.metadata?.fileName || asset.label || "issue.pdf"}"`,
+      }),
+      { expiresIn: 60 * 60 * 48 }
+    );
+  }
+
+  return {
+    issueId,
+    issueTitle: issue?.title || issueTitle,
+    issueSlug: issue?.slug || "",
+    coverImage: issue?.coverImage || "",
+    downloadUrl,
+    hasAsset: Boolean(asset),
+  };
+}
+
 app.get("/api/order-delivery/:token", async (req, res) => {
   const { token } = req.params;
 
-  if (!process.env.DATABASE_URL) {
-    res.status(503).json({ error: "Order delivery requires a database." });
-    return;
-  }
-
-  const pool = repository.pool;
-  const deliveryRow = await pool.query(
-    "SELECT order_id FROM order_deliveries WHERE token = $1",
-    [token]
-  );
-  if (deliveryRow.rows.length === 0) {
+  const order = await ordersStore.getOrderByDeliveryToken(token);
+  if (!order) {
     res.status(404).json({ error: "Delivery link not found." });
-    return;
-  }
-
-  const orderId = deliveryRow.rows[0].order_id;
-  const [orderRow, itemRows] = await Promise.all([
-    pool.query("SELECT customer_email, created_at FROM orders WHERE id = $1", [orderId]),
-    pool.query("SELECT issue_id, issue_title, format, price_paid FROM order_items WHERE order_id = $1", [orderId]),
-  ]);
-
-  if (orderRow.rows.length === 0) {
-    res.status(404).json({ error: "Order not found." });
     return;
   }
 
   const data = await repository.getAllData();
   const items = await Promise.all(
-    itemRows.rows
-      .filter((row) => row.format === "digital")
-      .map(async (row) => {
-        const issue = data.issues?.find((i) => i.id === row.issue_id);
-        const assetId = issue?.shop?.digitalAssetId;
-        const asset = assetId ? (data.assets || []).find((a) => a.id === assetId) : null;
-
-        let downloadUrl = null;
-        if (asset?.storageKey && storageIsConfigured()) {
-          const client = createStorageClient();
-          const { bucket } = getStorageEnv();
-          downloadUrl = await getSignedUrl(
-            client,
-            new GetObjectCommand({ Bucket: bucket, Key: asset.storageKey }),
-            { expiresIn: 60 * 60 * 48 }
-          );
-        }
-
-        return {
-          issueId: row.issue_id,
-          issueTitle: row.issue_title,
-          coverImage: issue?.coverImage || "",
-          downloadUrl,
-          hasAsset: Boolean(asset),
-        };
-      })
+    (order.items || [])
+      .filter((item) => item.format === "digital")
+      .map((item) => buildDigitalItemPayload(data, item))
   );
 
   res.json({
-    orderId,
-    createdAt: orderRow.rows[0].created_at,
+    orderId: order.id,
+    createdAt: order.created_at,
     items,
   });
+});
+
+/* ---------------------------------------------------------------------------
+ * Library (Phase 5) — magic-link, passwordless, email-keyed. The email address
+ * is the account: possession of the inbox (magic link), of an order delivery
+ * token (which was emailed), or of a paid Stripe checkout session id (the
+ * success redirect) all prove the same thing, so each can open a session.
+ * ------------------------------------------------------------------------- */
+
+const LIBRARY_COOKIE = "renowned_library";
+
+function setLibrarySessionCookie(res, session) {
+  res.cookie(LIBRARY_COOKIE, session.token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isProduction,
+    maxAge: LIBRARY_SESSION_TTL_MS,
+    path: "/",
+  });
+}
+
+function normalizeEmail(value) {
+  const email = String(value || "").trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 200 ? email : null;
+}
+
+app.post("/api/library/request-link", libraryLinkRateLimiter, async (req, res) => {
+  const email = normalizeEmail(req.body?.email);
+  if (!email) {
+    res.status(400).json({ error: "A valid email is required." });
+    return;
+  }
+
+  const token = await ordersStore.createLibraryToken(email);
+  const linkPath = `/library?token=${token}`;
+
+  if (!resendIsConfigured()) {
+    if (isProduction) {
+      res.status(503).json({ error: "Email sending is not configured." });
+      return;
+    }
+    // Local dev without Resend: hand the link back so the flow stays testable.
+    console.log(`Library magic link for ${email}: ${linkPath}`);
+    res.json({ sent: false, devLink: linkPath });
+    return;
+  }
+
+  const accessUrl = `${getPublicSiteOrigin()}${linkPath}`;
+  const data = await repository.getAllData();
+  const creatorName = data.siteSettings?.brandName || "Renowned";
+  const { subject, html, text } = buildLibraryLinkEmail({ accessUrl, creatorName });
+  try {
+    await sendResendEmail({ to: email, subject, html, text });
+  } catch (err) {
+    console.error("Library link email failed:", err?.message);
+    res.status(500).json({ error: "Could not send the email. Try again." });
+    return;
+  }
+
+  res.json({ sent: true });
+});
+
+app.post("/api/library/claim", publicFormRateLimiter, async (req, res) => {
+  const token = String(req.body?.token || "").trim();
+  if (!token) {
+    res.status(400).json({ error: "token is required." });
+    return;
+  }
+
+  const email = await ordersStore.consumeLibraryToken(token);
+  if (!email) {
+    res.status(410).json({ error: "This link has expired. Request a new one." });
+    return;
+  }
+
+  const session = await ordersStore.createLibrarySession(email);
+  setLibrarySessionCookie(res, session);
+  res.json({ email });
+});
+
+// Entry point from the existing token routes: an order delivery token was
+// emailed to the buyer, so it can open the library for that order's email.
+app.post("/api/library/claim-order", publicFormRateLimiter, async (req, res) => {
+  const orderToken = String(req.body?.orderToken || "").trim();
+  const order = orderToken ? await ordersStore.getOrderByDeliveryToken(orderToken) : null;
+  const email = normalizeEmail(order?.customer_email);
+  if (!email) {
+    res.status(404).json({ error: "Order not found." });
+    return;
+  }
+
+  const session = await ordersStore.createLibrarySession(email);
+  setLibrarySessionCookie(res, session);
+  res.json({ email });
+});
+
+// Entry point from /checkout/return: the Stripe session id in the success
+// redirect identifies a paid checkout and its buyer email.
+app.post("/api/library/claim-session", publicFormRateLimiter, async (req, res) => {
+  const sessionId = String(req.body?.sessionId || "").trim();
+  const stripe = getStripeClient();
+  if (!stripe || !sessionId) {
+    res.status(503).json({ error: "Payments are not configured." });
+    return;
+  }
+
+  let checkoutSession;
+  try {
+    checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);
+  } catch {
+    res.status(404).json({ error: "Checkout session not found." });
+    return;
+  }
+
+  const paid = checkoutSession.status === "complete" || checkoutSession.payment_status === "paid";
+  const email = normalizeEmail(checkoutSession.customer_details?.email);
+  if (!paid || !email) {
+    res.status(403).json({ error: "This checkout is not confirmed yet." });
+    return;
+  }
+
+  const session = await ordersStore.createLibrarySession(email);
+  setLibrarySessionCookie(res, session);
+  res.json({ email });
+});
+
+// Everything an email owns: digital items across all their orders, deduped by
+// issue. Shared by the public library endpoint and the admin customer detail
+// view so the two can't drift apart.
+async function resolveOwnedIssuesForEmail(email) {
+  const orders = await ordersStore.listOrdersByEmail(email);
+  const data = await repository.getAllData();
+
+  const seenIssueIds = new Set();
+  const digitalItems = [];
+  for (const order of orders) {
+    for (const item of order.items || []) {
+      if (item.format !== "digital" || !item.issueId || seenIssueIds.has(item.issueId)) {
+        continue;
+      }
+      seenIssueIds.add(item.issueId);
+      digitalItems.push(item);
+    }
+  }
+
+  const items = await Promise.all(digitalItems.map((item) => buildDigitalItemPayload(data, item)));
+  return { orders, items };
+}
+
+app.get("/api/library", async (req, res) => {
+  const session = await ordersStore.readLibrarySession(req.cookies?.[LIBRARY_COOKIE]);
+  if (!session) {
+    res.status(401).json({ error: "Not signed in." });
+    return;
+  }
+
+  const { orders, items } = await resolveOwnedIssuesForEmail(session.email);
+
+  res.json({
+    email: session.email,
+    items,
+    orders: orders.map((order) => ({
+      id: order.id,
+      createdAt: order.created_at,
+      items: (order.items || []).map((item) => ({
+        issueTitle: item.issueTitle,
+        format: item.format,
+      })),
+    })),
+  });
+});
+
+app.post("/api/library/logout", async (req, res) => {
+  const token = req.cookies?.[LIBRARY_COOKIE];
+  if (token) {
+    await ordersStore.deleteLibrarySession(token);
+  }
+  res.clearCookie(LIBRARY_COOKIE, { path: "/" });
+  res.json({ ok: true });
 });
 
 app.get("/api/auth/session", async (req, res) => {
@@ -2128,6 +2581,40 @@ app.post("/api/public/letters", publicFormRateLimiter, async (req, res) => {
   res.json({ ok: true });
 });
 
+app.post("/api/public/leads", publicFormRateLimiter, async (req, res) => {
+  const { email, issueSlug, source } = req.body ?? {};
+
+  if (!email) {
+    res.status(400).json({ error: "Email is required." });
+    return;
+  }
+
+  const trimmed = {
+    email: String(email).trim(),
+    issueSlug: issueSlug ? String(issueSlug).trim() : "",
+    source: source ? String(source).trim() : "reader",
+  };
+
+  if (!trimmed.email) {
+    res.status(400).json({ error: "Email is required." });
+    return;
+  }
+
+  await withData((data) => ({
+    ...data,
+    leads: [
+      {
+        id: crypto.randomUUID(),
+        ...trimmed,
+        createdAt: new Date().toISOString(),
+      },
+      ...(data.leads || []),
+    ],
+  }));
+
+  res.json({ ok: true });
+});
+
 app.post(
   "/api/public/correspondence",
   publicFormRateLimiter,
@@ -2183,8 +2670,10 @@ app.post(
 
 app.get("/api/admin/data", requireAdmin, async (_req, res) => {
   const data = await repository.getAllData();
-  const issues = await withLiveShopPrices(data.issues, getStripeClient());
-  res.json(sanitizeAdminData({ ...data, issues }));
+  const stripe = getStripeClient();
+  const issues = await withLiveShopPrices(data.issues, stripe);
+  const bundle = await withLiveBundlePrice(data.bundle, stripe);
+  res.json(sanitizeAdminData({ ...data, issues, bundle }));
 });
 
 app.put("/api/admin/site-settings", requireTrustedOrigin, requireAdmin, async (req, res) => {
@@ -2226,6 +2715,12 @@ app.put("/api/admin/issues/:id", requireTrustedOrigin, requireAdmin, async (req,
     return;
   }
 
+  if (payload.shop) {
+    const stripe = getStripeClient();
+    payload.shop.digitalSale = await ensureSalePrice(stripe, payload.shop.digitalPriceId, payload.shop.digitalSale);
+    payload.shop.physicalSale = await ensureSalePrice(stripe, payload.shop.physicalPriceId, payload.shop.physicalSale);
+  }
+
   const next = await withData((data) => ({
     ...data,
     issues: updateByMatch(
@@ -2235,6 +2730,43 @@ app.put("/api/admin/issues/:id", requireTrustedOrigin, requireAdmin, async (req,
     ),
   }));
   res.json(sanitizeAdminData(next));
+});
+
+app.put("/api/admin/bundle", requireTrustedOrigin, requireAdmin, async (req, res) => {
+  const payload = req.body?.bundle;
+  if (!payload) {
+    res.status(400).json({ error: "bundle payload is required" });
+    return;
+  }
+
+  const stripe = getStripeClient();
+  payload.digitalSale = await ensureSalePrice(stripe, payload.digitalPriceId, payload.digitalSale);
+
+  const next = await withData((data) => ({ ...data, bundle: payload }));
+  res.json(sanitizeAdminData(next));
+});
+
+app.post("/api/admin/bundle/create-price", requireTrustedOrigin, requireAdmin, async (req, res) => {
+  const stripe = getStripeClient();
+  if (!stripe) {
+    res.status(503).json({ error: "Payments are not configured." });
+    return;
+  }
+
+  const unitAmountCents = Math.round(Number(req.body?.unitAmountCents));
+  if (!Number.isFinite(unitAmountCents) || unitAmountCents <= 0) {
+    res.status(400).json({ error: "unitAmountCents must be a positive number." });
+    return;
+  }
+
+  const data = await repository.getAllData();
+  try {
+    const product = await stripe.products.create({ name: data.bundle?.title || "The Complete Run" });
+    const price = await stripe.prices.create({ product: product.id, unit_amount: unitAmountCents, currency: "usd" });
+    res.json({ priceId: price.id });
+  } catch (err) {
+    res.status(500).json({ error: err?.message || "Failed to create Stripe price." });
+  }
 });
 
 app.put("/api/admin/team-members/:id", requireTrustedOrigin, requireAdmin, async (req, res) => {
@@ -2291,6 +2823,22 @@ app.delete("/api/admin/redirects/:id", requireTrustedOrigin, requireAdmin, async
   const next = await withData((data) => ({
     ...data,
     redirects: data.redirects.filter((entry) => entry.id !== req.params.id),
+  }));
+  res.json(sanitizeAdminData(next));
+});
+
+app.delete("/api/admin/leads/:id", requireTrustedOrigin, requireAdmin, async (req, res) => {
+  const currentData = await repository.getAllData();
+  const lead = (currentData.leads || []).find((entry) => entry.id === req.params.id);
+
+  if (!lead) {
+    res.status(404).json({ error: "Lead not found." });
+    return;
+  }
+
+  const next = await withData((data) => ({
+    ...data,
+    leads: (data.leads || []).filter((entry) => entry.id !== req.params.id),
   }));
   res.json(sanitizeAdminData(next));
 });
@@ -3967,6 +4515,7 @@ app.use((error, _req, res, next) => {
 
 await repository.init();
 await deliveryStore.init();
+await ordersStore.init();
 
 const port = Number(process.env.PORT || 3001);
 app.listen(port, () => {

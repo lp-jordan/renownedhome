@@ -142,6 +142,9 @@ export const api = {
   getAdminData() {
     return request("/api/admin/data");
   },
+  getOrders() {
+    return request("/api/admin/orders");
+  },
   getAdminLetters() {
     return request("/api/admin/letters");
   },
@@ -161,6 +164,18 @@ export const api = {
     return request(`/api/admin/issues/${encodeURIComponent(issue.id)}`, {
       method: "PUT",
       body: JSON.stringify({ issue }),
+    });
+  },
+  saveBundle(bundle) {
+    return request("/api/admin/bundle", {
+      method: "PUT",
+      body: JSON.stringify({ bundle }),
+    });
+  },
+  createBundlePrice(unitAmountCents) {
+    return request("/api/admin/bundle/create-price", {
+      method: "POST",
+      body: JSON.stringify({ unitAmountCents }),
     });
   },
   saveTeamMember(teamMember) {
@@ -189,6 +204,18 @@ export const api = {
   },
   deleteRedirect(redirectId) {
     return request(`/api/admin/redirects/${encodeURIComponent(redirectId)}`, {
+      method: "DELETE",
+      body: JSON.stringify({}),
+    });
+  },
+  submitLead(payload) {
+    return request("/api/public/leads", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteLead(leadId) {
+    return request(`/api/admin/leads/${encodeURIComponent(leadId)}`, {
       method: "DELETE",
       body: JSON.stringify({}),
     });
@@ -502,5 +529,20 @@ export const api = {
   },
   getShareLink(token) {
     return request(`/api/share/${encodeURIComponent(token)}`, { headers: {} });
+  },
+  getDashboard() {
+    return request("/api/admin/dashboard");
+  },
+  getCustomers() {
+    return request("/api/admin/customers");
+  },
+  getCustomer(email) {
+    return request(`/api/admin/customers/${encodeURIComponent(email)}`);
+  },
+  updateOrderFulfillment(orderId, status) {
+    return request(`/api/admin/orders/${encodeURIComponent(orderId)}/fulfillment`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
   },
 };

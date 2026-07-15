@@ -3514,6 +3514,106 @@ textarea {
 .status-badge--paid { background: rgba(34,197,94,0.15); color: #4ade80; }
 .status-badge--pending { background: rgba(234,179,8,0.15); color: #fbbf24; }
 .status-badge--failed { background: rgba(239,68,68,0.15); color: #f87171; }
+.status-badge--shipped { background: rgba(34,197,94,0.15); color: #4ade80; }
+
+.type-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  background: rgba(255,255,255,0.08);
+  color: var(--text-muted);
+}
+
+.type-badge--digital { background: rgba(59,130,246,0.15); color: #93c5fd; }
+.type-badge--physical { background: rgba(234,179,8,0.15); color: #fbbf24; }
+.type-badge--shared { background: rgba(168,85,247,0.15); color: #d8b4fe; }
+
+.admin-subnav {
+  display: flex;
+  gap: 0.5rem;
+  padding: 1.5rem 2rem 0;
+  flex-wrap: wrap;
+}
+
+.admin-subnav__pill {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.admin-subnav__pill.is-active {
+  background: rgba(255,255,255,0.12);
+  color: var(--text-primary, #fff);
+  border-color: rgba(255,255,255,0.2);
+}
+
+.dashboard-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  padding: 0 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-stat-card {
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dashboard-stat-card__label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.dashboard-stat-card__value {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.dashboard-stat-card__hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.dashboard-section {
+  padding: 0 2rem 2rem;
+}
+
+.dashboard-section h3 {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+  margin-bottom: 0.75rem;
+}
+
+.customers-table__row {
+  cursor: pointer;
+}
+
+.customers-table__row:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+.customer-owned-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
 
 /* Order delivery page */
 .order-delivery-shell {

@@ -1,0 +1,1649 @@
+/*
+ * Renowned — sales-forward redesign (Phase 0: design system)
+ * Everything is scoped under [data-redesign="1"] so the current site is
+ * untouched. Toggle with ?redesign=1 (sticky) / ?redesign=0.
+ *
+ * Principle: evolve the noir identity, don't replace it. The one big move is
+ * a signal accent (Ember Noir) for commerce CTAs so "Buy" out-ranks
+ * everything else, plus a proper type / space / radius / elevation scale.
+ */
+
+[data-redesign="1"] {
+  /* --- Accents --- */
+  --ember: #e1502a;         /* primary commerce CTA */
+  --ember-strong: #f2653f;  /* hover */
+  --ember-deep: #b63c1d;    /* active / press */
+  --on-ember: #ffffff;
+  --ember-glow: rgba(225, 80, 42, 0.34);
+
+  --brass: #c9a15b;         /* reserved: membership / all-access */
+  --brass-strong: #dab876;
+  --on-brass: #1c1503;
+
+  /* --- Semantic --- */
+  --price: #ffffff;
+  --success: #4cc38a;
+  --danger: #ff6f61;
+
+  /* --- Type scale --- */
+  --fs-eyebrow: 0.72rem;
+  --fs-sm: 0.85rem;
+  --fs-body: 1rem;
+  --fs-lg: 1.2rem;
+  --fs-h3: clamp(1.3rem, 2.4vw, 1.85rem);
+  --fs-h2: clamp(1.9rem, 3.6vw, 2.9rem);
+  --fs-h1: clamp(2.7rem, 6vw, 4.8rem);
+
+  /* --- Space scale --- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4.5rem;
+
+  /* --- Radius --- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
+
+  /* --- Elevation --- */
+  --elev-1: 0 2px 8px rgba(0, 0, 0, 0.30);
+  --elev-2: 0 12px 30px rgba(0, 0, 0, 0.36);
+  --elev-cta: 0 10px 24px var(--ember-glow);
+}
+
+/* ---------------------------------------------------------------------------
+ * Buttons
+ * ------------------------------------------------------------------------- */
+
+/* Primary → the money action. Ember fill, white text, warm glow. */
+[data-redesign="1"] .button-primary {
+  background: var(--ember);
+  color: var(--on-ember);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--elev-cta);
+}
+[data-redesign="1"] .button-primary:hover {
+  background: var(--ember-strong);
+  filter: none;
+  box-shadow: 0 14px 32px var(--ember-glow);
+}
+[data-redesign="1"] .button-primary:active {
+  background: var(--ember-deep);
+  box-shadow: none;
+}
+
+[data-redesign="1"] .button-secondary {
+  border-radius: var(--radius-sm);
+}
+
+[data-redesign="1"] .button-primary:focus-visible,
+[data-redesign="1"] .button-secondary:focus-visible {
+  outline-color: var(--ember-strong);
+}
+
+/* ---------------------------------------------------------------------------
+ * Buy box — the format rows on issue + shop pages.
+ * Today the "Buy" control is a quiet secondary button; make it the CTA.
+ * ------------------------------------------------------------------------- */
+
+[data-redesign="1"] .shop-format {
+  border-radius: var(--radius-md);
+  border-color: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+/* Price reads louder */
+[data-redesign="1"] .shop-format__copy small {
+  color: var(--price);
+  font-size: 0.74rem;
+  opacity: 0.92;
+}
+
+/* The buy action itself → ember */
+[data-redesign="1"] .shop-format__button:not(.button-secondary--disabled) {
+  background: var(--ember);
+  color: var(--on-ember);
+  border: 1px solid transparent;
+  box-shadow: var(--elev-cta);
+}
+[data-redesign="1"] .shop-format__button:not(.button-secondary--disabled):hover {
+  background: var(--ember-strong);
+  border-color: transparent;
+}
+
+/* The "buy this issue" card on the issue page gets a subtle ember edge */
+[data-redesign="1"] .issue-story__buy {
+  border: 1px solid rgba(225, 80, 42, 0.28);
+  box-shadow: var(--elev-1);
+}
+
+/* ---------------------------------------------------------------------------
+ * Shop page (Phase 2) — format toggle used inside the detail panel: one
+ * price + one CTA instead of a stacked Digital/Physical button pair.
+ * ------------------------------------------------------------------------- */
+
+[data-redesign="1"] .shop-format--toggle {
+  gap: var(--space-4);
+}
+
+[data-redesign="1"] .format-toggle {
+  display: inline-flex;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-pill);
+  padding: 3px;
+  gap: 2px;
+}
+
+[data-redesign="1"] .format-toggle__option {
+  border: none;
+  background: transparent;
+  color: rgba(242, 244, 248, 0.72);
+  font-family: "Josefin Sans", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: var(--fs-sm);
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+[data-redesign="1"] .format-toggle__option:hover {
+  color: #fff;
+}
+
+[data-redesign="1"] .format-toggle__option--active {
+  background: var(--brass);
+  color: var(--on-brass);
+}
+
+[data-redesign="1"] .shop-format__copy--price {
+  margin-left: auto;
+}
+
+/* ---------------------------------------------------------------------------
+ * Shop page (Phase 2) — portrait card grid + detail panel. Cards show just
+ * cover / title / price; tapping one opens the panel (right rail on desktop,
+ * bottom sheet on mobile) with synopsis, the format toggle above, and the
+ * real buy action.
+ * ------------------------------------------------------------------------- */
+
+/* Pull the grid up snug under the hero — no intro block on this path. */
+[data-redesign="1"] .page-stack--shop {
+  gap: var(--space-2);
+}
+
+[data-redesign="1"] .shop-card-grid {
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-4);
+}
+
+[data-redesign="1"] .shop-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+[data-redesign="1"] .shop-card__media {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: var(--elev-1);
+  transition: box-shadow 160ms ease, transform 160ms ease;
+}
+[data-redesign="1"] .shop-card:hover .shop-card__media,
+[data-redesign="1"] .shop-card:focus-visible .shop-card__media {
+  box-shadow: var(--elev-2);
+  transform: translateY(-2px);
+}
+
+[data-redesign="1"] .shop-card__media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+[data-redesign="1"] .shop-card__placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: rgba(242, 244, 248, 0.64);
+  font-family: "Josefin Sans", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: var(--fs-sm);
+  text-align: center;
+  padding: var(--space-3);
+}
+
+[data-redesign="1"] .shop-card__title {
+  margin: 0;
+  font-family: "Josefin Sans", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: var(--fs-body);
+}
+
+[data-redesign="1"] .shop-card__price {
+  margin: 0;
+  color: var(--price);
+  font-size: var(--fs-sm);
+  opacity: 0.85;
+}
+
+/* Bundle card — brass edge + glow + badge so it reads as distinct from the
+ * per-issue cards while staying in the same grid rhythm. Not purchasable
+ * yet: no bundle Stripe price or cart until Phase 4. */
+[data-redesign="1"] .shop-card--bundle .shop-card__media {
+  border-color: rgba(201, 161, 91, 0.45);
+  box-shadow: var(--elev-1), 0 0 0 1px rgba(201, 161, 91, 0.12), 0 0 24px rgba(201, 161, 91, 0.22);
+}
+[data-redesign="1"] .shop-card--bundle:hover .shop-card__media,
+[data-redesign="1"] .shop-card--bundle:focus-visible .shop-card__media {
+  box-shadow: var(--elev-2), 0 0 0 1px rgba(201, 161, 91, 0.2), 0 0 32px rgba(201, 161, 91, 0.34);
+}
+[data-redesign="1"] .shop-card--bundle .shop-card__placeholder {
+  background: rgba(201, 161, 91, 0.1);
+  color: var(--brass-strong);
+}
+
+[data-redesign="1"] .shop-card__badge {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  padding: 0.25em 0.6em;
+  border-radius: var(--radius-pill);
+  background: var(--brass);
+  color: var(--on-brass);
+  font-family: "Josefin Sans", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.68rem;
+}
+
+[data-redesign="1"] .shop-panel__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(8, 8, 10, 0.6);
+  animation: shop-panel-fade-in 200ms ease;
+}
+
+@keyframes shop-panel-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+[data-redesign="1"] .shop-panel {
+  position: relative;
+  width: min(420px, 100%);
+  height: 100%;
+  overflow-y: auto;
+  background: #100f11;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--elev-2);
+  padding: var(--space-6) var(--space-5);
+  animation: shop-panel-slide-in-desktop 240ms ease;
+}
+
+@keyframes shop-panel-slide-in-desktop {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+[data-redesign="1"] .shop-panel__close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: 2.2rem;
+  height: 2.2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+[data-redesign="1"] .shop-panel__media {
+  aspect-ratio: 3 / 2;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: var(--space-5);
+}
+[data-redesign="1"] .shop-panel__media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+[data-redesign="1"] .shop-panel__placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(242, 244, 248, 0.64);
+  font-family: "Josefin Sans", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: var(--fs-sm);
+}
+
+[data-redesign="1"] .shop-panel__eyebrow {
+  margin: 0 0 var(--space-2);
+  color: var(--brass);
+  font-family: "Josefin Sans", sans-serif;
+  font-size: var(--fs-eyebrow);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+}
+
+[data-redesign="1"] .shop-panel__content h3 {
+  margin: 0 0 var(--space-3);
+  font-family: "Josefin Sans", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: var(--fs-h3);
+}
+
+[data-redesign="1"] .shop-panel__summary {
+  margin: 0 0 var(--space-5);
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+@media (max-width: 700px) {
+  [data-redesign="1"] .shop-panel__backdrop {
+    align-items: flex-end;
+  }
+
+  [data-redesign="1"] .shop-panel {
+    width: 100%;
+    height: auto;
+    max-height: 85vh;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    animation: shop-panel-slide-in-mobile 240ms ease;
+  }
+
+  @keyframes shop-panel-slide-in-mobile {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Section headings + eyebrows — brass hairline kicker
+ * ------------------------------------------------------------------------- */
+
+[data-redesign="1"] .section-heading p,
+[data-redesign="1"] .issue-hero__eyebrow,
+[data-redesign="1"] .issue-meta-card__eyebrow {
+  color: var(--brass);
+}
+
+/* ---------------------------------------------------------------------------
+ * Form fields — ember focus ring, tokenized radius
+ * ------------------------------------------------------------------------- */
+
+[data-redesign="1"] .letter-composer__issue select,
+[data-redesign="1"] .letter-composer__message textarea,
+[data-redesign="1"] .letter-modal__card input,
+[data-redesign="1"] .correspondence-field input {
+  border-color: rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-md);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+[data-redesign="1"] .letter-composer__message textarea {
+  border-radius: var(--radius-lg);
+}
+[data-redesign="1"] .letter-composer__issue select:focus,
+[data-redesign="1"] .letter-composer__issue select:focus-visible,
+[data-redesign="1"] .letter-composer__message textarea:focus,
+[data-redesign="1"] .letter-modal__card input:focus,
+[data-redesign="1"] .correspondence-field input:focus {
+  outline: none;
+  border-color: var(--ember);
+  box-shadow: 0 0 0 3px var(--ember-glow);
+}
+
+[data-redesign="1"] .letter-composer {
+  border-radius: var(--radius-lg);
+}
+
+/* ---------------------------------------------------------------------------
+ * Breadcrumb + footer — accent links
+ * ------------------------------------------------------------------------- */
+
+[data-redesign="1"] .breadcrumb-bar__current {
+  color: var(--brass);
+}
+[data-redesign="1"] .breadcrumb-bar a:hover {
+  color: var(--ember-strong);
+}
+
+[data-redesign="1"] .site-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+[data-redesign="1"] .site-footer a:hover {
+  color: var(--ember-strong);
+}
+
+/* ---------------------------------------------------------------------------
+ * Cards / panels — unified radius, brass edge on featured social proof
+ * ------------------------------------------------------------------------- */
+
+[data-redesign="1"] .letter-card,
+[data-redesign="1"] .newsletter-card,
+[data-redesign="1"] .issue-meta-card {
+  border-radius: var(--radius-lg);
+}
+[data-redesign="1"] .letter-card--featured {
+  border-color: rgba(201, 161, 91, 0.35);
+}
+
+[data-redesign="1"] ::selection {
+  background: var(--ember);
+  color: #fff;
+}
+
+/* ---------------------------------------------------------------------------
+ * Phase 1 — Home: sales-forward layout
+ * Isolated hero: cinematic full-bleed background (flagship cover art) behind
+ * a centered logo, brand tagline, and a single "Shop the Series" CTA — a
+ * brand moment on its own, not fused with the commerce carousel. The
+ * carousel (eyebrow / 16:9 cover / description / Buy + Explore / dots) and
+ * featured letters live below it in the normal page flow.
+ * ------------------------------------------------------------------------- */
+
+[data-redesign="1"] .home-lead {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  min-height: clamp(480px, 70vh, 720px);
+}
+
+[data-redesign="1"] .home-lead__bg {
+  position: absolute;
+  inset: -6% -3%;
+  z-index: -2;
+  background-size: cover;
+  background-position: center 26%;
+  transform: scale(1.04);
+  filter: brightness(0.5) saturate(1.05);
+}
+
+[data-redesign="1"] .home-lead__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(180deg, rgba(8, 8, 10, 0.55) 0%, rgba(8, 8, 10, 0.22) 24%, rgba(8, 8, 10, 0.58) 76%, rgba(8, 8, 10, 0.94) 100%);
+}
+
+[data-redesign="1"] .home-lead__content {
+  position: relative;
+  width: 100%;
+}
+
+[data-redesign="1"] .home-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 var(--space-5);
+}
+
+[data-redesign="1"] .home-brand__logo {
+  width: min(80vw, 600px);
+  height: auto;
+}
+
+[data-redesign="1"] .home-brand__title {
+  margin: 0;
+  font-size: var(--fs-h1);
+  text-align: center;
+}
+
+[data-redesign="1"] .home-brand__subtitle {
+  margin: var(--space-3) 0 0;
+  max-width: 34rem;
+  color: var(--text-dim);
+  font-family: "Josefin Sans", sans-serif;
+  font-size: var(--fs-lg);
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.42);
+  text-align: center;
+}
+
+[data-redesign="1"] .home-brand__cta {
+  margin-top: var(--space-5);
+  font-size: var(--fs-lg);
+  padding: 0.85em 1.5em;
+}
+
+[data-redesign="1"] .home-carousel {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-5) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+[data-redesign="1"] .home-carousel__slide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  /* Mount-triggered fade: a fresh key={index} element always starts at this
+   * keyframe's 0%, so the browser can't coalesce it away like it can with a
+   * state-toggled transition between two already-mounted values. */
+  animation: home-carousel-fade-in 900ms ease;
+}
+
+@keyframes home-carousel-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+[data-redesign="1"] .home-carousel__eyebrow {
+  margin: 0 0 var(--space-3);
+  min-height: 1.4em;
+  color: var(--brass);
+  font-family: "Josefin Sans", sans-serif;
+  font-size: var(--fs-eyebrow);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+}
+
+[data-redesign="1"] .home-carousel__cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--elev-2);
+}
+[data-redesign="1"] .home-carousel__cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 22%;
+}
+
+[data-redesign="1"] .home-carousel__desc {
+  margin: var(--space-5) 0 0;
+  max-width: 34rem;
+  color: var(--text-dim);
+  font-size: var(--fs-lg);
+  line-height: 1.55;
+  /* Always reserves 3 lines of height, even when a slide's text is shorter
+   * or missing, so the actions row below never shifts between slides. */
+  min-height: calc(var(--fs-lg) * 1.55 * 3);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+[data-redesign="1"] .home-carousel__actions {
+  margin-top: var(--space-5);
+  min-height: 2.9em;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+[data-redesign="1"] .home-carousel__buy {
+  font-size: var(--fs-lg);
+  padding: 0.85em 1.5em;
+}
+
+[data-redesign="1"] .home-carousel__error {
+  margin: var(--space-4) 0 0;
+  color: var(--danger);
+  font-size: var(--fs-sm);
+}
+
+[data-redesign="1"] .home-carousel__progress {
+  margin-top: var(--space-6);
+  /* Matches the dots row exactly: N dots (9px) + (N-1) gaps (--space-2). */
+  width: calc(var(--dot-count, 1) * 9px + (var(--dot-count, 1) - 1) * var(--space-2));
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+[data-redesign="1"] .home-carousel__progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ember);
+  /* Width is driven directly from JS-tracked elapsed time (true pause/resume,
+   * no CSS animation-state edge cases); this just smooths the ~100ms ticks. */
+  transition: width 120ms linear;
+}
+
+[data-redesign="1"] .home-carousel__dots {
+  margin-top: var(--space-3);
+  display: flex;
+  gap: var(--space-2);
+}
+
+[data-redesign="1"] .home-carousel__dot {
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease;
+}
+[data-redesign="1"] .home-carousel__dot:hover {
+  background: rgba(255, 255, 255, 0.42);
+}
+[data-redesign="1"] .home-carousel__dot.is-active {
+  background: var(--ember);
+  transform: scale(1.2);
+}
+
+@media (max-width: 560px) {
+  [data-redesign="1"] .home-carousel {
+    padding: var(--space-5) var(--space-4);
+  }
+}
+
+[data-redesign="1"] .quote-section__cta {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-6);
+}
+
+/* ---------------------------------------------------------------------------
+ * Phase 1 — Home: footer nav (Meet / Letters demoted off the commerce path
+ * but still need a discoverable entry point)
+ * ------------------------------------------------------------------------- */
+
+[data-redesign="1"] .site-footer__nav {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-5);
+  margin-bottom: var(--space-3);
+}
+[data-redesign="1"] .site-footer__nav a:hover {
+  color: var(--ember-strong);
+}
+
+/* ---------------------------------------------------------------------------
+ * Phase 3 — Issue pages: single primary Buy CTA in a sticky buy box (right
+ * rail desktop / fixed bottom bar mobile), credits/synopsis below it, cross-
+ * sell at the bottom. The bottom gallery grid is dropped on this path — the
+ * cover thumbnail is the only entry into the reader now.
+ * ------------------------------------------------------------------------- */
+
+[data-redesign="1"] .issue-story--redesign {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  gap: var(--space-6);
+}
+
+[data-redesign="1"] .issue-story__main {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+[data-redesign="1"] .issue-buybox {
+  position: sticky;
+  top: 84px;
+  align-self: start;
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(225, 80, 42, 0.28);
+  box-shadow: var(--elev-1);
+}
+
+[data-redesign="1"] .issue-buybox .issue-meta-card__eyebrow {
+  margin-bottom: var(--space-3);
+}
+
+/* The buybox is already the card (border + background); the format row
+   inside it shouldn't draw its own nested border/card underneath the CTA,
+   and the CTA's glow shadow is tuned down so it doesn't bleed past the
+   format row's edge into the buybox's own padding. */
+[data-redesign="1"] .issue-buybox .shop-format {
+  background: transparent;
+  border-color: transparent;
+  padding: 0;
+}
+[data-redesign="1"] .issue-buybox .shop-format__button:not(.button-secondary--disabled) {
+  box-shadow: 0 6px 14px rgba(225, 80, 42, 0.28);
+}
+
+[data-redesign="1"] .page-stack--issue-redesign {
+  padding-bottom: 0;
+}
+
+@media (max-width: 700px) {
+  [data-redesign="1"] .issue-story--redesign {
+    display: block;
+  }
+
+  [data-redesign="1"] .issue-buybox {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--elev-2);
+  }
+
+  [data-redesign="1"] .page-stack--issue-redesign {
+    padding-bottom: 220px;
+  }
+
+  /* Coming-soon/out-of-stock buybox: opaque so the fixed bar over page
+     content reads as an intentional bar, not a translucent rendering glitch. */
+  [data-redesign="1"] .issue-buybox--unavailable {
+    background: #100f11;
+  }
+}
+
+[data-redesign="1"] .issue-cross-sell {
+  margin-top: var(--space-3);
+}
+
+/* Reader: gate cards rendered below the (possibly truncated) reader surface
+ * inside the same stage — "you've reached the boundary," not a full-screen
+ * takeover, so the reader frame stays visible above it. */
+[data-redesign="1"] .comic-reader__stage--inline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  overflow-y: auto;
+  padding: var(--space-6) var(--space-4);
+}
+
+[data-redesign="1"] .reader-gate {
+  width: min(100%, 420px);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: rgba(16, 15, 17, 0.92);
+  border: 1px solid rgba(225, 80, 42, 0.32);
+  box-shadow: var(--elev-2);
+  text-align: center;
+}
+
+[data-redesign="1"] .reader-gate__eyebrow {
+  margin: 0 0 var(--space-2);
+  color: var(--brass);
+  font-family: "Josefin Sans", sans-serif;
+  font-size: var(--fs-eyebrow);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+}
+
+[data-redesign="1"] .reader-gate h3 {
+  margin: 0 0 var(--space-3);
+  font-family: "Josefin Sans", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: var(--fs-h3);
+}
+
+[data-redesign="1"] .reader-gate__copy {
+  margin: 0 0 var(--space-4);
+  color: var(--text-dim);
+}
+
+[data-redesign="1"] .reader-gate .shop-format--toggle {
+  justify-content: center;
+}
+
+[data-redesign="1"] .reader-gate__form {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+[data-redesign="1"] .reader-gate__form input {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 0.7em 1em;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+}
+[data-redesign="1"] .reader-gate__form input:focus {
+  outline: none;
+  border-color: var(--ember);
+  box-shadow: 0 0 0 3px var(--ember-glow);
+}
+
+[data-redesign="1"] .reader-gate__error {
+  margin: var(--space-3) 0 0;
+  color: var(--danger);
+  font-size: var(--fs-sm);
+}
+
+[data-redesign="1"] .shop-panel__more-info {
+  display: block;
+  margin-top: var(--space-4);
+  text-align: center;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+[data-redesign="1"] .shop-panel__more-info:hover {
+  color: var(--ember-strong);
+}
+
+/* ---------------------------------------------------------------------------
+ * Phase 4 — Cart: breadcrumb button, slide-out drawer (desktop right rail /
+ * mobile bottom sheet, same split as .shop-panel but layered above the reader
+ * overlay so in-reader add-to-cart is visible), /cart page.
+ * ------------------------------------------------------------------------- */
+
+[data-redesign="1"] .breadcrumb-bar {
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 700px) {
+  /* index.css's 700px breakpoint groups .breadcrumb-bar into a generic
+     flex-direction: column / align-items: stretch stack rule meant for
+     other elements; a later index.css rule restyles it for horizontal
+     scrolling (padding, overflow-x) but never resets those two, so the
+     bar renders as a stretched column instead of a left-aligned row. */
+  [data-redesign="1"] .breadcrumb-bar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+  }
+}
+
+[data-redesign="1"] .cart-button {
+  /* .breadcrumb-bar has pointer-events: none (index.css) so the hero behind
+     it stays clickable; only .breadcrumb-bar__item restores pointer-events.
+     This button is a direct nav child, not a breadcrumb item, so it needs
+     its own pointer-events: auto or clicks pass through to the hero. */
+  pointer-events: auto;
+  position: relative;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+[data-redesign="1"] .cart-button:hover {
+  border-color: var(--ember);
+  background: rgba(225, 80, 42, 0.08);
+}
+
+[data-redesign="1"] .cart-button__icon {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+[data-redesign="1"] .cart-button__count {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.3em;
+  height: 1.3em;
+  padding: 0 0.3em;
+  border-radius: var(--radius-pill);
+  background: var(--ember);
+  color: var(--on-ember);
+  font-size: 0.68rem;
+  font-family: "Josefin Sans", sans-serif;
+}
+
+[data-redesign="1"] .cart-drawer__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80; /* above the reader overlay so in-reader adds land visibly */
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(8, 8, 10, 0.6);
+  animation: shop-panel-fade-in 200ms ease;
+}
+
+[data-redesign="1"] .cart-drawer {
+  position: relative;
+  width: min(420px, 100%);
+  height: 100%;
+  overflow-y: auto;
+  background: #100f11;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--elev-2);
+  padding: var(--space-6) var(--space-5);
+  animation: shop-panel-slide-in-desktop 240ms ease;
+}
+
+[data-redesign="1"] .cart-drawer__close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: 2.2rem;
+  height: 2.2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+[data-redesign="1"] .cart-drawer__eyebrow,
+[data-redesign="1"] .library-eyebrow,
+[data-redesign="1"] .checkout-onboard__upsell-eyebrow {
+  margin: 0 0 var(--space-4);
+  color: var(--brass);
+  font-family: "Josefin Sans", sans-serif;
+  font-size: var(--fs-eyebrow);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+}
+
+@media (max-width: 700px) {
+  [data-redesign="1"] .cart-drawer__backdrop {
+    align-items: flex-end;
+  }
+
+  [data-redesign="1"] .cart-drawer {
+    width: 100%;
+    height: auto;
+    max-height: 85vh;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    animation: shop-panel-slide-in-mobile 240ms ease;
+  }
+}
+
+[data-redesign="1"] .cart-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+[data-redesign="1"] .cart-line {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  padding: var(--space-4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+[data-redesign="1"] .cart-line__media {
+  flex: 0 0 56px;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+}
+[data-redesign="1"] .cart-line__media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+[data-redesign="1"] .cart-line__info {
+  flex: 1;
+  min-width: 0;
+}
+
+[data-redesign="1"] .cart-line__title {
+  margin: 0 0 var(--space-1);
+  font-family: "Josefin Sans", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+[data-redesign="1"] .cart-line__format {
+  margin: 0 0 var(--space-3);
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+}
+
+[data-redesign="1"] .cart-line__qty {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-pill);
+  padding: 2px;
+}
+[data-redesign="1"] .cart-line__qty button {
+  width: 1.7rem;
+  height: 1.7rem;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+[data-redesign="1"] .cart-line__qty button:hover {
+  background: rgba(225, 80, 42, 0.28);
+}
+[data-redesign="1"] .cart-line__qty span {
+  min-width: 1.2em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-redesign="1"] .cart-line__end {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+[data-redesign="1"] .cart-line__total {
+  color: var(--price);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-redesign="1"] .cart-line__remove {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+[data-redesign="1"] .cart-line__remove:hover {
+  color: var(--danger);
+}
+
+[data-redesign="1"] .cart-empty {
+  margin: var(--space-6) 0;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+[data-redesign="1"] .cart-summary {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-redesign="1"] .cart-summary__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: var(--fs-lg);
+}
+[data-redesign="1"] .cart-summary__row strong {
+  color: var(--price);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-redesign="1"] .cart-summary__note {
+  margin: var(--space-2) 0 0;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+}
+
+[data-redesign="1"] .cart-error {
+  margin: var(--space-3) 0 0;
+  color: var(--danger);
+  font-size: var(--fs-sm);
+}
+
+[data-redesign="1"] .cart-summary__checkout {
+  width: 100%;
+  margin-top: var(--space-4);
+  font-size: var(--fs-lg);
+  padding: 0.85em 1.5em;
+}
+
+[data-redesign="1"] .cart-drawer__page-link {
+  display: block;
+  margin-top: var(--space-4);
+  text-align: center;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+[data-redesign="1"] .cart-drawer__page-link:hover {
+  color: var(--ember-strong);
+}
+
+[data-redesign="1"] .cart-page__title {
+  margin: 0 0 var(--space-5);
+  font-family: "Josefin Sans", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: var(--fs-h2);
+}
+
+[data-redesign="1"] .cart-page__empty-cta {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-5);
+}
+
+/* ---------------------------------------------------------------------------
+ * Phase 4 — Checkout return: onboarding + post-purchase upsell
+ * ------------------------------------------------------------------------- */
+
+[data-redesign="1"] .checkout-onboard__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+[data-redesign="1"] .checkout-onboard__note {
+  margin: var(--space-4) 0 0;
+  text-align: center;
+  color: var(--success);
+  font-size: var(--fs-sm);
+}
+
+[data-redesign="1"] .checkout-onboard__upsell {
+  margin-top: var(--space-7);
+  text-align: center;
+}
+
+[data-redesign="1"] .shop-card-grid--upsell {
+  width: min(100%, 640px);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 180px));
+  justify-content: center;
+}
+
+/* ---------------------------------------------------------------------------
+ * Phase 5 — Library: magic-link sign-in + owned-issues grid
+ * ------------------------------------------------------------------------- */
+
+[data-redesign="1"] .library-signin {
+  text-align: center;
+  padding: var(--space-8) 0 var(--space-6);
+}
+
+[data-redesign="1"] .library-signin h1,
+[data-redesign="1"] .library-header h1 {
+  margin: 0 0 var(--space-3);
+  font-family: "Josefin Sans", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: var(--fs-h2);
+}
+
+[data-redesign="1"] .library-signin__copy {
+  margin: 0 auto var(--space-5);
+  max-width: 32rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+[data-redesign="1"] .library-signin__form {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+[data-redesign="1"] .library-signin__form input {
+  flex: 1 1 240px;
+  max-width: 320px;
+  min-width: 0;
+  padding: 0.7em 1em;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+}
+[data-redesign="1"] .library-signin__form input:focus {
+  outline: none;
+  border-color: var(--ember);
+  box-shadow: 0 0 0 3px var(--ember-glow);
+}
+
+[data-redesign="1"] .library-signin__notice {
+  margin: var(--space-4) auto;
+  max-width: 32rem;
+  color: var(--danger);
+  font-size: var(--fs-sm);
+}
+
+[data-redesign="1"] .library-signin__dev {
+  margin-top: var(--space-4);
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+}
+[data-redesign="1"] .library-signin__dev a {
+  color: var(--ember-strong);
+}
+
+[data-redesign="1"] .library-header {
+  text-align: center;
+  padding-top: var(--space-8);
+  margin-bottom: var(--space-5);
+}
+
+[data-redesign="1"] .library-account {
+  margin-top: var(--space-6);
+  text-align: center;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  opacity: 0.55;
+}
+
+[data-redesign="1"] .library-account__logout {
+  border: none;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+[data-redesign="1"] .library-account__logout:hover {
+  color: var(--ember-strong);
+  opacity: 1;
+}
+
+[data-redesign="1"] .library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-5);
+}
+
+[data-redesign="1"] .library-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+[data-redesign="1"] .library-item__media {
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: var(--elev-1);
+}
+[data-redesign="1"] .library-item__media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+[data-redesign="1"] .library-item__placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: var(--space-3);
+  color: rgba(242, 244, 248, 0.64);
+  font-family: "Josefin Sans", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+[data-redesign="1"] .library-item__title {
+  margin: 0;
+  font-family: "Josefin Sans", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+[data-redesign="1"] .library-item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+[data-redesign="1"] .library-item__pending {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+}
+
+[data-redesign="1"] .library-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-7);
+}
+
+/* /order/:token → library hand-off */
+[data-redesign="1"] .library-claim {
+  margin-top: var(--space-6);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(201, 161, 91, 0.35);
+  background: rgba(201, 161, 91, 0.06);
+  text-align: center;
+}
+[data-redesign="1"] .library-claim p {
+  margin: 0 0 var(--space-4);
+  color: var(--text-dim);
+}
+[data-redesign="1"] .library-claim__error {
+  margin: var(--space-3) 0 0;
+  color: var(--danger);
+  font-size: var(--fs-sm);
+}
+
+/* ---------------------------------------------------------------------------
+ * /system reference page
+ * ------------------------------------------------------------------------- */
+
+.ds {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 4rem 1.5rem 6rem;
+}
+.ds h1 {
+  font-family: "Josefin Sans", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  margin: 0 0 0.35rem;
+}
+.ds__lede {
+  color: var(--text-dim);
+  max-width: 44rem;
+  margin: 0 0 1rem;
+}
+.ds__flag {
+  display: inline-block;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--text-dim);
+  margin-bottom: 3rem;
+}
+.ds section {
+  margin: 3rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 1.75rem;
+}
+.ds h2 {
+  font-family: "Josefin Sans", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 1rem;
+  color: var(--text-dim);
+  margin: 0 0 1.25rem;
+}
+.ds__swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+.ds__swatch {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.ds__swatch-chip {
+  height: 72px;
+}
+.ds__swatch-meta {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.78rem;
+}
+.ds__swatch-meta strong {
+  display: block;
+  font-family: "Josefin Sans", sans-serif;
+  letter-spacing: 0.04em;
+}
+.ds__swatch-meta span {
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.ds__type > * {
+  margin: 0 0 0.5rem;
+}
+.ds__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+.ds__buybox {
+  max-width: 30rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+/* ---------------------------------------------------------------------------
+ * Brand pages — Meet, Letters, Correspondence, site-wide footer capture.
+ * Visual-only pass: no gating, no new fields (Letters/Correspondence stay
+ * frictionless by design). Brings these three pages under the same design
+ * system as Shop/Issue/Library.
+ * ------------------------------------------------------------------------- */
+
+/* Footer email capture (folds in the old Meet-page Substack card). */
+[data-redesign="1"] .site-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  padding-top: var(--space-6);
+  text-align: center;
+}
+
+[data-redesign="1"] .footer-capture {
+  max-width: 30rem;
+}
+
+[data-redesign="1"] .footer-capture__title {
+  margin: 0 0 var(--space-1);
+  font-family: "Josefin Sans", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: var(--fs-lg);
+  color: var(--brass);
+}
+
+[data-redesign="1"] .footer-capture__copy {
+  margin: 0 0 var(--space-4);
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+}
+
+[data-redesign="1"] .footer-capture__form {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+[data-redesign="1"] .footer-capture__form input {
+  flex: 1 1 240px;
+  max-width: 320px;
+  min-width: 0;
+  padding: 0.7em 1em;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+}
+[data-redesign="1"] .footer-capture__form input:focus {
+  outline: none;
+  border-color: var(--ember);
+  box-shadow: 0 0 0 3px var(--ember-glow);
+}
+
+[data-redesign="1"] .footer-capture__done {
+  margin: 0;
+  color: var(--success);
+  font-size: var(--fs-sm);
+}
+
+[data-redesign="1"] .footer-capture__error {
+  margin: var(--space-2) 0 0;
+  color: var(--danger);
+  font-size: var(--fs-sm);
+}
+
+[data-redesign="1"] .footer-capture__substack {
+  display: inline-block;
+  margin-top: var(--space-3);
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+[data-redesign="1"] .footer-capture__substack:hover {
+  color: var(--ember-strong);
+}
+
+[data-redesign="1"] .site-footer__nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-4);
+  font-size: var(--fs-sm);
+}
+
+/* Meet — team cards + hero to the design system. */
+[data-redesign="1"] .page-stack--meet-redesign .team-feature {
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.03);
+}
+[data-redesign="1"] .page-stack--meet-redesign .team-feature__portrait {
+  border-radius: var(--radius-md);
+}
+[data-redesign="1"] .page-stack--meet-redesign .team-feature__eyebrow {
+  color: var(--brass);
+  font-size: var(--fs-eyebrow);
+  letter-spacing: 0.14em;
+}
+[data-redesign="1"] .page-stack--meet-redesign .team-feature__body h3 {
+  font-size: var(--fs-h3);
+}
+[data-redesign="1"] .page-stack--meet-redesign .team-feature__link {
+  border-radius: var(--radius-pill);
+  transition: border-color 160ms ease, background 160ms ease;
+}
+[data-redesign="1"] .page-stack--meet-redesign .team-feature__link:hover {
+  border-color: var(--ember);
+}
+
+/* Letters — composer + cards to the design system. */
+[data-redesign="1"] .page-stack--letters-redesign .letter-composer {
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.03);
+}
+[data-redesign="1"] .page-stack--letters-redesign .letter-composer__button {
+  border-radius: var(--radius-sm);
+}
+[data-redesign="1"] .page-stack--letters-redesign .letters-grid .letter-card {
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.03);
+}
+[data-redesign="1"] .page-stack--letters-redesign .letter-card--featured {
+  border-color: rgba(201, 161, 91, 0.35);
+  box-shadow: 0 0 0 1px rgba(201, 161, 91, 0.15);
+}
+
+/* Correspondence — scan zone + composer to the design system. */
+[data-redesign="1"] .page-stack--correspondence-redesign .correspondence-scan-zone {
+  border-radius: var(--radius-lg);
+  transition: border-color 160ms ease, background 160ms ease;
+}
+[data-redesign="1"] .page-stack--correspondence-redesign .correspondence-scan-zone:hover {
+  border-color: var(--ember);
+}
+[data-redesign="1"] .page-stack--correspondence-redesign .correspondence-composer {
+  border-radius: var(--radius-lg);
+}
+[data-redesign="1"] .page-stack--correspondence-redesign .correspondence-retake {
+  color: var(--ember-strong);
+}

@@ -23,6 +23,10 @@ export default function App() {
   }
 
   useEffect(() => {
+    document.documentElement.setAttribute("data-redesign", "1");
+  }, []);
+
+  useEffect(() => {
     async function load() {
       try {
         setLoading(true);

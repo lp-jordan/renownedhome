@@ -69,6 +69,40 @@ function Field({ label, value, onChange, multiline = false }) {
   );
 }
 
+// Sale toggle shared by issue prices and the bundle price: enabling it and
+// saving derives a discounted Stripe Price from the current base price
+// server-side (see ensureSalePrice in server.js) — the base price is never
+// edited or deleted, so toggling off always reverts cleanly.
+function SaleFields({ sale, onChange }) {
+  const current = sale || { enabled: false, percent: 20 };
+  return (
+    <div className="editor-card__sale" style={{ marginTop: "12px" }}>
+      <label className="checkbox-row">
+        <input
+          type="checkbox"
+          checked={Boolean(current.enabled)}
+          onChange={(e) => onChange({ ...current, enabled: e.target.checked })}
+        />
+        <span>Sale</span>
+      </label>
+      {current.enabled ? (
+        <div className="delivery-form-grid" style={{ marginTop: "8px" }}>
+          <Field
+            label="Percent off"
+            value={String(current.percent ?? 20)}
+            onChange={(v) => onChange({ ...current, percent: Number(v) || 0 })}
+          />
+        </div>
+      ) : null}
+      {current.enabled && current.priceId && current.percentApplied === current.percent ? (
+        <p className="editor-card__hint">Sale price is live in Stripe.</p>
+      ) : current.enabled ? (
+        <p className="editor-card__hint">Save to create the discounted Stripe price.</p>
+      ) : null}
+    </div>
+  );
+}
+
 function normalizeFolderName(value) {
   return String(value || "").trim();
 }
@@ -304,12 +338,12 @@ function AccordionSection({ title, summary, defaultOpen = false, children, helpe
   );
 }
 
-const HOME_PANEL_ORDER = ["/read", "/meet", "/letters", "/buy"];
+const HOME_PANEL_ORDER = ["/read", "/meet", "/letters", "/shop"];
 const HOME_PANEL_DEFAULTS = {
   "/read": { label: "Read", href: "/read", size: "wide" },
   "/meet": { label: "Meet", href: "/meet", size: "wide-half" },
   "/letters": { label: "Letters", href: "/letters", size: "standard" },
-  "/buy": { label: "Buy", href: "/buy", size: "standard" },
+  "/shop": { label: "Shop", href: "/shop", size: "standard" },
 };
 
 function getHomePanels(page) {
@@ -568,6 +602,14 @@ function IssueEditor({ issues, assets, onSave, title = "Issues" }) {
               <div className="delivery-form-grid delivery-form-grid--full" style={{ marginTop: "12px" }}>
                 <Field label="Description" value={draft.description || ""} multiline onChange={(v) => setDraft((d) => ({ ...d, description: v }))} />
               </div>
+              <div className="delivery-form-grid delivery-form-grid--full" style={{ marginTop: "12px" }}>
+                <Field
+                  label="Home carousel blurb (shown under the cover on the homepage; falls back to the first line of the description if empty)"
+                  value={draft.homeHook || ""}
+                  multiline
+                  onChange={(v) => setDraft((d) => ({ ...d, homeHook: v }))}
+                />
+              </div>
             </div>
             <div className="editor-card">
               <h3 className="editor-card__label">Preview / Reader</h3>
@@ -577,6 +619,23 @@ function IssueEditor({ issues, assets, onSave, title = "Issues" }) {
                 <Field label="Reader button label" value={draft.readerLabel || ""} onChange={(v) => setDraft((d) => ({ ...d, readerLabel: v }))} />
                 <Field label="Reader PDF URL" value={draft.readerPdfUrl || ""} onChange={(v) => setDraft((d) => ({ ...d, readerPdfUrl: v }))} />
               </div>
+              <label className="checkbox-row" style={{ marginTop: "12px" }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(draft.isFree)}
+                  onChange={(e) => setDraft((d) => ({ ...d, isFree: e.target.checked }))}
+                />
+                <span>Free to read in full (no preview paywall)</span>
+              </label>
+              {!draft.isFree ? (
+                <div className="delivery-form-grid" style={{ marginTop: "12px" }}>
+                  <Field
+                    label="Preview page limit"
+                    value={String(draft.previewPageLimit ?? 5)}
+                    onChange={(v) => setDraft((d) => ({ ...d, previewPageLimit: Number(v) || 5 }))}
+                  />
+                </div>
+              ) : null}
             </div>
             <div className="editor-card">
               <h3 className="editor-card__label">Status</h3>
@@ -639,6 +698,7 @@ function IssueEditor({ issues, assets, onSave, title = "Issues" }) {
                   onChange={(v) => setShopField("digitalAssetId", v)}
                 />
               </div>
+              <SaleFields sale={shop.digitalSale} onChange={(next) => setDraft((d) => ({ ...d, shop: { ...(d.shop || {}), digitalSale: next } }))} />
             </div>
 
             <div className="editor-card">
@@ -653,6 +713,7 @@ function IssueEditor({ issues, assets, onSave, title = "Issues" }) {
                   onChange={(v) => setShopField("physicalPriceId", v)}
                 />
               </div>
+              <SaleFields sale={shop.physicalSale} onChange={(next) => setDraft((d) => ({ ...d, shop: { ...(d.shop || {}), physicalSale: next } }))} />
             </div>
 
             <div className="editor-card">
@@ -1830,60 +1891,423 @@ function formatShippingAddress(address) {
   return [line1, [city, state, postalCode].filter(Boolean).join(", ")].filter(Boolean).join(", ") || "—";
 }
 
-function OrdersAdmin() {
-  const [orders, setOrders] = useState(null);
-  const [error, setError] = useState("");
+function formatAdminDate(dateString) {
+  return new Date(dateString).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
 
-  useEffect(() => {
-    fetch("/api/admin/orders", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.error) throw new Error(d.error);
-        setOrders(d.orders);
-      })
-      .catch((e) => setError(e.message));
-  }, []);
+function formatCents(cents) {
+  return `$${(Number(cents || 0) / 100).toFixed(2)}`;
+}
+
+// Merges Orders (Stripe purchases) + Share Links (one-off PDF sends) into one
+// fulfillment view, since both are "who got what" — reads both existing
+// endpoints and renders one table with a type badge, no new backend for the merge.
+function OrdersAdmin({ assets = [] }) {
+  const [orders, setOrders] = useState(null);
+  const [shareLinks, setShareLinks] = useState([]);
+  const [error, setError] = useState("");
+  const [updatingId, setUpdatingId] = useState("");
+
+  async function load() {
+    try {
+      const [ordersResult, shareLinksResult] = await Promise.all([
+        api.getOrders(),
+        api.listShareLinks(),
+      ]);
+      setOrders(ordersResult.orders || []);
+      setShareLinks(shareLinksResult.shareLinks || []);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function markShipped(orderId) {
+    setUpdatingId(orderId);
+    try {
+      await api.updateOrderFulfillment(orderId, "shipped");
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUpdatingId("");
+    }
+  }
 
   if (error) return <div className="admin-empty-state">{error}</div>;
   if (!orders) return <div className="admin-empty-state">Loading orders…</div>;
-  if (!orders.length) return <div className="admin-empty-state">No orders yet.</div>;
+
+  const rows = [
+    ...orders.map((order) => ({
+      key: `order-${order.id}`,
+      date: order.created_at,
+      email: order.customer_email,
+      items: order.items || [],
+      shipping: order.shipping_address,
+      total: (order.items || []).reduce((sum, i) => sum + (i.pricePaid || 0), 0),
+      type: (order.items || []).some((item) => item.format === "physical") ? "Physical" : "Digital",
+      order,
+    })),
+    ...shareLinks.map((link) => ({
+      key: `share-${link.id}`,
+      date: link.createdAt,
+      email: "",
+      items: [{ issueId: link.id, issueTitle: link.label || link.filename, format: "shared" }],
+      shipping: null,
+      total: null,
+      type: "Shared",
+      order: null,
+    })),
+  ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  if (!rows.length) return <div className="admin-empty-state">No orders or share links yet.</div>;
 
   return (
     <div className="admin-orders">
       <div className="admin-workspace-header">
         <h2>Orders</h2>
-        <p className="field-help">{orders.length} order{orders.length !== 1 ? "s" : ""}</p>
+        <p className="field-help">
+          {orders.length} order{orders.length !== 1 ? "s" : ""} · {shareLinks.length} share link{shareLinks.length !== 1 ? "s" : ""}
+        </p>
+        <button type="button" className="button-secondary button-compact" onClick={load}>
+          Refresh
+        </button>
+      </div>
+      <table className="orders-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Email</th>
+            <th>Items</th>
+            <th>Shipping</th>
+            <th>Total</th>
+            <th>Fulfillment</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.key}>
+              <td className="orders-table__date">{formatAdminDate(row.date)}</td>
+              <td><span className={`type-badge type-badge--${row.type.toLowerCase()}`}>{row.type}</span></td>
+              <td className="orders-table__email">{row.email || "—"}</td>
+              <td className="orders-table__items">
+                {row.items.map((item, index) => (
+                  <span key={`${row.key}-${item.issueId || index}`} className="orders-table__item-badge">
+                    {item.issueTitle} {item.format !== "shared" ? <em>{item.format}</em> : null}
+                  </span>
+                ))}
+              </td>
+              <td className="orders-table__shipping">{row.shipping ? formatShippingAddress(row.shipping) : "—"}</td>
+              <td className="orders-table__total">{row.total != null ? formatCents(row.total) : "—"}</td>
+              <td>
+                {row.order && row.type === "Physical" ? (
+                  row.order.fulfillment_status === "shipped" ? (
+                    <span className="status-badge status-badge--shipped">Shipped</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="button-secondary button-compact"
+                      disabled={updatingId === row.order.id}
+                      onClick={() => markShipped(row.order.id)}
+                    >
+                      {updatingId === row.order.id ? "Saving…" : "Mark shipped"}
+                    </button>
+                  )
+                ) : (
+                  <span className="field-help">—</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <AccordionSection title="Manage Share Links" summary="Upload a new PDF, or edit/delete existing links">
+        <ShareLinksAdmin assets={assets} />
+      </AccordionSection>
+    </div>
+  );
+}
+
+function DashboardAdmin() {
+  const [stats, setStats] = useState(null);
+  const [error, setError] = useState("");
+  const [updatingId, setUpdatingId] = useState("");
+
+  async function load() {
+    try {
+      setStats(await api.getDashboard());
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function markShipped(orderId) {
+    setUpdatingId(orderId);
+    try {
+      await api.updateOrderFulfillment(orderId, "shipped");
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUpdatingId("");
+    }
+  }
+
+  if (error) return <div className="admin-empty-state">{error}</div>;
+  if (!stats) return <div className="admin-empty-state">Loading dashboard…</div>;
+
+  return (
+    <div className="admin-orders">
+      <div className="admin-workspace-header">
+        <h2>Dashboard</h2>
+      </div>
+
+      <div className="dashboard-stat-grid">
+        <div className="dashboard-stat-card">
+          <span className="dashboard-stat-card__label">Revenue this week</span>
+          <span className="dashboard-stat-card__value">{formatCents(stats.revenueWeek)}</span>
+        </div>
+        <div className="dashboard-stat-card">
+          <span className="dashboard-stat-card__label">Revenue this month</span>
+          <span className="dashboard-stat-card__value">{formatCents(stats.revenueMonth)}</span>
+        </div>
+        <div className="dashboard-stat-card">
+          <span className="dashboard-stat-card__label">Free → paid conversion</span>
+          <span className="dashboard-stat-card__value">{stats.conversionRate}%</span>
+          <span className="dashboard-stat-card__hint">{stats.payingCustomers} paying of {stats.leadsCount} leads</span>
+        </div>
+      </div>
+
+      <section className="dashboard-section">
+        <h3>Units sold by issue</h3>
+        {stats.unitsByIssue.length ? (
+          <table className="orders-table">
+            <thead><tr><th>Issue</th><th>Units</th></tr></thead>
+            <tbody>
+              {stats.unitsByIssue.map((row) => (
+                <tr key={row.issueId}>
+                  <td>{row.issueTitle}</td>
+                  <td>{row.units}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="admin-empty-state">No sales yet.</p>
+        )}
+      </section>
+
+      <section className="dashboard-section">
+        <h3>Physical orders needing action</h3>
+        {stats.physicalPending.length ? (
+          <table className="orders-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Email</th>
+                <th>Items</th>
+                <th>Shipping</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.physicalPending.map((order) => (
+                <tr key={order.id}>
+                  <td className="orders-table__date">{formatAdminDate(order.created_at)}</td>
+                  <td className="orders-table__email">{order.customer_email}</td>
+                  <td className="orders-table__items">
+                    {(order.items || []).map((item, index) => (
+                      <span key={`${order.id}-${item.issueId || index}`} className="orders-table__item-badge">
+                        {item.issueTitle} <em>{item.format}</em>
+                      </span>
+                    ))}
+                  </td>
+                  <td className="orders-table__shipping">{formatShippingAddress(order.shipping_address)}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="button-secondary button-compact"
+                      disabled={updatingId === order.id}
+                      onClick={() => markShipped(order.id)}
+                    >
+                      {updatingId === order.id ? "Saving…" : "Mark shipped"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="admin-empty-state">Nothing pending — all physical orders shipped.</p>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function CustomerDetail({ email, onBack }) {
+  const [detail, setDetail] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setDetail(null);
+    setError("");
+    api.getCustomer(email).then(setDetail).catch((err) => setError(err.message));
+  }, [email]);
+
+  return (
+    <div className="admin-orders">
+      <div className="admin-workspace-header">
+        <button type="button" className="shop-workspace__back" onClick={onBack}>
+          ← Back to customers
+        </button>
+        <h2>{email}</h2>
+      </div>
+      {error ? <p className="status-line status-line--error">{error}</p> : null}
+      {!detail ? (
+        <p className="admin-empty-state">Loading…</p>
+      ) : (
+        <>
+          <section className="dashboard-section">
+            <h3>Owned digital issues</h3>
+            {detail.owned.length ? (
+              <ul className="customer-owned-list">
+                {detail.owned.map((item) => (
+                  <li key={item.issueId}>{item.issueTitle}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="field-help">No digital issues owned.</p>
+            )}
+          </section>
+          <section className="dashboard-section">
+            <h3>Order history</h3>
+            <table className="orders-table">
+              <thead><tr><th>Date</th><th>Items</th></tr></thead>
+              <tbody>
+                {detail.orders.map((order) => (
+                  <tr key={order.id}>
+                    <td className="orders-table__date">{formatAdminDate(order.created_at)}</td>
+                    <td className="orders-table__items">
+                      {(order.items || []).map((item, index) => (
+                        <span key={`${order.id}-${item.issueId || index}`} className="orders-table__item-badge">
+                          {item.issueTitle} <em>{item.format}</em>
+                        </span>
+                      ))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
+
+function CustomersAdmin() {
+  const [customers, setCustomers] = useState(null);
+  const [error, setError] = useState("");
+  const [selectedEmail, setSelectedEmail] = useState("");
+
+  useEffect(() => {
+    api.getCustomers()
+      .then((result) => setCustomers(result.customers || []))
+      .catch((err) => setError(err.message));
+  }, []);
+
+  if (error) return <div className="admin-empty-state">{error}</div>;
+  if (!customers) return <div className="admin-empty-state">Loading customers…</div>;
+
+  if (selectedEmail) {
+    return <CustomerDetail email={selectedEmail} onBack={() => setSelectedEmail("")} />;
+  }
+
+  if (!customers.length) return <div className="admin-empty-state">No customers yet.</div>;
+
+  return (
+    <div className="admin-orders">
+      <div className="admin-workspace-header">
+        <h2>Customers</h2>
+        <p className="field-help">{customers.length} customer{customers.length !== 1 ? "s" : ""}</p>
+      </div>
+      <table className="orders-table">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Orders</th>
+            <th>Lifetime value</th>
+            <th>Last order</th>
+          </tr>
+        </thead>
+        <tbody>
+          {customers.map((customer) => (
+            <tr
+              key={customer.email}
+              className="customers-table__row"
+              onClick={() => setSelectedEmail(customer.email)}
+            >
+              <td className="orders-table__email">{customer.email}</td>
+              <td>{customer.orderCount}</td>
+              <td>{formatCents(customer.lifetimeValue)}</td>
+              <td className="orders-table__date">{formatAdminDate(customer.lastOrderAt)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Email captures: reader soft-email-gate (Phase 3, tied to an issue) and the
+// site-wide footer capture (Phase "Brand pages", no issue), newest first.
+// View + delete only — leads come from visitors, not admin-authored records.
+function LeadsAdmin({ leads, issues, onDelete }) {
+  const sorted = [...leads].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  if (!sorted.length) {
+    return <div className="admin-empty-state">No leads captured yet.</div>;
+  }
+
+  return (
+    <div className="admin-orders">
+      <div className="admin-workspace-header">
+        <h2>Leads</h2>
+        <p className="field-help">{sorted.length} lead{sorted.length !== 1 ? "s" : ""}</p>
       </div>
       <table className="orders-table">
         <thead>
           <tr>
             <th>Date</th>
             <th>Email</th>
-            <th>Items</th>
-            <th>Shipping</th>
-            <th>Total</th>
-            <th>Status</th>
+            <th>Source</th>
+            <th>Issue</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
-          {orders.map((order) => {
-            const total = (order.items || []).reduce((sum, i) => sum + (i.pricePaid || 0), 0);
-            const date = new Date(order.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+          {sorted.map((lead) => {
+            const issue = issues.find((entry) => entry.slug === lead.issueSlug);
+            const date = new Date(lead.createdAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            });
             return (
-              <tr key={order.id}>
+              <tr key={lead.id}>
                 <td className="orders-table__date">{date}</td>
-                <td className="orders-table__email">{order.customer_email}</td>
-                <td className="orders-table__items">
-                  {(order.items || []).map((item) => (
-                    <span key={item.issueId} className="orders-table__item-badge">
-                      {item.issueTitle} <em>{item.format}</em>
-                    </span>
-                  ))}
-                </td>
-                <td className="orders-table__shipping">{formatShippingAddress(order.shipping_address)}</td>
-                <td className="orders-table__total">${(total / 100).toFixed(2)}</td>
-                <td className="orders-table__status">
-                  <span className={`status-badge status-badge--${order.status}`}>{order.status}</span>
+                <td className="orders-table__email">{lead.email}</td>
+                <td>{lead.source === "footer" ? "Footer" : "Reader gate"}</td>
+                <td>{issue?.title || lead.issueSlug || "—"}</td>
+                <td>
+                  <button type="button" className="button-secondary" onClick={() => onDelete(lead.id)}>
+                    Delete
+                  </button>
                 </td>
               </tr>
             );
@@ -1894,7 +2318,118 @@ function OrdersAdmin() {
   );
 }
 
-function IssuesWorkspace({ issues, assets, onSaveIssue }) {
+function BundleEditor({ bundle, issues, onSave, onCreatePrice }) {
+  const [draft, setDraft] = useState(bundle);
+  const [amountInput, setAmountInput] = useState("");
+  const [saveStatus, setSaveStatus] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isCreatingPrice, setIsCreatingPrice] = useState(false);
+
+  useEffect(() => {
+    setDraft(bundle);
+    setSaveStatus("");
+  }, [bundle?.id]);
+
+  if (!draft) return null;
+
+  function toggleIssue(issueId, checked) {
+    setDraft((d) => ({
+      ...d,
+      includedIssueIds: checked
+        ? [...(d.includedIssueIds || []), issueId]
+        : (d.includedIssueIds || []).filter((id) => id !== issueId),
+    }));
+  }
+
+  async function handleCreatePrice() {
+    const dollars = Number(amountInput);
+    if (!Number.isFinite(dollars) || dollars <= 0) return;
+    setIsCreatingPrice(true);
+    try {
+      const { priceId } = await onCreatePrice(Math.round(dollars * 100));
+      setDraft((d) => ({ ...d, digitalPriceId: priceId }));
+    } catch (err) {
+      setSaveStatus(err.message || "Failed to create Stripe price.");
+    } finally {
+      setIsCreatingPrice(false);
+    }
+  }
+
+  async function save() {
+    if (isSaving) return;
+    setIsSaving(true);
+    setSaveStatus("Saving…");
+    try {
+      await onSave(draft);
+      setSaveStatus("Saved.");
+    } catch (err) {
+      setSaveStatus(err.message || "Save failed.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <div className="editor-card">
+      <h3 className="editor-card__label">Bundle</h3>
+      <div className="delivery-form-grid">
+        <Field label="Title" value={draft.title || ""} onChange={(v) => setDraft((d) => ({ ...d, title: v }))} />
+      </div>
+
+      <h3 className="editor-card__label" style={{ marginTop: "16px" }}>
+        Included issues
+      </h3>
+      {issues.map((issue) => (
+        <label key={issue.id} className="checkbox-row">
+          <input
+            type="checkbox"
+            checked={(draft.includedIssueIds || []).includes(issue.id)}
+            onChange={(e) => toggleIssue(issue.id, e.target.checked)}
+          />
+          <span>{issue.title}</span>
+        </label>
+      ))}
+
+      <h3 className="editor-card__label" style={{ marginTop: "16px" }}>
+        Price
+      </h3>
+      <p className="editor-card__hint">
+        Price is pulled live from Stripe —{" "}
+        {draft.digitalPriceId ? draft.digitalPrice || "not found in Stripe" : "create or set a Price ID"}.
+      </p>
+      <div className="delivery-form-grid">
+        <Field
+          label="Stripe Price ID"
+          value={draft.digitalPriceId || ""}
+          onChange={(v) => setDraft((d) => ({ ...d, digitalPriceId: v }))}
+        />
+      </div>
+      <div className="delivery-form-grid" style={{ marginTop: "8px" }}>
+        <Field label="Create price: amount ($)" value={amountInput} onChange={setAmountInput} />
+      </div>
+      <button
+        type="button"
+        className="button-secondary"
+        onClick={handleCreatePrice}
+        disabled={isCreatingPrice}
+        style={{ marginTop: "8px" }}
+      >
+        {isCreatingPrice ? "Creating…" : "Create Stripe Price"}
+      </button>
+
+      <SaleFields sale={draft.digitalSale} onChange={(next) => setDraft((d) => ({ ...d, digitalSale: next }))} />
+
+      <div className="workspace-detail__actions" style={{ marginTop: "16px" }}>
+        {saveStatus && <span className="status-line">{saveStatus}</span>}
+        <button type="button" className="button-primary" onClick={save} disabled={isSaving}>
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function IssuesWorkspace({ issues, assets, bundle, onSaveIssue, onSaveBundle, onCreateBundlePrice }) {
   const sorted = [...issues].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   const [selectedId, setSelectedId] = useState(null);
   const selected = sorted.find((i) => i.id === selectedId);
@@ -1918,9 +2453,10 @@ function IssuesWorkspace({ issues, assets, onSaveIssue }) {
   return (
     <div className="shop-workspace">
       <header className="shop-workspace__header">
-        <h1>Shop</h1>
+        <h1>Products</h1>
         <p>Click a product to edit its shop settings, pricing, and digital PDF.</p>
       </header>
+      <BundleEditor bundle={bundle} issues={sorted} onSave={onSaveBundle} onCreatePrice={onCreateBundlePrice} />
       <div className="shop-product-list">
         {sorted.map((issue) => (
           <button
@@ -1946,7 +2482,8 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
   const [loginError, setLoginError] = useState("");
   const [adminData, setAdminData] = useState(null);
   const [adminError, setAdminError] = useState("");
-  const [activeTab, setActiveTab] = useState("letters");
+  const [activeGroup, setActiveGroup] = useState("dashboard");
+  const [activeSubTab, setActiveSubTab] = useState("orders");
 
   usePageSeo({
     seo: {
@@ -2018,17 +2555,44 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
     return <div className="state-shell">{adminError || "Loading admin..."}</div>;
   }
 
-  const tabs = [
-    ["orders", "Orders"],
-    ["delivery", "Delivery"],
-    ["share-links", "Share Links"],
-    ["pages", "Pages"],
-    ["issues", "Shop"],
-    ["letters", "Letters"],
-    ["assets", "Assets"],
-    ["redirects", "Redirects"],
-    ["general", "Settings"],
+  const navGroups = [
+    { key: "dashboard", label: "Dashboard" },
+    {
+      key: "orders",
+      label: "Orders",
+      subTabs: [
+        ["orders", "Orders"],
+        ["delivery", "Delivery"],
+      ],
+    },
+    { key: "products", label: "Products" },
+    {
+      key: "customers",
+      label: "Customers",
+      subTabs: [
+        ["customers", "Customers"],
+        ["leads", "Leads"],
+      ],
+    },
+    {
+      key: "content",
+      label: "Content",
+      subTabs: [
+        ["pages", "Pages"],
+        ["letters", "Letters"],
+        ["assets", "Assets"],
+        ["redirects", "Redirects"],
+      ],
+    },
+    { key: "settings", label: "Settings" },
   ];
+
+  const activeGroupConfig = navGroups.find((group) => group.key === activeGroup);
+
+  function selectGroup(group) {
+    setActiveGroup(group.key);
+    setActiveSubTab(group.subTabs ? group.subTabs[0][0] : "");
+  }
 
   return (
     <main className="admin-shell">
@@ -2037,32 +2601,61 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
             ←
           </Link>
         <nav className="admin-sidebar__nav" aria-label="Primary">
-          {tabs.map(([key, label]) => (
-            <button key={key} className={`admin-tab ${activeTab === key ? "is-active" : ""}`} onClick={() => setActiveTab(key)} type="button">
-              {label}
+          {navGroups.map((group) => (
+            <button
+              key={group.key}
+              className={`admin-tab ${activeGroup === group.key ? "is-active" : ""}`}
+              onClick={() => selectGroup(group)}
+              type="button"
+            >
+              {group.label}
             </button>
           ))}
         </nav>
         <button className="admin-tab admin-tab--ghost" onClick={handleLogout} type="button">Logout</button>
       </aside>
       <section className="admin-main">
-        {activeTab === "letters" ? (
-          <LettersAdmin
-            letters={adminData.lettersSubmissions}
-            onSave={async (letter) => syncAfterSave(await api.saveLetter(letter))}
-          />
+        {activeGroupConfig?.subTabs ? (
+          <nav className="admin-subnav" aria-label="Secondary">
+            {activeGroupConfig.subTabs.map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                className={`admin-subnav__pill ${activeSubTab === key ? "is-active" : ""}`}
+                onClick={() => setActiveSubTab(key)}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
         ) : null}
-        {activeTab === "orders" ? <OrdersAdmin /> : null}
-        {activeTab === "delivery" ? <DeliveryAdmin /> : null}
-        {activeTab === "share-links" ? <ShareLinksAdmin assets={adminData.assets || []} /> : null}
-        {activeTab === "issues" ? (
+
+        {activeGroup === "dashboard" ? <DashboardAdmin /> : null}
+
+        {activeGroup === "orders" && activeSubTab === "orders" ? <OrdersAdmin assets={adminData.assets || []} /> : null}
+        {activeGroup === "orders" && activeSubTab === "delivery" ? <DeliveryAdmin /> : null}
+
+        {activeGroup === "products" ? (
           <IssuesWorkspace
             issues={adminData.issues || []}
             assets={adminData.assets || []}
+            bundle={adminData.bundle}
             onSaveIssue={async (issue) => syncAfterSave(await api.saveIssue(issue))}
+            onSaveBundle={async (bundle) => syncAfterSave(await api.saveBundle(bundle))}
+            onCreateBundlePrice={(unitAmountCents) => api.createBundlePrice(unitAmountCents)}
           />
         ) : null}
-        {activeTab === "pages" ? (
+
+        {activeGroup === "customers" && activeSubTab === "customers" ? <CustomersAdmin /> : null}
+        {activeGroup === "customers" && activeSubTab === "leads" ? (
+          <LeadsAdmin
+            leads={adminData.leads || []}
+            issues={adminData.issues || []}
+            onDelete={async (leadId) => syncAfterSave(await api.deleteLead(leadId))}
+          />
+        ) : null}
+
+        {activeGroup === "content" && activeSubTab === "pages" ? (
           <PageWorkspace
             pages={adminData.pages}
             assets={adminData.assets}
@@ -2071,7 +2664,32 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
             onSaveTeamMember={async (member) => syncAfterSave(await api.saveTeamMember(member))}
           />
         ) : null}
-        {activeTab === "redirects" ? (
+        {activeGroup === "content" && activeSubTab === "letters" ? (
+          <LettersAdmin
+            letters={adminData.lettersSubmissions}
+            onSave={async (letter) => syncAfterSave(await api.saveLetter(letter))}
+          />
+        ) : null}
+        {activeGroup === "content" && activeSubTab === "assets" ? (
+          <AssetsEditor
+            assets={adminData.assets}
+            assetFolders={adminData.assetFolders || []}
+            onUpload={async (payload) => syncAfterSave(await api.uploadAssets(payload))}
+            onSaveAsset={async (asset) => syncAfterSave(await api.saveAsset(asset))}
+            onSaveAssetFolders={async (folders) => syncAfterSave(await api.saveAssetFolders(folders))}
+            onDelete={async (assetId) => syncAfterSave(await api.deleteAsset(assetId))}
+            onCreateVariant={async (assetId, variant) =>
+              syncAfterSave(await api.createAssetVariant(assetId, variant))
+            }
+            onUpdateVariant={async (assetId, variantId, variant) =>
+              syncAfterSave(await api.updateAssetVariant(assetId, variantId, variant))
+            }
+            onDeleteVariant={async (assetId, variantId) =>
+              syncAfterSave(await api.deleteAssetVariant(assetId, variantId))
+            }
+          />
+        ) : null}
+        {activeGroup === "content" && activeSubTab === "redirects" ? (
           <SimpleCollectionEditor
             title="Redirects"
             items={adminData.redirects}
@@ -2099,26 +2717,15 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
             ]}
           />
         ) : null}
-        {activeTab === "assets" ? (
-          <AssetsEditor
+
+        {activeGroup === "settings" ? (
+          <SettingsEditor
+            siteSettings={adminData.siteSettings}
             assets={adminData.assets}
-            assetFolders={adminData.assetFolders || []}
-            onUpload={async (payload) => syncAfterSave(await api.uploadAssets(payload))}
-            onSaveAsset={async (asset) => syncAfterSave(await api.saveAsset(asset))}
-            onSaveAssetFolders={async (folders) => syncAfterSave(await api.saveAssetFolders(folders))}
-            onDelete={async (assetId) => syncAfterSave(await api.deleteAsset(assetId))}
-            onCreateVariant={async (assetId, variant) =>
-              syncAfterSave(await api.createAssetVariant(assetId, variant))
-            }
-            onUpdateVariant={async (assetId, variantId, variant) =>
-              syncAfterSave(await api.updateAssetVariant(assetId, variantId, variant))
-            }
-            onDeleteVariant={async (assetId, variantId) =>
-              syncAfterSave(await api.deleteAssetVariant(assetId, variantId))
-            }
+            onSave={async (siteSettings) => syncAfterSave(await api.saveSiteSettings(siteSettings))}
+            title="Settings"
           />
         ) : null}
-        {activeTab === "general" ? <SettingsEditor siteSettings={adminData.siteSettings} assets={adminData.assets} onSave={async (siteSettings) => syncAfterSave(await api.saveSiteSettings(siteSettings))} title="Settings" /> : null}
       </section>
     </main>
   );
