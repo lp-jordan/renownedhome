@@ -166,6 +166,21 @@
   margin-left: auto;
 }
 
+/* The shop panel is a fixed 420px regardless of viewport (see .shop-panel
+   below), so the row layout's existing mobile-only stack (index.css,
+   max-width: 700px) never kicks in here — with two format-toggle pills
+   instead of one label, the row overflows the panel. Stack + center instead,
+   reusing the same toggle → price → button order as the mobile fallback. */
+[data-redesign="1"] .shop-panel .shop-format--toggle {
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: center;
+}
+[data-redesign="1"] .shop-panel .shop-format__copy--price {
+  margin-left: 0;
+}
+
 /* ---------------------------------------------------------------------------
  * Shop page (Phase 2) — portrait card grid + detail panel. Cards show just
  * cover / title / price; tapping one opens the panel (right rail on desktop,
