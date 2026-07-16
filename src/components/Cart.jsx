@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import applePayMark from "../assets/payment-badges/apple-pay-mark.svg";
+import googlePayMark from "../assets/payment-badges/google-pay-mark.svg";
 
 // Cart. Client-side state persisted to
 // localStorage; checkout hands the whole cart to POST /api/checkout, which
@@ -325,8 +327,12 @@ function CartSummary({ issues, bundle }) {
       </div>
       <p className="cart-summary__note">Shipping (if any) and taxes are handled at checkout.</p>
       <p className="cart-summary__paymentIcons">
-        <PaymentCardIcon />
-        <span>Apple Pay · Google Pay · Cards</span>
+        <img src={applePayMark} alt="Apple Pay" />
+        <img src={googlePayMark} alt="Google Pay" />
+        <span className="cart-summary__cardsLabel">
+          <PaymentCardIcon />
+          Cards
+        </span>
       </p>
       {cart.error ? <p className="cart-error">{cart.error}</p> : null}
       <button

@@ -1176,13 +1176,26 @@
   align-items: center;
   gap: var(--space-2);
   margin: var(--space-2) 0 0;
+}
+/* Official Apple Pay / Google Pay marks — shown at native color/contrast per
+   each company's brand guidelines (no opacity/filter, so the mark isn't altered). */
+[data-redesign="1"] .cart-summary__paymentIcons img {
+  height: 28px;
+  width: auto;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+}
+
+[data-redesign="1"] .cart-summary__cardsLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   color: var(--text-dim);
   font-size: var(--fs-sm);
 }
-[data-redesign="1"] .cart-summary__paymentIcons svg {
+[data-redesign="1"] .cart-summary__cardsLabel svg {
   width: 18px;
   height: 18px;
-  flex-shrink: 0;
   opacity: 0.7;
 }
 
