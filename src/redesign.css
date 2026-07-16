@@ -1178,24 +1178,28 @@
   margin: var(--space-2) 0 0;
 }
 /* Official Apple Pay / Google Pay marks — shown at native color/contrast per
-   each company's brand guidelines (no opacity/filter, so the mark isn't altered). */
+   each company's brand guidelines (no opacity/filter, so the mark isn't altered).
+   Apple's SVG viewBox is cropped tight to the visible pill, but Google's official
+   SVG bakes in a much larger clear-space margin (the visible pill is only ~54%
+   of the viewBox height), so the two need different heights to read as the same
+   visual size — scaling the whole image up just adds more of Google's own
+   built-in clear space, it doesn't touch the mark itself. */
 [data-redesign="1"] .cart-summary__paymentIcons img {
-  height: 28px;
   width: auto;
   flex-shrink: 0;
   border-radius: var(--radius-sm);
 }
-
-[data-redesign="1"] .cart-summary__cardsLabel {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--text-dim);
-  font-size: var(--fs-sm);
+[data-redesign="1"] .cart-summary__paymentIcons-apple {
+  height: 28px;
 }
-[data-redesign="1"] .cart-summary__cardsLabel svg {
-  width: 18px;
-  height: 18px;
+[data-redesign="1"] .cart-summary__paymentIcons-google {
+  height: 52px;
+}
+[data-redesign="1"] .cart-summary__paymentIcons svg {
+  height: 28px;
+  width: auto;
+  flex-shrink: 0;
+  color: var(--text-dim);
   opacity: 0.7;
 }
 

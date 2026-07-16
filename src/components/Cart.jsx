@@ -300,9 +300,12 @@ function CartLines({ issues, bundle }) {
   );
 }
 
+// viewBox is cropped tight to the drawn shape (y 5-19, x 3-21 in the original
+// 0-24 box) so its height matches the wallet marks without a padding hack —
+// safe to do since this is our own icon, not a brand's untouchable artwork.
 function PaymentCardIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
+    <svg viewBox="3 5 18 14" aria-label="Cards accepted">
       <path
         d="M3 6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v1H3V6Zm0 3h18v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9Zm2 6h5v1.5H5V15Z"
         fill="currentColor"
@@ -327,12 +330,9 @@ function CartSummary({ issues, bundle }) {
       </div>
       <p className="cart-summary__note">Shipping (if any) and taxes are handled at checkout.</p>
       <p className="cart-summary__paymentIcons">
-        <img src={applePayMark} alt="Apple Pay" />
-        <img src={googlePayMark} alt="Google Pay" />
-        <span className="cart-summary__cardsLabel">
-          <PaymentCardIcon />
-          Cards
-        </span>
+        <img src={applePayMark} alt="Apple Pay" className="cart-summary__paymentIcons-apple" />
+        <img src={googlePayMark} alt="Google Pay" className="cart-summary__paymentIcons-google" />
+        <PaymentCardIcon />
       </p>
       {cart.error ? <p className="cart-error">{cart.error}</p> : null}
       <button
