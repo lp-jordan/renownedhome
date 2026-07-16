@@ -31,6 +31,7 @@ import {
   parseBackerCsv,
 } from "./src/lib/deliveryStore.js";
 import {
+  buildAdminSaleNotificationEmail,
   buildDeliveryEmail,
   buildLibraryLinkEmail,
   buildOrderDeliveryEmail,
@@ -164,6 +165,8 @@ const sessions = new Map();
 const rateLimits = new Map();
 const isProduction = process.env.NODE_ENV === "production";
 const defaultPublicSiteOrigin = "https://renownedcomic.com";
+// Where sale/fulfillment notifications go — overridable via env without a code change.
+const ADMIN_NOTIFICATION_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || "renownedcomicbook@gmail.com";
 const allowedUploadMimeTypes = new Set([
   "application/pdf",
   "image/gif",
@@ -197,6 +200,29 @@ function resolveIssueFromPriceId(data, priceId) {
     }
   }
   return null;
+}
+
+function formatCentsUsd(cents) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format((cents || 0) / 100);
+}
+
+// One line per issue+format, e.g. "2x Issue 1 (physical), Issue 2 (digital)" —
+// purchasedItems is one row per unit (see the webhook below), so units of the
+// same issue/format collapse back into a single readable line here.
+function summarizePurchasedItems(purchasedItems) {
+  const grouped = new Map();
+  for (const item of purchasedItems) {
+    const key = `${item.issueId}|${item.format}`;
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      grouped.set(key, { issueTitle: item.issueTitle, format: item.format, quantity: 1 });
+    }
+  }
+  return [...grouped.values()]
+    .map((g) => `${g.quantity > 1 ? `${g.quantity}x ` : ""}${g.issueTitle} (${g.format})`)
+    .join(", ");
 }
 
 // Refund/dispute events identify the charge/payment_intent, not our checkout
@@ -395,6 +421,19 @@ app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), asyn
     const { subject, html, text } = emailContent;
     await sendResendEmail({ to: customerEmail, subject, html, text }).catch((err) => {
       console.error("Order confirmation email failed:", err.message);
+    });
+  }
+
+  if (resendIsConfigured() && purchasedItems.length > 0) {
+    const adminEmail = buildAdminSaleNotificationEmail({
+      itemsSummary: summarizePurchasedItems(purchasedItems),
+      totalPaidDisplay: formatCentsUsd(purchasedItems.reduce((sum, i) => sum + (i.pricePaid || 0), 0)),
+      customerEmail,
+      hasPhysical: purchasedItems.some((i) => i.format === "physical"),
+      shippingAddress,
+    });
+    await sendResendEmail({ to: ADMIN_NOTIFICATION_EMAIL, ...adminEmail }).catch((err) => {
+      console.error("Admin sale notification email failed:", err.message);
     });
   }
 

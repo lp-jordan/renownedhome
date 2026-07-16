@@ -372,6 +372,84 @@ export function buildPhysicalOrderEmail({ itemList, creatorName, shippingAddress
   };
 }
 
+export function buildAdminSaleNotificationEmail({ itemsSummary, totalPaidDisplay, customerEmail, hasPhysical, shippingAddress }) {
+  const safeItemsSummary = escapeHtml(itemsSummary);
+  const safeTotalPaidDisplay = escapeHtml(totalPaidDisplay);
+  const safeCustomerEmail = escapeHtml(customerEmail || "—");
+  const addressLines = formatShippingAddressLines(shippingAddress).map(escapeHtml);
+
+  const subject = hasPhysical
+    ? `New physical order to fulfill — ${itemsSummary}`
+    : `New sale — ${itemsSummary}`;
+
+  const fulfillmentHtml = hasPhysical
+    ? `
+      <tr>
+        <td style="padding:20px 24px 22px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border:1px solid #3a2a1a;border-radius:18px;background:#241c14;">
+            <tr>
+              <td style="padding:14px 16px;color:#f2f4f8;font-size:14px;line-height:1.6;">
+                <p style="margin:0 0 8px;color:#ffb877;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">Ships to</p>
+                ${addressLines.length ? addressLines.join("<br />") : "No shipping address on file."}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    `
+    : "";
+  const fulfillmentText = hasPhysical
+    ? `\nShips to:\n${addressLines.length ? addressLines.join("\n") : "No shipping address on file."}\n`
+    : "";
+
+  return {
+    subject,
+    html: `
+      <!doctype html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <meta name="x-apple-disable-message-reformatting" />
+          <title>${escapeHtml(subject)}</title>
+        </head>
+        <body style="margin:0;padding:0;background:#0b0f16;font-family:Arial,sans-serif;color:#f2f4f8;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;margin:0;padding:0;background:#0b0f16;border-collapse:collapse;">
+            <tr>
+              <td align="center" style="padding:24px 12px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;max-width:600px;margin:0 auto;background:#10131c;border:1px solid #252b38;border-radius:24px;border-collapse:separate;">
+                  <tr>
+                    <td style="padding:28px 24px 18px;">
+                      <div style="display:inline-block;margin:0 0 14px;padding:7px 12px;border:1px solid #303746;border-radius:999px;background:#171c27;color:#d5dbe6;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;">
+                        ${hasPhysical ? "Action needed" : "New sale"}
+                      </div>
+                      <h1 style="margin:0 0 10px;font-size:26px;line-height:1.2;font-weight:700;color:#ffffff;">${hasPhysical ? "A physical order needs fulfillment." : "You made a sale."}</h1>
+                      <p style="margin:0;color:#aeb7c5;font-size:14px;line-height:1.6;">${safeItemsSummary}</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:0 24px;">
+                      <div style="border-top:1px solid #252b38;font-size:0;line-height:0;">&nbsp;</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:20px 24px 4px;color:#f2f4f8;font-size:14px;line-height:1.8;">
+                      <p style="margin:0;"><strong style="color:#ffffff;">Paid:</strong> ${safeTotalPaidDisplay}</p>
+                      <p style="margin:0;"><strong style="color:#ffffff;">Customer:</strong> ${safeCustomerEmail}</p>
+                    </td>
+                  </tr>
+                  ${fulfillmentHtml}
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
+    `,
+    text: `${hasPhysical ? "A physical order needs fulfillment." : "You made a sale."}\n\n${itemsSummary}\n\nPaid: ${totalPaidDisplay}\nCustomer: ${customerEmail || "—"}\n${fulfillmentText}`,
+  };
+}
+
 // Resend allows 5 requests/second. We stay conservatively under that by
 // serializing every outbound request and enforcing a minimum gap between the
 // start of one request and the next. This gates ALL call sites (batch delivery,
