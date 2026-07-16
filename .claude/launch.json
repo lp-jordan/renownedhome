@@ -1,0 +1,33 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5173,
+      "autoPort": true
+    },
+    {
+      "name": "vite-only",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "cross-env", "API_PORT=3001", "vite"],
+      "port": 5173,
+      "autoPort": true
+    },
+    {
+      "name": "dev-alt",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "cross-env", "API_PORT=3002", "vite", "--port", "5174"],
+      "port": 5174,
+      "autoPort": true
+    },
+    {
+      "name": "dev-alt2",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "cross-env", "API_PORT=3003", "vite", "--port", "5175"],
+      "port": 5175,
+      "autoPort": true
+    }
+  ]
+}

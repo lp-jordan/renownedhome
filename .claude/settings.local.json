@@ -5,7 +5,10 @@
       "Bash(grep -l \"reader\\\\|Reader\" /c/renownedhome/src/components/*.jsx)",
       "Bash(node --input-type=module --eval \"import\\('./server.js'\\).catch\\(e => { console.error\\(e.message\\); process.exit\\(1\\); }\\)\")",
       "Bash(kill %1)",
-      "Bash(node --check /c/renownedhome/server.js)"
+      "Bash(node --check /c/renownedhome/server.js)",
+      "Bash(npm run *)",
+      "Skill(run)",
+      "Skill(run:*)"
     ]
   }
 }

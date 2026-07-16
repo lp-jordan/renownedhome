@@ -591,6 +591,28 @@ function IssueEditor({ issues, assets, onSave, title = "Issues" }) {
               />
             </div>
             <div className="editor-card">
+              <h3 className="editor-card__label">Home carousel crop position</h3>
+              <p className="editor-card__hint">
+                The homepage carousel crops the cover to a 16:9 strip. Drag to move the crop up or down if it's cutting off the wrong part of the art.
+              </p>
+              <div className="cover-focal-editor">
+                <div
+                  className="cover-focal-editor__preview"
+                  style={{
+                    backgroundImage: draft.coverImage ? `url(${draft.coverImage})` : "none",
+                    backgroundPositionY: `${Number.isFinite(draft.carouselFocalY) ? draft.carouselFocalY : 22}%`,
+                  }}
+                />
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={Number.isFinite(draft.carouselFocalY) ? draft.carouselFocalY : 22}
+                  onChange={(e) => setDraft((d) => ({ ...d, carouselFocalY: Number(e.target.value) }))}
+                />
+              </div>
+            </div>
+            <div className="editor-card">
               <div className="delivery-form-grid">
                 <Field label="Title" value={draft.title || ""} onChange={(v) => setDraft((d) => ({ ...d, title: v }))} />
                 <Field label="Short label (e.g. Chapter 1)" value={draft.shortLabel || ""} onChange={(v) => setDraft((d) => ({ ...d, shortLabel: v }))} />
@@ -2432,7 +2454,26 @@ function BundleEditor({ bundle, issues, onSave, onCreatePrice }) {
 function IssuesWorkspace({ issues, assets, bundle, onSaveIssue, onSaveBundle, onCreateBundlePrice }) {
   const sorted = [...issues].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   const [selectedId, setSelectedId] = useState(null);
+  const [flagshipStatus, setFlagshipStatus] = useState("");
   const selected = sorted.find((i) => i.id === selectedId);
+
+  // Only one issue may be flagship at a time: pin the clicked issue, then
+  // unpin whichever issue previously held it (each a separate PUT, since the
+  // API saves one issue per call).
+  async function handleSetFlagship(issue) {
+    if (issue.isFlagship || flagshipStatus === "Saving…") return;
+    setFlagshipStatus("Saving…");
+    const previous = sorted.find((i) => i.isFlagship && i.id !== issue.id);
+    try {
+      await onSaveIssue({ ...issue, isFlagship: true });
+      if (previous) {
+        await onSaveIssue({ ...previous, isFlagship: false });
+      }
+      setFlagshipStatus("");
+    } catch (err) {
+      setFlagshipStatus(err.message || "Couldn't update.");
+    }
+  }
 
   if (selected) {
     return (
@@ -2454,23 +2495,37 @@ function IssuesWorkspace({ issues, assets, bundle, onSaveIssue, onSaveBundle, on
     <div className="shop-workspace">
       <header className="shop-workspace__header">
         <h1>Products</h1>
-        <p>Click a product to edit its shop settings, pricing, and digital PDF.</p>
+        <p>
+          Click a product to edit its shop settings, pricing, and digital PDF. Star an issue to feature its art
+          as the homepage background.
+          {flagshipStatus ? <span className="status-line" style={{ marginLeft: "8px" }}>{flagshipStatus}</span> : null}
+        </p>
       </header>
       <BundleEditor bundle={bundle} issues={sorted} onSave={onSaveBundle} onCreatePrice={onCreateBundlePrice} />
       <div className="shop-product-list">
         {sorted.map((issue) => (
-          <button
-            key={issue.id}
-            type="button"
-            className="shop-product-row"
-            onClick={() => setSelectedId(issue.id)}
-          >
-            <span className="shop-product-row__title">{issue.title}</span>
-            <span className={`shop-product-row__badge ${issue.shop?.listedInShop ? "shop-product-row__badge--listed" : ""}`}>
-              {issue.shop?.listedInShop ? "Listed" : "Unlisted"}
-            </span>
-            <span className="shop-product-row__arrow">→</span>
-          </button>
+          <div key={issue.id} className="shop-product-row">
+            <button
+              type="button"
+              className={`shop-product-row__flagship ${issue.isFlagship ? "is-active" : ""}`}
+              onClick={() => handleSetFlagship(issue)}
+              aria-pressed={Boolean(issue.isFlagship)}
+              title={issue.isFlagship ? "Featured as homepage background" : "Set as homepage background"}
+            >
+              ★
+            </button>
+            <button
+              type="button"
+              className="shop-product-row__main"
+              onClick={() => setSelectedId(issue.id)}
+            >
+              <span className="shop-product-row__title">{issue.title}</span>
+              <span className={`shop-product-row__badge ${issue.shop?.listedInShop ? "shop-product-row__badge--listed" : ""}`}>
+                {issue.shop?.listedInShop ? "Listed" : "Unlisted"}
+              </span>
+              <span className="shop-product-row__arrow">→</span>
+            </button>
+          </div>
         ))}
       </div>
     </div>

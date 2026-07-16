@@ -76,6 +76,17 @@ function getFlagshipIssue(issues) {
   return sellable || ordered[0] || null;
 }
 
+// The issue behind the homepage hero background. An editor can pin one via
+// the "isFlagship" toggle in the admin Products list; otherwise this falls
+// back to getFlagshipIssue's sellable-first pick. Deliberately separate from
+// getFlagshipIssue so the toggle only affects the hero background, not the
+// carousel's starting slide (which still uses getFlagshipIssue directly).
+function getHeroBackgroundIssue(issues) {
+  const ordered = sortByOrder(issues);
+  const pinned = ordered.find((issue) => issue.isFlagship);
+  return pinned || getFlagshipIssue(issues);
+}
+
 function getIssueGallery(issue) {
   return uniqueItems(issue.heroAssets || []);
 }
@@ -115,7 +126,7 @@ export default function PublicSite({ bootstrap, refreshBootstrap }) {
           <Route path="/a/:token" element={<DeliveryAccessPage />} />
           <Route path="/share/:token" element={<ShareAccessPage />} />
           <Route path="/order/:token" element={<OrderDeliveryPage />} />
-          <Route path="/checkout/return" element={<CheckoutReturnPage bootstrap={bootstrap} />} />
+          <Route path="/checkout/return" element={<CheckoutReturnPage />} />
           <Route
             path="/3-10-to-nowhere"
             element={<RedirectPage bootstrap={bootstrap} pathName="/3-10-to-nowhere" />}
@@ -164,7 +175,7 @@ function HomePage({ bootstrap }) {
     SPLASH_HOLD_DURATION;
   const splashTotalDuration = splashOutDelay + SPLASH_OUT_DURATION;
   const featuredLetters = bootstrap.lettersSubmissions.filter((letter) => letter.featured).slice(0, 3);
-  const homeLeadBackground = getIssueFeaturedImage(getFlagshipIssue(bootstrap.issues) || {}) || page.hero.backgroundImage;
+  const homeLeadBackground = getIssueFeaturedImage(getHeroBackgroundIssue(bootstrap.issues) || {}) || page.hero.backgroundImage;
   usePageSeo(page, { siteSettings: bootstrap.siteSettings });
 
   useLayoutEffect(() => {
@@ -362,7 +373,13 @@ function HomeCarousel({ issues }) {
           {issue.shortLabel || issue.title} · {hasCheckout || hasExternal ? "Out Now" : "Coming Soon"}
         </p>
         <Link className="home-carousel__cover" to={issue.slug} aria-label={`View ${issue.title}`}>
-          {cover ? <img src={cover} alt={`${issue.title} cover`} /> : null}
+          {cover ? (
+            <img
+              src={cover}
+              alt={`${issue.title} cover`}
+              style={Number.isFinite(issue.carouselFocalY) ? { objectPosition: `center ${issue.carouselFocalY}%` } : undefined}
+            />
+          ) : null}
         </Link>
         <p className="home-carousel__desc">{hook}</p>
         <div className="home-carousel__actions">

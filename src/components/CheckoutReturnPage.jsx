@@ -6,7 +6,7 @@ import { useSeo } from "../lib/seo";
 const POLL_INTERVAL_MS = 1800;
 const MAX_POLL_ATTEMPTS = 6;
 
-export default function CheckoutReturnPage({ bootstrap }) {
+export default function CheckoutReturnPage() {
   const location = useLocation();
   const sessionId = new URLSearchParams(location.search).get("session_id") || "";
   const [state, setState] = useState({ status: "checking" });
@@ -51,6 +51,8 @@ export default function CheckoutReturnPage({ bootstrap }) {
         cart?.clear();
       }
 
+      const purchasedItems = session.purchasedItems || [];
+
       if (session.deliveryToken) {
         try {
           const deliveryRes = await fetch(`/api/order-delivery/${encodeURIComponent(session.deliveryToken)}`);
@@ -62,6 +64,7 @@ export default function CheckoutReturnPage({ bootstrap }) {
               token: session.deliveryToken,
               email: session.email,
               digitalItems: delivery.items,
+              purchasedItems,
             });
             return;
           }
@@ -71,7 +74,7 @@ export default function CheckoutReturnPage({ bootstrap }) {
       }
 
       if (attempt >= MAX_POLL_ATTEMPTS) {
-        setState({ status: "onboard", token: null, email: session.email, digitalItems: [] });
+        setState({ status: "onboard", token: null, email: session.email, digitalItems: [], purchasedItems });
         return;
       }
 
@@ -94,7 +97,7 @@ export default function CheckoutReturnPage({ bootstrap }) {
         token={state.token}
         email={state.email}
         digitalItems={state.digitalItems}
-        issues={bootstrap?.issues || []}
+        purchasedItems={state.purchasedItems}
       />
     );
   }
@@ -126,11 +129,11 @@ export default function CheckoutReturnPage({ bootstrap }) {
   );
 }
 
-// Redesign path (Phase 4): the return page is an onboarding + upsell moment,
-// not just a receipt. Claims a library session from the paid Stripe session
-// (same email-possession proof as the emailed delivery link), offers Read Now,
-// and cross-sells the rest of the run.
-function CheckoutOnboarding({ sessionId, token, email, digitalItems, issues }) {
+// Redesign path (Phase 4): the return page is an onboarding moment, not just
+// a receipt. Claims a library session from the paid Stripe session (same
+// email-possession proof as the emailed delivery link), offers Read Now, and
+// shows what was just bought.
+function CheckoutOnboarding({ sessionId, token, email, digitalItems, purchasedItems }) {
   const [librarySaved, setLibrarySaved] = useState(false);
 
   useEffect(() => {
@@ -153,14 +156,6 @@ function CheckoutOnboarding({ sessionId, token, email, digitalItems, issues }) {
   }, [sessionId]);
 
   const hasDigital = Boolean(digitalItems?.length);
-  const purchasedIssueIds = new Set((digitalItems || []).map((item) => item.issueId));
-  const upsellIssues = issues
-    .filter((issue) => !purchasedIssueIds.has(issue.id))
-    .filter((issue) => {
-      const shop = issue.shop || {};
-      return Boolean(shop.digitalPriceId || shop.physicalPriceId || shop.externalUrl);
-    })
-    .slice(0, 3);
 
   return (
     <main className="page-stack page-stack--subpage">
@@ -191,21 +186,21 @@ function CheckoutOnboarding({ sessionId, token, email, digitalItems, issues }) {
             Library saved{email ? ` for ${email}` : ""} — no password needed on this device.
           </p>
         ) : null}
-        {upsellIssues.length ? (
-          <section className="checkout-onboard__upsell">
-            <p className="checkout-onboard__upsell-eyebrow">Complete the Run</p>
-            <div className="shop-card-grid shop-card-grid--upsell">
-              {upsellIssues.map((issue) => (
-                <Link key={issue.id} className="shop-card" to={issue.slug}>
+        {purchasedItems?.length ? (
+          <section className="checkout-onboard__purchased">
+            <p className="checkout-onboard__purchased-eyebrow">Your Order</p>
+            <div className="shop-card-grid shop-card-grid--purchased">
+              {purchasedItems.map((item, index) => (
+                <div key={`${item.issueId}-${item.format}-${index}`} className="shop-card">
                   <div className="shop-card__media">
-                    {issue.coverImage ? (
-                      <img src={issue.coverImage} alt={`${issue.title} cover`} />
+                    {item.coverImage ? (
+                      <img src={item.coverImage} alt={`${item.title} cover`} />
                     ) : (
                       <div className="shop-card__placeholder">Cover coming soon</div>
                     )}
                   </div>
-                  <p className="shop-card__title">{issue.title}</p>
-                </Link>
+                  <p className="shop-card__title">{item.title}</p>
+                </div>
               ))}
             </div>
           </section>

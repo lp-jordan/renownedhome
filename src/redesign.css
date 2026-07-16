@@ -1011,7 +1011,7 @@
 
 [data-redesign="1"] .cart-drawer__eyebrow,
 [data-redesign="1"] .library-eyebrow,
-[data-redesign="1"] .checkout-onboard__upsell-eyebrow {
+[data-redesign="1"] .checkout-onboard__purchased-eyebrow {
   margin: 0 0 var(--space-4);
   color: var(--brass);
   font-family: "Josefin Sans", sans-serif;
@@ -1212,8 +1212,16 @@
 }
 
 /* ---------------------------------------------------------------------------
- * Phase 4 — Checkout return: onboarding + post-purchase upsell
+ * Phase 4 — Checkout return: onboarding + "what you bought" recap
  * ------------------------------------------------------------------------- */
+
+/* Every element in the onboarding card is centered except the eyebrow pill,
+ * which stays at its natural (flow-start) position — hence targeting h1/p
+ * here rather than a blanket text-align on the header. */
+[data-redesign="1"] .checkout-onboard .order-delivery__header h1,
+[data-redesign="1"] .checkout-onboard .order-delivery__header p {
+  text-align: center;
+}
 
 [data-redesign="1"] .checkout-onboard__actions {
   display: flex;
@@ -1229,12 +1237,17 @@
   font-size: var(--fs-sm);
 }
 
-[data-redesign="1"] .checkout-onboard__upsell {
+[data-redesign="1"] .checkout-onboard__purchased {
   margin-top: var(--space-7);
   text-align: center;
 }
 
-[data-redesign="1"] .shop-card-grid--upsell {
+/* Purchased-item cards are a recap, not a link — no hover affordance. */
+[data-redesign="1"] .checkout-onboard__purchased .shop-card {
+  cursor: default;
+}
+
+[data-redesign="1"] .shop-card-grid--purchased {
   width: min(100%, 640px);
   grid-template-columns: repeat(auto-fit, minmax(140px, 180px));
   justify-content: center;
@@ -1310,6 +1323,10 @@
   margin-bottom: var(--space-5);
 }
 
+[data-redesign="1"] .library-shell .empty-state {
+  text-align: center;
+}
+
 [data-redesign="1"] .library-account {
   margin-top: var(--space-6);
   text-align: center;
@@ -1378,12 +1395,31 @@
   font-family: "Josefin Sans", sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  line-height: 1.3;
+  /* Reserves 2 lines so the action row lines up across cards regardless of
+   * how many lines a given title wraps to. */
+  min-height: calc(1.3em * 2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 [data-redesign="1"] .library-item__actions {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-2);
+}
+
+[data-redesign="1"] .library-item__icon-btn {
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  flex: 0 0 auto;
+}
+[data-redesign="1"] .library-item__icon-btn svg {
+  width: 1.15rem;
+  height: 1.15rem;
 }
 
 [data-redesign="1"] .library-item__pending {

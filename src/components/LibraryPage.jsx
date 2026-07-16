@@ -8,6 +8,28 @@ import { useSeo } from "../lib/seo";
 // the email) is exchanged for a session cookie. Signed-in state lists every
 // digital issue the email owns, readable in-browser and downloadable.
 
+function ReadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 6.5c-1.6-1.2-3.7-1.8-6-1.8-.55 0-1 .35-1 .9v11.9c0 .5.4.9.9.9 2.2 0 4.2.6 5.7 1.8.24.19.59.19.83 0C13.9 19 15.9 18.4 18.1 18.4c.5 0 .9-.4.9-.9V5.6c0-.55-.45-.9-1-.9-2.3 0-4.4.6-6 1.8Zm-1 10.75c-1.5-.85-3.3-1.3-5-1.35V6.75c1.7.1 3.5.6 5 1.55v9Zm2 0v-9c1.5-.95 3.3-1.45 5-1.55V15.9c-1.7.05-3.5.5-5 1.35Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M11 4h2v8.6l2.9-2.9 1.4 1.4L12 16.4l-5.3-5.3 1.4-1.4L11 12.6V4ZM5 18h14v2H5v-2Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 function getIssueReaderImages(issue) {
   if (!issue) {
     return [];
@@ -214,13 +236,25 @@ function LibraryContents({ library, issues, onRead, onLogout }) {
                 <p className="library-item__title">{item.issueTitle}</p>
                 <div className="library-item__actions">
                   {canRead ? (
-                    <button type="button" className="button-primary" onClick={() => onRead(item)}>
-                      Read
+                    <button
+                      type="button"
+                      className="button-primary library-item__icon-btn"
+                      onClick={() => onRead(item)}
+                      title="Read"
+                      aria-label={`Read ${item.issueTitle}`}
+                    >
+                      <ReadIcon />
                     </button>
                   ) : null}
                   {item.downloadUrl ? (
-                    <a className="button-secondary" href={item.downloadUrl} download>
-                      Download
+                    <a
+                      className="button-secondary library-item__icon-btn"
+                      href={item.downloadUrl}
+                      download
+                      title="Download"
+                      aria-label={`Download ${item.issueTitle}`}
+                    >
+                      <DownloadIcon />
                     </a>
                   ) : !canRead ? (
                     <p className="library-item__pending">
@@ -234,7 +268,7 @@ function LibraryContents({ library, issues, onRead, onLogout }) {
         </div>
       ) : (
         <div className="empty-state">
-          Nothing here yet — digital issues you buy will land in this library automatically.
+          Nothing here yet - digital issues you buy will land in this library automatically.
         </div>
       )}
       <div className="library-footer">

@@ -181,6 +181,24 @@ const normalizedRasterMimeTypes = new Set([
 app.disable("x-powered-by");
 app.set("trust proxy", isProduction ? 1 : false);
 
+// Resolve purchased issues from price IDs — matches either a format's base
+// price or its currently-active sale price, since a paid session may
+// reference either depending on when it was checked out. Shared by the
+// webhook (order fulfillment) and the checkout-session endpoint (return-page
+// display), so "what did they buy" doesn't depend on which one runs first.
+function resolveIssueFromPriceId(data, priceId) {
+  for (const issue of data.issues || []) {
+    const shop = issue.shop || {};
+    if (priceId === shop.digitalPriceId || priceId === shop.digitalSale?.priceId) {
+      return { issue, format: "digital" };
+    }
+    if (priceId === shop.physicalPriceId || priceId === shop.physicalSale?.priceId) {
+      return { issue, format: "physical" };
+    }
+  }
+  return null;
+}
+
 // Stripe webhooks require the raw request body for signature verification.
 // This must be registered before express.json() so the route gets the buffer.
 app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), async (req, res) => {
@@ -222,26 +240,10 @@ app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), asyn
   const customerEmail = session.customer_details?.email || "";
   const shippingAddress = session.shipping_details?.address || null;
 
-  // Resolve purchased issues from price IDs — matches either a format's base
-  // price or its currently-active sale price, since a paid session may
-  // reference either depending on when it was checked out.
-  function findIssueByPriceId(priceId) {
-    for (const issue of data.issues || []) {
-      const shop = issue.shop || {};
-      if (priceId === shop.digitalPriceId || priceId === shop.digitalSale?.priceId) {
-        return { issue, format: "digital" };
-      }
-      if (priceId === shop.physicalPriceId || priceId === shop.physicalSale?.priceId) {
-        return { issue, format: "physical" };
-      }
-    }
-    return null;
-  }
-
   const purchasedItems = [];
   for (const item of lineItems.data) {
     const priceId = item.price?.id;
-    const match = findIssueByPriceId(priceId);
+    const match = resolveIssueFromPriceId(data, priceId);
     if (match) {
       const { issue, format } = match;
       purchasedItems.push({
@@ -2143,8 +2145,48 @@ app.get("/api/checkout/session/:sessionId", async (req, res) => {
   // The order + delivery token are created asynchronously by the Stripe webhook,
   // so the token may not exist yet on the first poll after returning from checkout.
   let deliveryToken = null;
+  // Unlike the delivery token, what was purchased is read straight off the
+  // Stripe session's line items — no need to wait on the webhook for that.
+  const purchasedItems = [];
   if (paid) {
     deliveryToken = await ordersStore.getDeliveryTokenBySessionId(session.id);
+
+    try {
+      const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+        expand: ["data.price.product"],
+      });
+      const data = await repository.getAllData();
+      for (const item of lineItems.data) {
+        const priceId = item.price?.id;
+        const match = resolveIssueFromPriceId(data, priceId);
+        if (match) {
+          purchasedItems.push({
+            issueId: match.issue.id,
+            title: match.issue.title,
+            coverImage: match.issue.coverImage || "",
+            format: match.format,
+          });
+          continue;
+        }
+
+        const bundle = data.bundle;
+        if (bundle && (priceId === bundle.digitalPriceId || priceId === bundle.digitalSale?.priceId)) {
+          const includedIssues = (bundle.includedIssueIds || [])
+            .map((id) => data.issues?.find((i) => i.id === id))
+            .filter(Boolean);
+          for (const issue of includedIssues) {
+            purchasedItems.push({
+              issueId: issue.id,
+              title: issue.title,
+              coverImage: issue.coverImage || "",
+              format: "digital",
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to resolve purchased items for session ${session.id}:`, err?.message || err);
+    }
   }
 
   res.json({
@@ -2152,6 +2194,7 @@ app.get("/api/checkout/session/:sessionId", async (req, res) => {
     status: session.status,
     email: session.customer_details?.email || "",
     deliveryToken,
+    purchasedItems,
   });
 });
 
