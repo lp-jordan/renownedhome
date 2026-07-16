@@ -98,7 +98,10 @@ function getIssueReaderImages(issue) {
 export default function PublicSite({ bootstrap, refreshBootstrap }) {
   const location = useLocation();
   const hideBreadcrumbs =
-    location.pathname.startsWith("/a/") || location.pathname.startsWith("/share/");
+    location.pathname.startsWith("/a/") ||
+    location.pathname.startsWith("/share/") ||
+    location.pathname.startsWith("/order/") ||
+    location.pathname.startsWith("/checkout/return");
 
   useEffect(() => {
     window.scrollTo(0, 0);

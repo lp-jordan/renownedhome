@@ -29,9 +29,9 @@ function LibraryClaimBanner({ token }) {
 
   return (
     <div className="library-claim">
-      <p>These issues are yours to keep — save them to your library and skip this link next time.</p>
+      <p>These issues are already in your library — open it to browse everything you own and skip this link next time.</p>
       <button type="button" className="button-secondary" onClick={handleClaim} disabled={status === "pending"}>
-        {status === "pending" ? "Opening…" : "Save to My Library"}
+        {status === "pending" ? "Opening…" : "Go to My Library"}
       </button>
       {status === "error" ? <p className="library-claim__error">Could not open your library. Try again.</p> : null}
     </div>
