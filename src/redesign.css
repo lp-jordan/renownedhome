@@ -1035,6 +1035,17 @@
   letter-spacing: 0.22em;
 }
 
+/* The close button is absolutely positioned over this row (top/right: 1rem,
+   2.2rem circle) rather than laid out in flow with it, so — unlike the
+   shared rule above — reserve real space for it here: right padding wide
+   enough that the eyebrow text can never run under the button regardless of
+   copy length, and enough top clearance that the button's full height
+   doesn't encroach on the next block (.cart-lines) below it. */
+[data-redesign="1"] .cart-drawer__eyebrow {
+  padding-top: 0.3rem;
+  padding-right: 3rem;
+}
+
 @media (max-width: 700px) {
   [data-redesign="1"] .cart-drawer__backdrop {
     align-items: flex-end;
