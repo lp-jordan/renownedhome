@@ -149,7 +149,7 @@ export const defaultSiteData = {
         newsletterCardEyebrow: "The Headlines",
         newsletterCardTitle: "Subscribe on Substack",
         newsletterCtaLabel: "Read The Headlines",
-        newsletterCtaUrl: "https://substack.com",
+        newsletterCtaUrl: "https://renownedcomic.substack.com/",
         feedHeading: "Latest from The Headlines",
         feedItems: [
           "A new update from the studio will appear here once your newsletter feed is wired in.",

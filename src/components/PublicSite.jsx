@@ -1554,8 +1554,10 @@ function SiteFooter({ footer, connectPage }) {
         <Link to="/letters">Letters</Link>
         <Link to="/library">My Library</Link>
       </nav>
-      <p>{footer?.copyright}</p>
-      <p>{footer?.email}</p>
+      <div className="site-footer__legal">
+        <p>{footer?.copyright}</p>
+        <p>{footer?.email}</p>
+      </div>
     </footer>
   );
 }
