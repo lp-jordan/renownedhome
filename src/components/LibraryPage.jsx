@@ -223,7 +223,7 @@ function LibraryContents({ library, issues, onRead, onLogout }) {
         <div className="library-grid">
           {items.map((item) => {
             const issue = issues.find((entry) => entry.id === item.issueId);
-            const canRead = Boolean(item.downloadUrl || getIssueReaderImages(issue).length);
+            const canRead = Boolean(item.readerUrl || item.downloadUrl || getIssueReaderImages(issue).length);
             return (
               <article key={item.issueId} className="library-item">
                 <div className="library-item__media">
@@ -306,7 +306,8 @@ function LibraryReaderOverlay({ item, issue, onClose }) {
     };
   }, [onClose]);
 
-  const fallbackPages = item.downloadUrl ? [] : getIssueReaderImages(issue).map((url) => ({ url }));
+  const pdfUrl = item.readerUrl || item.downloadUrl || undefined;
+  const fallbackPages = pdfUrl ? [] : getIssueReaderImages(issue).map((url) => ({ url }));
 
   return (
     <div className="comic-reader comic-reader--redesign comic-reader--chrome-visible">
@@ -319,7 +320,7 @@ function LibraryReaderOverlay({ item, issue, onClose }) {
           </button>
         </header>
         <div className="comic-reader__stage comic-reader__stage--inline">
-          <InlinePdfReader pdfUrl={item.downloadUrl || undefined} pages={fallbackPages} />
+          <InlinePdfReader pdfUrl={pdfUrl} pages={fallbackPages} />
         </div>
       </div>
     </div>

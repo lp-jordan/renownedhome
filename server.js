@@ -2310,6 +2310,10 @@ async function buildDigitalItemPayload(data, { issueId, issueTitle }) {
     issueSlug: issue?.slug || "",
     coverImage: issue?.coverImage || "",
     downloadUrl,
+    // Same-origin proxy for in-browser reading (see /api/library/files/:issueId/content
+    // below) — unlike downloadUrl, this isn't a direct cross-origin storage URL, so the
+    // reader's fetch() isn't subject to the bucket's CORS policy.
+    readerUrl: objectKey && storageIsConfigured() ? `/api/library/files/${encodeURIComponent(issueId)}/content` : null,
     hasAsset: Boolean(asset),
   };
 }
@@ -2505,6 +2509,42 @@ app.get("/api/library", async (req, res) => {
       })),
     })),
   });
+});
+
+app.get("/api/library/files/:issueId/content", async (req, res) => {
+  const session = await ordersStore.readLibrarySession(req.cookies?.[LIBRARY_COOKIE]);
+  if (!session) {
+    res.status(401).json({ error: "Not signed in." });
+    return;
+  }
+
+  const { items } = await resolveOwnedIssuesForEmail(session.email);
+  const owned = items.find((item) => item.issueId === req.params.issueId);
+  if (!owned || !owned.hasAsset) {
+    res.status(404).json({ error: "This file is unavailable." });
+    return;
+  }
+
+  const data = await repository.getAllData();
+  const issue = data.issues?.find((i) => i.id === req.params.issueId);
+  const asset = resolveAssetByRef(data, issue?.shop?.digitalAssetId);
+  const objectKey = asset?.metadata?.objectKey;
+  if (!objectKey || !storageIsConfigured()) {
+    res.status(404).json({ error: "This file is unavailable." });
+    return;
+  }
+
+  try {
+    await streamStorageFile(res, {
+      key: objectKey,
+      contentType: asset.metadata?.contentType,
+      disposition: "inline",
+      filename: asset.metadata?.fileName || asset.label || "issue.pdf",
+    });
+  } catch (error) {
+    console.error("Library read stream failed", error);
+    res.status(500).json({ error: "This file is unavailable." });
+  }
 });
 
 app.post("/api/library/logout", async (req, res) => {
