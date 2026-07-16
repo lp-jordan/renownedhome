@@ -162,8 +162,26 @@
   color: var(--on-brass);
 }
 
+[data-redesign="1"] .format-toggle__option--soldout {
+  color: rgba(242, 244, 248, 0.4);
+  cursor: default;
+  pointer-events: none;
+}
+[data-redesign="1"] .format-toggle__option--soldout.format-toggle__option--active {
+  background: transparent;
+  color: rgba(242, 244, 248, 0.4);
+}
+
 [data-redesign="1"] .shop-format__copy--price {
   margin-left: auto;
+}
+
+[data-redesign="1"] .shop-format__stock-note {
+  display: block;
+  color: var(--danger);
+  font-size: var(--fs-sm);
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 /* The shop panel is a fixed 420px regardless of viewport (see .shop-panel

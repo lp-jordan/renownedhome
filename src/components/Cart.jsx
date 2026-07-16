@@ -39,6 +39,13 @@ function getFormatPriceId(issue, format) {
   return format === "digital" ? issue?.shop?.digitalPriceId : issue?.shop?.physicalPriceId;
 }
 
+// Digital is never stock-limited. Physical stays capped at the flat 10-per-line
+// limit unless physicalStock is a lower number (undefined/null = unlimited).
+function getQuantityCap(issue, format) {
+  const stock = format === "physical" ? issue?.shop?.physicalStock : null;
+  return typeof stock === "number" ? Math.min(10, Math.max(stock, 0)) : 10;
+}
+
 function getFormatPriceDisplay(issue, format) {
   return (format === "digital" ? issue?.shop?.digitalPrice : issue?.shop?.physicalPrice) || "";
 }
@@ -63,33 +70,50 @@ export function CartProvider({ issues, bundle, children }) {
   }, [items]);
 
   // Drop lines whose issue/format is no longer purchasable (issue unlisted,
-  // price removed) or whose bundle is no longer purchasable, so a stale cart
-  // can't produce a failing checkout.
+  // price removed, physical sold out) or whose bundle is no longer
+  // purchasable, and clamp quantity down if remaining stock dropped below
+  // what's already in the cart, so a stale cart can't produce a failing
+  // checkout.
   useEffect(() => {
     setItems((current) =>
-      current.filter((item) => {
-        if (item.kind === "bundle") {
-          return Boolean(bundle && bundle.id === item.bundleId && bundle.digitalPriceId);
-        }
-        const issue = issues.find((entry) => entry.id === item.issueId);
-        return Boolean(getFormatPriceId(issue, item.format));
-      }),
+      current
+        .map((item) => {
+          if (item.kind === "bundle") return item;
+          const issue = issues.find((entry) => entry.id === item.issueId);
+          const cap = getQuantityCap(issue, item.format);
+          return cap < (item.quantity || 1) ? { ...item, quantity: cap } : item;
+        })
+        .filter((item) => {
+          if (item.kind === "bundle") {
+            return Boolean(bundle && bundle.id === item.bundleId && bundle.digitalPriceId);
+          }
+          const issue = issues.find((entry) => entry.id === item.issueId);
+          // item.quantity === 0 is how the map step above marks a now-sold-out
+          // line for removal; `item.quantity || 1` would treat that 0 as
+          // falsy and wrongly keep the line, so check explicitly.
+          return Boolean(getFormatPriceId(issue, item.format)) && item.quantity !== 0;
+        }),
     );
   }, [issues, bundle]);
 
   const addItem = useCallback((issueId, format) => {
+    const issue = issues.find((entry) => entry.id === issueId);
+    const cap = getQuantityCap(issue, format);
+    if (cap <= 0) {
+      return;
+    }
     setItems((current) => {
       const existing = current.find((item) => item.issueId === issueId && item.format === format);
       if (existing) {
         return current.map((item) =>
-          item === existing ? { ...item, quantity: Math.min((item.quantity || 1) + 1, 10) } : item,
+          item === existing ? { ...item, quantity: Math.min((item.quantity || 1) + 1, cap) } : item,
         );
       }
       return [...current, { issueId, format, quantity: 1 }];
     });
     setError("");
     setIsOpen(true);
-  }, []);
+  }, [issues]);
 
   const removeItem = useCallback((issueId, format) => {
     setItems((current) => current.filter((item) => !(item.issueId === issueId && item.format === format)));
@@ -99,13 +123,14 @@ export function CartProvider({ issues, bundle, children }) {
     setItems((current) =>
       quantity <= 0
         ? current.filter((item) => !(item.issueId === issueId && item.format === format))
-        : current.map((item) =>
-            item.issueId === issueId && item.format === format
-              ? { ...item, quantity: Math.min(quantity, 10) }
-              : item,
-          ),
+        : current.map((item) => {
+            if (item.issueId !== issueId || item.format !== format) return item;
+            const issue = issues.find((entry) => entry.id === issueId);
+            const cap = getQuantityCap(issue, format);
+            return { ...item, quantity: Math.min(quantity, cap) };
+          }),
     );
-  }, []);
+  }, [issues]);
 
   const addBundle = useCallback((bundleId) => {
     setItems((current) => {

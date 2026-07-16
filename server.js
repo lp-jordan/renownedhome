@@ -307,15 +307,26 @@ app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), asyn
     const match = resolveIssueFromPriceId(data, priceId);
     if (match) {
       const { issue, format } = match;
-      purchasedItems.push({
-        id: crypto.randomUUID(),
-        orderId,
-        issueId: issue.id,
-        issueTitle: issue.title,
-        format,
-        pricePaid: item.amount_total || 0,
-        digitalAssetId: format === "digital" ? (issue.shop?.digitalAssetId || "") : "",
-      });
+      // One purchasedItems row per unit (not per Stripe line item) so order
+      // history, admin stats, and physical stock decrements all reflect the
+      // actual quantity bought — a quantity>1 line used to collapse into a
+      // single row. Mirrors the bundle expansion below: the first unit
+      // absorbs the rounding remainder so the split sums back to amount_total.
+      const quantity = Math.max(Math.trunc(item.quantity) || 1, 1);
+      const perUnitCents = Math.floor((item.amount_total || 0) / quantity);
+      for (let unit = 0; unit < quantity; unit++) {
+        purchasedItems.push({
+          id: crypto.randomUUID(),
+          orderId,
+          issueId: issue.id,
+          issueTitle: issue.title,
+          format,
+          pricePaid: unit === 0
+            ? (item.amount_total || 0) - perUnitCents * (quantity - 1)
+            : perUnitCents,
+          digitalAssetId: format === "digital" ? (issue.shop?.digitalAssetId || "") : "",
+        });
+      }
       continue;
     }
 
@@ -351,6 +362,20 @@ app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), asyn
     items: purchasedItems,
     deliveryToken,
   });
+
+  // Stock is a best-effort side effect of a payment that already succeeded —
+  // the order itself is the source of truth for what was paid for, so a
+  // failure here is logged, not fatal to the webhook response.
+  const physicalUnitsByIssue = new Map();
+  for (const item of purchasedItems) {
+    if (item.format !== "physical") continue;
+    physicalUnitsByIssue.set(item.issueId, (physicalUnitsByIssue.get(item.issueId) || 0) + 1);
+  }
+  for (const [issueId, quantity] of physicalUnitsByIssue) {
+    await repository.decrementPhysicalStock(issueId, quantity).catch((err) => {
+      console.error("Physical stock decrement failed:", err?.message || err);
+    });
+  }
 
   const digitalItems = purchasedItems.filter((i) => i.format === "digital" && i.digitalAssetId);
   const creatorName = data.siteSettings?.brandName || "Renowned";
@@ -969,6 +994,22 @@ class FileRepository {
   async writeAllData(data) {
     await fs.writeFile(this.filePath, JSON.stringify(data, null, 2), "utf8");
   }
+
+  // Best-effort, not row-locked — same read/mutate/writeAllData shape as every
+  // other write in this repository, so it carries the same last-write-wins
+  // characteristic those already have under concurrent writes. Acceptable for
+  // a small, genuinely-limited print run; revisit with real locking if
+  // concurrent sales of the same issue ever become common enough to matter.
+  async decrementPhysicalStock(issueId, quantity) {
+    const data = await this.getAllData();
+    const issue = data.issues?.find((entry) => entry.id === issueId);
+    const currentStock = issue?.shop?.physicalStock;
+    if (!issue || typeof currentStock !== "number") {
+      return;
+    }
+    issue.shop.physicalStock = Math.max(currentStock - quantity, 0);
+    await this.writeAllData(data);
+  }
 }
 
 class PgRepository {
@@ -1214,6 +1255,22 @@ class PgRepository {
     } finally {
       client.release();
     }
+  }
+
+  // Best-effort, not row-locked — same read/mutate/writeAllData shape as every
+  // other write in this repository, so it carries the same last-write-wins
+  // characteristic those already have under concurrent writes. Acceptable for
+  // a small, genuinely-limited print run; revisit with real locking if
+  // concurrent sales of the same issue ever become common enough to matter.
+  async decrementPhysicalStock(issueId, quantity) {
+    const data = await this.getAllData();
+    const issue = data.issues?.find((entry) => entry.id === issueId);
+    const currentStock = issue?.shop?.physicalStock;
+    if (!issue || typeof currentStock !== "number") {
+      return;
+    }
+    issue.shop.physicalStock = Math.max(currentStock - quantity, 0);
+    await this.writeAllData(data);
   }
 
   async createSession(user, ttlMs) {
@@ -2150,6 +2207,14 @@ app.post("/api/checkout", async (req, res) => {
       return;
     }
     const quantity = Math.min(Math.max(Math.trunc(Number(entry.quantity) || 1), 1), 10);
+    if (entryFormat === "physical" && typeof issue.shop?.physicalStock === "number" && quantity > issue.shop.physicalStock) {
+      res.status(400).json({
+        error: issue.shop.physicalStock > 0
+          ? `Only ${issue.shop.physicalStock} left of ${issue.title} (physical).`
+          : `${issue.title} (physical) is sold out.`,
+      });
+      return;
+    }
     hasPhysical = hasPhysical || entryFormat === "physical";
     lineItems.push({ price: priceId, quantity });
   }

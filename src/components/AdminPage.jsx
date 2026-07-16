@@ -734,6 +734,11 @@ function IssueEditor({ issues, assets, onSave, title = "Issues" }) {
                   value={shop.physicalPriceId || ""}
                   onChange={(v) => setShopField("physicalPriceId", v)}
                 />
+                <Field
+                  label="Stock remaining (blank = unlimited)"
+                  value={shop.physicalStock != null ? String(shop.physicalStock) : ""}
+                  onChange={(v) => setShopField("physicalStock", v.trim() === "" ? null : Math.max(Math.trunc(Number(v)) || 0, 0))}
+                />
               </div>
               <SaleFields sale={shop.physicalSale} onChange={(next) => setDraft((d) => ({ ...d, shop: { ...(d.shop || {}), physicalSale: next } }))} />
             </div>

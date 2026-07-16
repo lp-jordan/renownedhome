@@ -675,9 +675,20 @@ function ShopDetailPanel({ product, onClose }) {
 // Per-card format toggle (redesign flag only, Phase 2): one price + one CTA
 // instead of a stacked Buy Digital / Buy Physical pair. As of Phase 4 the CTA
 // is a real add-to-cart (opens the cart drawer); checkout happens from the cart.
+// Below this many remaining, show the count as an urgency nudge; at 0, the
+// format is sold out but still shown (disabled) rather than hidden, so a
+// buyer who wanted it knows a print run existed.
+const LOW_STOCK_THRESHOLD = 5;
+
 function ShopFormatToggle({ issue }) {
   const cart = useCart();
   const shop = issue.shop || {};
+  const physicalStock = shop.physicalStock;
+  const physicalSoldOut = typeof physicalStock === "number" && physicalStock <= 0;
+  const physicalLowStock =
+    typeof physicalStock === "number" && physicalStock > 0 && physicalStock <= LOW_STOCK_THRESHOLD
+      ? physicalStock
+      : null;
   const formats = [
     shop.digitalPriceId && {
       key: "digital",
@@ -690,6 +701,8 @@ function ShopFormatToggle({ issue }) {
       label: "Physical",
       price: shop.physicalPrice,
       basePrice: shop.physicalOnSale ? shop.physicalBasePrice : null,
+      soldOut: physicalSoldOut,
+      lowStock: physicalLowStock,
     },
   ].filter(Boolean);
   const [selectedKey, setSelectedKey] = useState(formats[0]?.key);
@@ -730,29 +743,32 @@ function ShopFormatToggle({ issue }) {
             <button
               key={format.key}
               type="button"
-              className={`format-toggle__option ${format.key === current.key ? "format-toggle__option--active" : ""}`}
+              className={`format-toggle__option ${format.key === current.key ? "format-toggle__option--active" : ""} ${format.soldOut ? "format-toggle__option--soldout" : ""}`}
               aria-pressed={format.key === current.key}
+              disabled={format.soldOut}
               onClick={() => setSelectedKey(format.key)}
             >
-              {format.label}
+              {format.soldOut ? `${format.label} — Sold out` : format.label}
             </button>
           ))}
         </div>
       ) : (
         <div className="shop-format__copy">
-          <span>{current.label}</span>
+          <span>{current.soldOut ? `${current.label} — Sold out` : current.label}</span>
         </div>
       )}
       <div className="shop-format__copy shop-format__copy--price">
         {current.basePrice ? <s>{current.basePrice}</s> : null}
         {current.price && <small>{current.price}</small>}
+        {current.lowStock ? <span className="shop-format__stock-note">Only {current.lowStock} left</span> : null}
       </div>
       <button
         type="button"
         className="button-primary shop-format__button"
         onClick={() => cart.addItem(issue.id, current.key)}
+        disabled={current.soldOut}
       >
-        Add to Cart
+        {current.soldOut ? "Sold Out" : "Add to Cart"}
       </button>
     </div>
   );
