@@ -1921,6 +1921,18 @@ function formatCents(cents) {
   return `$${(Number(cents || 0) / 100).toFixed(2)}`;
 }
 
+const ORDER_STATUS_LABELS = {
+  refunded: "Refunded",
+  partially_refunded: "Partially refunded",
+  disputed: "Disputed",
+};
+
+function OrderStatusBadge({ status }) {
+  const label = ORDER_STATUS_LABELS[status];
+  if (!label) return <span className="field-help">Paid</span>;
+  return <span className={`status-badge status-badge--${status.replace(/_/g, "-")}`}>{label}</span>;
+}
+
 // Merges Orders (Stripe purchases) + Share Links (one-off PDF sends) into one
 // fulfillment view, since both are "who got what" — reads both existing
 // endpoints and renders one table with a type badge, no new backend for the merge.
@@ -2005,6 +2017,7 @@ function OrdersAdmin({ assets = [] }) {
             <th>Items</th>
             <th>Shipping</th>
             <th>Total</th>
+            <th>Status</th>
             <th>Fulfillment</th>
           </tr>
         </thead>
@@ -2023,6 +2036,7 @@ function OrdersAdmin({ assets = [] }) {
               </td>
               <td className="orders-table__shipping">{row.shipping ? formatShippingAddress(row.shipping) : "—"}</td>
               <td className="orders-table__total">{row.total != null ? formatCents(row.total) : "—"}</td>
+              <td>{row.order ? <OrderStatusBadge status={row.order.status} /> : <span className="field-help">—</span>}</td>
               <td>
                 {row.order && row.type === "Physical" ? (
                   row.order.fulfillment_status === "shipped" ? (

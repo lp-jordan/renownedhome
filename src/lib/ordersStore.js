@@ -90,6 +90,15 @@ export class PgOrdersStore {
     return row.rows[0]?.token || null;
   }
 
+  async getOrderStatusBySessionId(stripeSessionId) {
+    const row = await this.pool.query("SELECT status FROM orders WHERE stripe_session_id = $1", [stripeSessionId]);
+    return row.rows[0]?.status || null;
+  }
+
+  async updateOrderStatusBySessionId(stripeSessionId, status) {
+    await this.pool.query("UPDATE orders SET status = $1 WHERE stripe_session_id = $2", [status, stripeSessionId]);
+  }
+
   async getOrderByDeliveryToken(token) {
     const deliveryRow = await this.pool.query(
       "SELECT order_id FROM order_deliveries WHERE token = $1",
@@ -101,7 +110,7 @@ export class PgOrdersStore {
 
     const orderId = deliveryRow.rows[0].order_id;
     const [orderRow, itemRows] = await Promise.all([
-      this.pool.query("SELECT customer_email, created_at FROM orders WHERE id = $1", [orderId]),
+      this.pool.query("SELECT customer_email, created_at FROM orders WHERE id = $1 AND status != 'refunded'", [orderId]),
       this.pool.query("SELECT issue_id, issue_title, format, price_paid FROM order_items WHERE order_id = $1", [orderId]),
     ]);
     if (orderRow.rows.length === 0) {
@@ -161,14 +170,17 @@ export class PgOrdersStore {
           COALESCE(SUM(oi.price_paid) FILTER (WHERE o.created_at >= date_trunc('month', NOW())), 0) AS revenue_month
         FROM orders o
         JOIN order_items oi ON oi.order_id = o.id
+        WHERE o.status != 'refunded'
       `),
       this.pool.query(`
         SELECT issue_id, issue_title, COUNT(*) AS units
-        FROM order_items
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        WHERE o.status != 'refunded'
         GROUP BY issue_id, issue_title
         ORDER BY units DESC
       `),
-      this.pool.query(`SELECT COUNT(DISTINCT customer_email) AS paying_customers FROM orders`),
+      this.pool.query(`SELECT COUNT(DISTINCT customer_email) AS paying_customers FROM orders WHERE status != 'refunded'`),
       this.pool.query(`
         SELECT
           o.id, o.customer_email, o.created_at, o.shipping_address, o.fulfillment_status,
@@ -180,7 +192,7 @@ export class PgOrdersStore {
           ) ORDER BY oi.issue_title) AS items
         FROM orders o
         JOIN order_items oi ON oi.order_id = o.id
-        WHERE o.fulfillment_status = 'pending'
+        WHERE o.fulfillment_status = 'pending' AND o.status != 'refunded'
         GROUP BY o.id
         ORDER BY o.created_at DESC
       `),
@@ -229,6 +241,7 @@ export class PgOrdersStore {
       SELECT
         o.id,
         o.created_at,
+        o.status,
         json_agg(json_build_object(
           'issueId', oi.issue_id,
           'issueTitle', oi.issue_title,
@@ -371,10 +384,24 @@ export class FileOrdersStore {
     return data.orders.find((order) => order.stripe_session_id === stripeSessionId)?.delivery_token || null;
   }
 
+  async getOrderStatusBySessionId(stripeSessionId) {
+    const data = await this.read();
+    return data.orders.find((order) => order.stripe_session_id === stripeSessionId)?.status || null;
+  }
+
+  async updateOrderStatusBySessionId(stripeSessionId, status) {
+    const data = await this.read();
+    const order = data.orders.find((entry) => entry.stripe_session_id === stripeSessionId);
+    if (order) {
+      order.status = status;
+      await this.write(data);
+    }
+  }
+
   async getOrderByDeliveryToken(token) {
     const data = await this.read();
     const order = data.orders.find((entry) => entry.delivery_token === token);
-    if (!order) {
+    if (!order || order.status === "refunded") {
       return null;
     }
     return {
@@ -394,7 +421,7 @@ export class FileOrdersStore {
     const data = await this.read();
     return data.orders
       .filter((order) => (order.customer_email || "").toLowerCase() === String(email).toLowerCase())
-      .map((order) => ({ id: order.id, created_at: order.created_at, items: order.items }));
+      .map((order) => ({ id: order.id, created_at: order.created_at, status: order.status, items: order.items }));
   }
 
   async updateFulfillmentStatus(orderId, status) {
@@ -422,23 +449,28 @@ export class FileOrdersStore {
     const physicalPending = [];
 
     for (const order of data.orders) {
+      const isRefunded = order.status === "refunded";
       const createdAt = new Date(order.created_at);
       const orderTotal = (order.items || []).reduce((sum, item) => sum + (item.pricePaid || 0), 0);
-      if (createdAt >= startOfWeek) revenueWeek += orderTotal;
-      if (createdAt >= startOfMonth) revenueMonth += orderTotal;
+      if (!isRefunded) {
+        if (createdAt >= startOfWeek) revenueWeek += orderTotal;
+        if (createdAt >= startOfMonth) revenueMonth += orderTotal;
+      }
 
-      if (order.customer_email) {
+      if (order.customer_email && !isRefunded) {
         payingCustomers.add(order.customer_email.toLowerCase());
       }
 
-      for (const item of order.items || []) {
-        if (!item.issueId) continue;
-        const existing = unitsByIssueMap.get(item.issueId) || { issueId: item.issueId, issueTitle: item.issueTitle, units: 0 };
-        existing.units += 1;
-        unitsByIssueMap.set(item.issueId, existing);
+      if (!isRefunded) {
+        for (const item of order.items || []) {
+          if (!item.issueId) continue;
+          const existing = unitsByIssueMap.get(item.issueId) || { issueId: item.issueId, issueTitle: item.issueTitle, units: 0 };
+          existing.units += 1;
+          unitsByIssueMap.set(item.issueId, existing);
+        }
       }
 
-      if (order.fulfillment_status === "pending") {
+      if (order.fulfillment_status === "pending" && !isRefunded) {
         physicalPending.push({
           id: order.id,
           customer_email: order.customer_email,

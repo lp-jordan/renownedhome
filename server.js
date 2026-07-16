@@ -199,6 +199,49 @@ function resolveIssueFromPriceId(data, priceId) {
   return null;
 }
 
+// Refund/dispute events identify the charge/payment_intent, not our checkout
+// session id, so we resolve back to the session (and thus the order) via the
+// Stripe API rather than storing a payment_intent column on orders.
+async function resolveCheckoutSessionIdFromPaymentIntent(stripe, paymentIntentId) {
+  if (!paymentIntentId) return null;
+  const sessions = await stripe.checkout.sessions.list({ payment_intent: paymentIntentId, limit: 1 });
+  return sessions.data[0]?.id || null;
+}
+
+async function handleChargeRefunded(stripe, charge) {
+  const sessionId = await resolveCheckoutSessionIdFromPaymentIntent(stripe, charge.payment_intent);
+  if (!sessionId) return;
+  const isFullRefund = (charge.amount_refunded || 0) >= (charge.amount || 0);
+  await ordersStore.updateOrderStatusBySessionId(sessionId, isFullRefund ? "refunded" : "partially_refunded");
+}
+
+// A dispute can resolve after the fact ("won"/"lost"); refunded (a definitive,
+// money-gone state) is never downgraded back to disputed/paid by these events.
+async function handleChargeDispute(stripe, eventType, dispute) {
+  const chargeId = typeof dispute.charge === "string" ? dispute.charge : dispute.charge?.id;
+  if (!chargeId) return;
+  const charge = await stripe.charges.retrieve(chargeId);
+  const sessionId = await resolveCheckoutSessionIdFromPaymentIntent(stripe, charge.payment_intent);
+  if (!sessionId) return;
+
+  if (eventType === "charge.dispute.created") {
+    const currentStatus = await ordersStore.getOrderStatusBySessionId(sessionId);
+    if (currentStatus !== "refunded") {
+      await ordersStore.updateOrderStatusBySessionId(sessionId, "disputed");
+    }
+    return;
+  }
+
+  if (dispute.status === "lost") {
+    await ordersStore.updateOrderStatusBySessionId(sessionId, "refunded");
+    return;
+  }
+  const currentStatus = await ordersStore.getOrderStatusBySessionId(sessionId);
+  if (currentStatus === "disputed") {
+    await ordersStore.updateOrderStatusBySessionId(sessionId, "paid");
+  }
+}
+
 // Stripe webhooks require the raw request body for signature verification.
 // This must be registered before express.json() so the route gets the buffer.
 app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), async (req, res) => {
@@ -219,7 +262,13 @@ app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), asyn
     return;
   }
 
-  if (event.type !== "checkout.session.completed") {
+  const handledEventTypes = new Set([
+    "checkout.session.completed",
+    "charge.refunded",
+    "charge.dispute.created",
+    "charge.dispute.closed",
+  ]);
+  if (!handledEventTypes.has(event.type)) {
     res.json({ received: true });
     return;
   }
@@ -230,6 +279,18 @@ app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), asyn
     return;
   }
   await ordersStore.markStripeEventProcessed(event.id);
+
+  if (event.type === "charge.refunded") {
+    await handleChargeRefunded(stripe, event.data.object);
+    res.json({ received: true });
+    return;
+  }
+
+  if (event.type === "charge.dispute.created" || event.type === "charge.dispute.closed") {
+    await handleChargeDispute(stripe, event.type, event.data.object);
+    res.json({ received: true });
+    return;
+  }
 
   const session = event.data.object;
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { expand: ["data.price.product"] });
@@ -2475,6 +2536,7 @@ async function resolveOwnedIssuesForEmail(email) {
   const seenIssueIds = new Set();
   const digitalItems = [];
   for (const order of orders) {
+    if (order.status === "refunded") continue;
     for (const item of order.items || []) {
       if (item.format !== "digital" || !item.issueId || seenIssueIds.has(item.issueId)) {
         continue;

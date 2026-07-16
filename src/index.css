@@ -3515,6 +3515,9 @@ textarea {
 .status-badge--pending { background: rgba(234,179,8,0.15); color: #fbbf24; }
 .status-badge--failed { background: rgba(239,68,68,0.15); color: #f87171; }
 .status-badge--shipped { background: rgba(34,197,94,0.15); color: #4ade80; }
+.status-badge--refunded { background: rgba(239,68,68,0.15); color: #f87171; }
+.status-badge--partially-refunded { background: rgba(234,179,8,0.15); color: #fbbf24; }
+.status-badge--disputed { background: rgba(239,68,68,0.15); color: #f87171; }
 
 .type-badge {
   display: inline-block;

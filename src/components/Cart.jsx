@@ -298,6 +298,17 @@ function CartLines({ issues, bundle }) {
   );
 }
 
+function PaymentCardIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M3 6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v1H3V6Zm0 3h18v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9Zm2 6h5v1.5H5V15Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 function CartSummary({ issues, bundle }) {
   const cart = useCart();
   const { subtotalCents } = useCartLines(issues, bundle);
@@ -313,6 +324,10 @@ function CartSummary({ issues, bundle }) {
         <strong>{subtotalCents != null ? formatCents(subtotalCents) : "—"}</strong>
       </div>
       <p className="cart-summary__note">Shipping (if any) and taxes are handled at checkout.</p>
+      <p className="cart-summary__paymentIcons">
+        <PaymentCardIcon />
+        <span>Apple Pay · Google Pay · Cards</span>
+      </p>
       {cart.error ? <p className="cart-error">{cart.error}</p> : null}
       <button
         type="button"
