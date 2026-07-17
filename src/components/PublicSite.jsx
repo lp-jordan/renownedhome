@@ -56,6 +56,16 @@ function getIssueFeaturedImage(issue) {
   return issue.featuredImage || issue.coverImage || issue.heroAssets?.[0] || "";
 }
 
+// Listed issues with no cover art and no real Stripe price sell entirely
+// through the admin-set external link (ShopFormatToggle's hasExternal
+// branch) — they're not ready to be featured, so keep them out of the
+// carousel and give their card a plainer "Coming soon" label instead of the
+// "Cover coming soon" placeholder used for issues that do have a price.
+function isExternalOnlyIssue(issue) {
+  const shop = issue.shop || {};
+  return !issue.coverImage && !shop.digitalPriceId && !shop.physicalPriceId;
+}
+
 // Shop card grid (redesign flag only, Phase 2): the card headline price drops
 // a trailing ".00" for a cleaner "$8" vs. the panel's full "$8.00".
 function formatSimplePrice(display) {
@@ -290,7 +300,9 @@ function FeaturedLettersSection({ title, letters, issues, alwaysShow = false, wr
 // the CTA adds to the cart (Phase 4) instead of redirecting to Stripe.
 function HomeCarousel({ issues }) {
   const cart = useCart();
-  const slides = sortByOrder(issues).filter((issue) => issue.status !== "draft");
+  const slides = sortByOrder(issues).filter(
+    (issue) => issue.status !== "draft" && !isExternalOnlyIssue(issue),
+  );
   const flagship = getFlagshipIssue(issues);
   const [index, setIndex] = useState(() => {
     const flagshipIndex = slides.findIndex((slide) => slide.id === flagship?.id);
@@ -482,7 +494,7 @@ function ShopCard({ kind, issue, bundle, onSelect }) {
   const rawBasePrice = isBundle ? bundle?.digitalBasePrice : usingDigital ? shop.digitalBasePrice : shop.physicalBasePrice;
   const onSale = isBundle ? Boolean(bundle?.digitalOnSale) : Boolean(usingDigital ? shop.digitalOnSale : shop.physicalOnSale);
   const simplePrice = formatSimplePrice(rawPrice);
-  const priceLabel = simplePrice || (isBundle ? "Coming soon" : shop.externalUrl ? "Available" : "Coming soon");
+  const priceLabel = simplePrice || "Coming soon";
   const title = isBundle ? bundle?.title || "The Complete Run" : issue.title;
   const cover = isBundle ? null : issue.coverImage;
 
@@ -496,7 +508,9 @@ function ShopCard({ kind, issue, bundle, onSelect }) {
         {cover ? (
           <img src={cover} alt={`${title} cover`} />
         ) : (
-          <div className="shop-card__placeholder">{isBundle ? "Complete Run" : "Cover coming soon"}</div>
+          <div className="shop-card__placeholder">
+            {isBundle ? "Complete Run" : isExternalOnlyIssue(issue) ? "Coming soon" : "Cover coming soon"}
+          </div>
         )}
         {isBundle ? <span className="shop-card__badge">Bundle</span> : null}
         {onSale ? <span className="shop-card__badge shop-card__badge--sale">Sale</span> : null}
@@ -712,11 +726,8 @@ function ShopFormatToggle({ issue }) {
     if (hasExternal) {
       return (
         <div className="shop-format shop-format--toggle">
-          <div className="shop-format__copy">
-            <span>Available</span>
-          </div>
           <a className="button-primary shop-format__button" href={shop.externalUrl} target="_blank" rel="noreferrer">
-            Get it
+            Notify Me
           </a>
         </div>
       );
