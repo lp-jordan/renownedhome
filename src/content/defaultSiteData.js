@@ -34,12 +34,19 @@ export const defaultSiteData = {
     },
     readFunnel: {
       tipUrl: "https://www.buymeacoffee.com/PLACEHOLDER",
-      currentIssueNumber: 3,
-      totalIssues: 6,
-      introHeading: "Before you dive in…",
+      howdyText: "Howdy.",
+      introHeading: "Hi, I'm Jordan.",
       introBody:
-        "Hey — I'm Jordan. Renowned is a passion project I write and self-fund, built together with artist Azrael Aguiar and colorist Maja Opacic. What you're about to read is the full first issue, on us.",
-      introImages: [],
+        "Renowned is a passion project I write and self-fund, built together with artist Azrael Maxim and colorist Maja Opacic. What you're about to read is the full first issue, on us.",
+      introImage1: "",
+      introImage2: "",
+      creditLine:
+        "Renowned wouldn't be possible without the incredible artwork from artist Azrael Maxim and colorist Maja Opacic.",
+      chapterHeading: "Chapter One",
+      chapterSubtitle: "Read the first issue in its entirety.",
+      endHeading: "The story's not over.",
+      endBody:
+        "Renowned is funded issue-by-issue — six parts total. We're currently working on issue 3 of 6. If you want to see it through, here's how you can help.",
     },
   },
   pages: [
@@ -261,7 +268,7 @@ export const defaultSiteData = {
       previewPageLimit: 5,
       releaseDate: "September 2024",
       writer: "Jordan Johnson",
-      artist: "Azrael Aguiar",
+      artist: "Azrael Maxim",
       colorist: "Maja Opacic",
       description:
         "IN 1923, TIME STOOD STILL.\n\nWorld-famous author and supernatural detective Abraham Bone has spent a lifetime unraveling impossible mysteries. Now, it's time to step away from it all.\n\nBut while waiting at a desolate train station in middle-of-nowhere Colorado, Bone and a group of strangers all bound for Denver find themselves in an unsettling limbo; the train isn't coming, the clocks aren't ticking, and the snow isn't falling... they're stuck.\n\nAs the temperature drops and threats close in, Bone must investigate the strange circumstances that have them trapped, and contend with each of his fellow travelers who, for better or worse, know he's likely their only hope.\n\nBut time waits for no man... especially in a race to restart the clock.",
@@ -316,7 +323,7 @@ export const defaultSiteData = {
       previewPageLimit: null,
       releaseDate: "June 2025",
       writer: "Jordan Johnson",
-      artist: "Azrael Aguiar",
+      artist: "Azrael Maxim",
       colorist: "Maja Opacic",
       description:
         "Denver. 1923. Abraham Bone arrives in town for a gala to be thrown in his honor and finds himself the focus of both peers and strangers alike.\n\nRenowned issue #1 sets in motion one of the most important cases of the legendary detective's career that will take him from underground speakeasies to Rocky Mountain mining camps.\n\nIn a town that's seen just as much growth and change as he has, Bone must face the twilight of his career, an elusive killer, and something much scarier... a family looking to him for protection.",
@@ -371,7 +378,7 @@ export const defaultSiteData = {
       previewPageLimit: 5,
       releaseDate: "December 2025",
       writer: "Jordan Johnson",
-      artist: "Azrael Aguiar",
+      artist: "Azrael Maxim",
       colorist: "Maja Opacic",
       description:
         "Thomas Harding is dead. A tragedy that might have quietly faded instead pulls Bone deeper into the mystery and into the headlines, as the press seizes on the return of the famed detective.\n\nFollowing the trail to a neighborhood drugstore in Denver's Five Points, Bone discovers something even more startling than a lead: someone's beaten him to the punch...\n\nFollow the Kickstarter campaign and back Issue #2 now!",
@@ -421,7 +428,7 @@ export const defaultSiteData = {
       previewPageLimit: 5,
       releaseDate: "",
       writer: "Jordan Johnson",
-      artist: "Azrael Aguiar",
+      artist: "Azrael Maxim",
       colorist: "Maja Opacic",
       description: "Issue #3 will follow the same story-page structure.",
       homeHook: "The next chapter of the Renowned run.",
@@ -457,7 +464,7 @@ export const defaultSiteData = {
     },
     {
       id: "team-azrael",
-      name: "Azrael Aguiar",
+      name: "Azrael Maxim",
       role: "Artist",
       image:
         "https://renownedcomic.com/wp-content/uploads/2025/09/azreal2.png",
@@ -492,7 +499,7 @@ export const defaultSiteData = {
     },
     {
       id: "social-azrael-instagram",
-      personName: "Azrael Aguiar",
+      personName: "Azrael Maxim",
       label: "Instagram",
       url: "https://www.instagram.com/azrael.maxim/",
       iconUrl: "/icons/instagram.svg",
@@ -500,7 +507,7 @@ export const defaultSiteData = {
     },
     {
       id: "social-azrael-patreon",
-      personName: "Azrael Aguiar",
+      personName: "Azrael Maxim",
       label: "Patreon",
       url: "https://www.patreon.com/AzraelMaxim",
       iconUrl: "/icons/patreon.svg",

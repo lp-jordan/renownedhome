@@ -8,11 +8,16 @@ import { useSeo } from "../lib/seo";
 const FUNNEL_ID = "read-issue-1";
 const DEFAULT_READ_FUNNEL_SETTINGS = {
   tipUrl: "",
-  currentIssueNumber: 3,
-  totalIssues: 6,
-  introHeading: "Before you dive in…",
+  howdyText: "Howdy.",
+  introHeading: "Hi, I'm Jordan.",
   introBody: "",
-  introImages: [],
+  introImage1: "",
+  introImage2: "",
+  creditLine: "",
+  chapterHeading: "Chapter One",
+  chapterSubtitle: "",
+  endHeading: "The story's not over.",
+  endBody: "",
 };
 
 function sortByOrder(items) {
@@ -67,18 +72,10 @@ function VisibilityTrigger({ onVisible, className = "", children }) {
   );
 }
 
-function SectionHeadingLite({ kicker, title }) {
-  return (
-    <div className="section-heading">
-      {kicker ? <p>{kicker}</p> : null}
-      <h2>{title}</h2>
-    </div>
-  );
-}
-
 export default function ReadFunnelPage({ bootstrap }) {
   const issue = findIssue(bootstrap, "/issue-1");
   const teamMembers = sortByOrder(bootstrap.teamMembers || []);
+  const collaborators = teamMembers.filter((member) => member.id !== "team-jordan");
   const readFunnel = { ...DEFAULT_READ_FUNNEL_SETTINGS, ...(bootstrap.siteSettings?.readFunnel || {}) };
   const readerPages = issue ? getIssueReaderImages(issue).map((url) => ({ url })) : [];
 
@@ -91,7 +88,7 @@ export default function ReadFunnelPage({ bootstrap }) {
 
   useSeo(
     "Read Renowned #1 Free | Renowned",
-    "Read the full first issue of Renowned free — a new case from Jordan Johnson, Azrael Aguiar, and Maja Opacic.",
+    "Read the full first issue of Renowned free — a new case from Jordan Johnson, Azrael Maxim, and Maja Opacic.",
     typeof window !== "undefined" ? `${window.location.origin}/read` : "",
     false,
     issue ? getIssueFeaturedImage(issue) : ""
@@ -139,25 +136,38 @@ export default function ReadFunnelPage({ bootstrap }) {
 
   return (
     <main className="page-stack page-stack--subpage read-funnel">
-      <VisibilityTrigger onVisible={() => trackSectionView("intro")} className="section-shell read-funnel__intro">
-        <p className="issue-hero__eyebrow">Renowned</p>
-        <h1>{readFunnel.introHeading}</h1>
-        {readFunnel.introBody ? <p className="read-funnel__intro-copy">{readFunnel.introBody}</p> : null}
-        {readFunnel.introImages.length ? (
-          <div className="read-funnel__intro-photos">
-            {readFunnel.introImages.map((url) => (
-              <img key={url} src={url} alt="" />
-            ))}
-          </div>
-        ) : null}
+      <VisibilityTrigger onVisible={() => trackSectionView("intro")} className="section-shell read-funnel__howdy">
+        <p>{readFunnel.howdyText}</p>
       </VisibilityTrigger>
 
-      {teamMembers.length ? (
+      <section className="section-shell read-funnel__personal">
+        <div className="read-funnel__personal-copy">
+          <h1>{readFunnel.introHeading}</h1>
+          {readFunnel.introBody ? <p>{readFunnel.introBody}</p> : null}
+        </div>
+        {readFunnel.introImage1 || readFunnel.introImage2 ? (
+          <div className="read-funnel__personal-photos">
+            {readFunnel.introImage1 ? (
+              <img className="read-funnel__personal-photo read-funnel__personal-photo--1" src={readFunnel.introImage1} alt="" />
+            ) : null}
+            {readFunnel.introImage2 ? (
+              <img className="read-funnel__personal-photo read-funnel__personal-photo--2" src={readFunnel.introImage2} alt="" />
+            ) : null}
+          </div>
+        ) : null}
+      </section>
+
+      {readFunnel.creditLine ? (
+        <section className="section-shell read-funnel__credit">
+          <p>{readFunnel.creditLine}</p>
+        </section>
+      ) : null}
+
+      {collaborators.length ? (
         <VisibilityTrigger onVisible={() => trackSectionView("team")} className="section-shell read-funnel__team">
-          <SectionHeadingLite kicker="The Team" title="Who's behind this" />
-          <div className="team-stack team-stack--combined">
-            {teamMembers.map((member) => (
-              <article key={member.id} className="team-feature">
+          <div className="team-stack read-funnel__team-row">
+            {collaborators.map((member) => (
+              <article key={member.id} className="team-feature read-funnel__team-card">
                 <img className="team-feature__portrait" src={member.image} alt={member.name} />
                 <div className="team-feature__body">
                   <p className="team-feature__eyebrow">{member.role}</p>
@@ -170,8 +180,15 @@ export default function ReadFunnelPage({ bootstrap }) {
         </VisibilityTrigger>
       ) : null}
 
+      <section className="section-shell read-funnel__mailing-strip">
+        <MailingListForm onSubmitted={() => handleCtaClick("mailing")} />
+      </section>
+
       <VisibilityTrigger onVisible={() => trackSectionView("reader")} className="section-shell read-funnel__reader-section">
-        <SectionHeadingLite kicker={issue?.title || "Issue One"} title="Read the full issue" />
+        <div className="read-funnel__reader-heading">
+          <h2>{readFunnel.chapterHeading}</h2>
+          {readFunnel.chapterSubtitle ? <p>{readFunnel.chapterSubtitle}</p> : null}
+        </div>
         {readerPages.length ? (
           <div className="read-funnel__reader">
             <InlinePdfReader
@@ -188,30 +205,26 @@ export default function ReadFunnelPage({ bootstrap }) {
       </VisibilityTrigger>
 
       <VisibilityTrigger onVisible={() => trackSectionView("cta")} className="section-shell read-funnel__cta">
-        <p className="issue-hero__eyebrow">Thanks for reading</p>
-        <h2>That&rsquo;s issue one.</h2>
-        <p className="read-funnel__cta-copy">
-          Renowned is funded issue-by-issue &mdash; six parts total. We&rsquo;re currently working
-          on issue {readFunnel.currentIssueNumber} of {readFunnel.totalIssues}. If you want to see
-          it through, here&rsquo;s how you can help.
-        </p>
-        <div className="read-funnel__cta-actions">
-          <Link className="button-primary" to="/shop" onClick={() => handleCtaClick("buy")}>
-            Shop the series
-          </Link>
-          {readFunnel.tipUrl ? (
-            <a
-              className="button-secondary"
-              href={readFunnel.tipUrl}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => handleCtaClick("tip")}
-            >
-              Tip the team
-            </a>
-          ) : null}
+        <h2>{readFunnel.endHeading}</h2>
+        <div className="read-funnel__cta-row">
+          {readFunnel.endBody ? <p className="read-funnel__cta-copy">{readFunnel.endBody}</p> : null}
+          <div className="read-funnel__cta-links">
+            <Link className="button-primary" to="/shop" onClick={() => handleCtaClick("buy")}>
+              Shop the series
+            </Link>
+            {readFunnel.tipUrl ? (
+              <a
+                className="button-secondary"
+                href={readFunnel.tipUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => handleCtaClick("tip")}
+              >
+                Tip the team
+              </a>
+            ) : null}
+          </div>
         </div>
-        <MailingListForm onSubmitted={() => handleCtaClick("mailing")} />
       </VisibilityTrigger>
     </main>
   );
@@ -245,20 +258,18 @@ function MailingListForm({ onSubmitted }) {
 
   return (
     <form className="read-funnel__mailing-form" onSubmit={handleSubmit}>
-      <label htmlFor="read-funnel-email">Get notified when issue 3 drops</label>
-      <div className="read-funnel__mailing-row">
-        <input
-          id="read-funnel-email"
-          type="email"
-          required
-          placeholder="you@example.com"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-        />
-        <button type="submit" className="button-secondary" disabled={status === "submitting"}>
-          {status === "submitting" ? "Joining…" : "Join"}
-        </button>
-      </div>
+      <span className="read-funnel__mailing-label">Get notified when issue 3 drops</span>
+      <input
+        type="email"
+        required
+        placeholder="you@example.com"
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+        className="read-funnel__mailing-input"
+      />
+      <button type="submit" className="button-secondary" disabled={status === "submitting"}>
+        {status === "submitting" ? "Joining…" : "Join"}
+      </button>
       {error ? <p className="read-funnel__mailing-error">{error}</p> : null}
     </form>
   );

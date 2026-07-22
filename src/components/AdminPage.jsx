@@ -1216,11 +1216,16 @@ function SimpleCollectionEditor({
 
 const DEFAULT_READ_FUNNEL_SETTINGS = {
   tipUrl: "",
-  currentIssueNumber: 3,
-  totalIssues: 6,
+  howdyText: "Howdy.",
   introHeading: "",
   introBody: "",
-  introImages: [],
+  introImage1: "",
+  introImage2: "",
+  creditLine: "",
+  chapterHeading: "Chapter One",
+  chapterSubtitle: "",
+  endHeading: "The story's not over.",
+  endBody: "",
 };
 
 function withSettingsDefaults(siteSettings) {
@@ -1284,7 +1289,12 @@ function SettingsEditor({
           </label>
         </div>
         <div className="editor-card">
-          <h3>Read funnel (/read)</h3>
+          <h3>Read funnel (/read) &mdash; top</h3>
+          <Field
+            label="Howdy text"
+            value={draft.readFunnel.howdyText}
+            onChange={(value) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, howdyText: value } }))}
+          />
           <Field
             label="Intro heading"
             value={draft.readFunnel.introHeading}
@@ -1296,26 +1306,52 @@ function SettingsEditor({
             value={draft.readFunnel.introBody}
             onChange={(value) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, introBody: value } }))}
           />
-          <AssetListField
-            label="Intro photo"
-            values={draft.readFunnel.introImages}
+          <AssetField
+            label="Intro photo (upper-left)"
+            value={draft.readFunnel.introImage1}
             assets={assets}
-            onChange={(values) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, introImages: values } }))}
+            onChange={(value) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, introImage1: value } }))}
+          />
+          <AssetField
+            label="Intro photo (lower-right)"
+            value={draft.readFunnel.introImage2}
+            assets={assets}
+            onChange={(value) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, introImage2: value } }))}
           />
           <Field
-            label="Tip URL (Buy Me a Coffee, etc.)"
+            label="Artist/colorist credit line"
+            multiline
+            value={draft.readFunnel.creditLine}
+            onChange={(value) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, creditLine: value } }))}
+          />
+        </div>
+        <div className="editor-card">
+          <h3>Read funnel (/read) &mdash; reader &amp; CTA</h3>
+          <Field
+            label="Chapter heading"
+            value={draft.readFunnel.chapterHeading}
+            onChange={(value) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, chapterHeading: value } }))}
+          />
+          <Field
+            label="Chapter subtitle"
+            value={draft.readFunnel.chapterSubtitle}
+            onChange={(value) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, chapterSubtitle: value } }))}
+          />
+          <Field
+            label="End heading"
+            value={draft.readFunnel.endHeading}
+            onChange={(value) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, endHeading: value } }))}
+          />
+          <Field
+            label="Funding paragraph"
+            multiline
+            value={draft.readFunnel.endBody}
+            onChange={(value) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, endBody: value } }))}
+          />
+          <Field
+            label="Tip URL (Buy Me a Coffee, Stripe Payment Link, etc.)"
             value={draft.readFunnel.tipUrl}
             onChange={(value) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, tipUrl: value } }))}
-          />
-          <Field
-            label="Current issue number"
-            value={draft.readFunnel.currentIssueNumber}
-            onChange={(value) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, currentIssueNumber: Number(value) || current.readFunnel.currentIssueNumber } }))}
-          />
-          <Field
-            label="Total issues planned"
-            value={draft.readFunnel.totalIssues}
-            onChange={(value) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, totalIssues: Number(value) || current.readFunnel.totalIssues } }))}
           />
         </div>
         <div className="editor-card editor-card--full">
