@@ -14,6 +14,7 @@ import CheckoutReturnPage from "./CheckoutReturnPage";
 import LibraryPage from "./LibraryPage";
 import { CartButton, CartDrawer, CartPage, CartProvider, useCart } from "./Cart";
 import SystemPage from "./SystemPage";
+import ReadFunnelPage from "./ReadFunnelPage";
 import { resolveSeo, usePageSeo, useSeo } from "../lib/seo";
 
 const SWIPE_THRESHOLD = 44;
@@ -130,7 +131,7 @@ export default function PublicSite({ bootstrap, refreshBootstrap }) {
           <Route path="/library" element={<LibraryPage bootstrap={bootstrap} />} />
           <Route path="/connect" element={<TeamPage bootstrap={bootstrap} routeSlug="/connect" />} />
           <Route path="/meet" element={<TeamPage bootstrap={bootstrap} routeSlug="/meet" />} />
-          <Route path="/read" element={<RedirectPage bootstrap={bootstrap} pathName="/read" />} />
+          <Route path="/read" element={<ReadFunnelPage bootstrap={bootstrap} />} />
           <Route path="/issue-1" element={<IssuePage bootstrap={bootstrap} slug="/issue-1" />} />
           <Route path="/issue-2" element={<IssuePage bootstrap={bootstrap} slug="/issue-2" />} />
           <Route path="/issue-3" element={<IssuePage bootstrap={bootstrap} slug="/issue-3" />} />

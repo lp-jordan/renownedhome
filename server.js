@@ -30,6 +30,7 @@ import {
   DeliveryPgStore,
   parseBackerCsv,
 } from "./src/lib/deliveryStore.js";
+import { FunnelFileStore, FunnelPgStore } from "./src/lib/funnelStore.js";
 import {
   buildAdminSaleNotificationEmail,
   buildDeliveryEmail,
@@ -120,6 +121,7 @@ const runtimeDir = path.join(__dirname, "runtime");
 const runtimeFile = path.join(runtimeDir, "content-store.json");
 const deliveryRuntimeFile = path.join(runtimeDir, "delivery-store.json");
 const commerceRuntimeFile = path.join(runtimeDir, "commerce-store.json");
+const analyticsRuntimeFile = path.join(runtimeDir, "analytics-store.json");
 const uploadTempDir = path.join(runtimeDir, "uploads");
 const distDir = path.join(__dirname, "dist");
 const distIndexFile = path.join(distDir, "index.html");
@@ -1376,6 +1378,9 @@ const deliveryStore = process.env.DATABASE_URL
 const ordersStore = process.env.DATABASE_URL
   ? new PgOrdersStore(repository.pool)
   : new FileOrdersStore(commerceRuntimeFile);
+const funnelStore = process.env.DATABASE_URL
+  ? new FunnelPgStore(process.env.DATABASE_URL)
+  : new FunnelFileStore(analyticsRuntimeFile);
 
 app.use(setSecurityHeaders);
 app.use(setCacheHeaders);
@@ -1397,6 +1402,12 @@ const libraryLinkRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   maxRequests: 6,
   message: "Too many link requests. Please wait and try again.",
+});
+const analyticsRateLimiter = createRateLimiter({
+  keyPrefix: "analytics",
+  windowMs: 60 * 1000,
+  maxRequests: 40,
+  message: "Too many analytics events.",
 });
 
 setInterval(cleanupRateLimits, 5 * 60 * 1000).unref();
@@ -2868,6 +2879,31 @@ app.post("/api/public/leads", publicFormRateLimiter, async (req, res) => {
   }));
 
   res.json({ ok: true });
+});
+
+app.post("/api/analytics/event", analyticsRateLimiter, async (req, res) => {
+  const events = Array.isArray(req.body?.events) ? req.body.events.slice(0, 50) : [];
+
+  try {
+    await funnelStore.logEvents(events);
+  } catch (err) {
+    console.error("Failed to log funnel events:", err?.message);
+  }
+
+  // sendBeacon requests don't read the response, but keep this cheap and
+  // always-200 so the client never has to retry a fire-and-forget event.
+  res.json({ ok: true });
+});
+
+app.get("/api/admin/funnel-analytics", requireAdmin, async (req, res) => {
+  try {
+    const funnel = typeof req.query.funnel === "string" ? req.query.funnel : "read-issue-1";
+    const analytics = await funnelStore.getAnalytics(funnel);
+    res.json({ analytics });
+  } catch (err) {
+    console.error("Failed to fetch funnel analytics:", err?.message);
+    res.status(500).json({ error: "Failed to fetch funnel analytics." });
+  }
 });
 
 app.post(
@@ -4771,6 +4807,7 @@ app.use((error, _req, res, next) => {
 await repository.init();
 await deliveryStore.init();
 await ordersStore.init();
+await funnelStore.init();
 
 const port = Number(process.env.PORT || 3001);
 app.listen(port, () => {

@@ -18,12 +18,16 @@ export default function InlinePdfReader({
   pages = [],
   className = "",
   compact = false,
+  startFullscreen = false,
+  onPageChange,
+  onReady,
 }) {
   const readerRef = useRef(null);
   const stageRef = useRef(null);
   const gestureRef = useRef({ startX: 0, startY: 0, active: false });
   const touchHandledRef = useRef(false);
   const autoHideTimerRef = useRef(null);
+  const hasFiredReadyRef = useRef(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageCount, setPageCount] = useState(0);
   const [stageWidth, setStageWidth] = useState(() => {
@@ -35,7 +39,7 @@ export default function InlinePdfReader({
   });
   const [pdfFile, setPdfFile] = useState(null);
   const [loadError, setLoadError] = useState("");
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(startFullscreen);
   const [isChromeVisible, setIsChromeVisible] = useState(false);
   const [isWideSpread, setIsWideSpread] = useState(false);
   const [zoom, setZoom] = useState(MIN_ZOOM);
@@ -44,6 +48,7 @@ export default function InlinePdfReader({
   useEffect(() => {
     setCurrentPage(1);
     setPageCount(0);
+    hasFiredReadyRef.current = false;
   }, [pages, pdfUrl]);
 
   useEffect(() => {
@@ -332,6 +337,19 @@ export default function InlinePdfReader({
           ].filter((pageNumber) => pageNumber <= pageCount)
         : [visiblePageNumbers[visiblePageNumbers.length - 1] + 1]
       : [];
+  const furthestVisiblePage = visiblePageNumbers[visiblePageNumbers.length - 1];
+
+  useEffect(() => {
+    if (!pageCount) {
+      return;
+    }
+    if (!hasFiredReadyRef.current) {
+      hasFiredReadyRef.current = true;
+      onReady?.(pageCount);
+    }
+    onPageChange?.(furthestVisiblePage, pageCount);
+  }, [furthestVisiblePage, pageCount]);
+
   const visibleImagePages = visiblePageNumbers
     .map((pageNumber) => ({
       pageNumber,

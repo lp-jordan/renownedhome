@@ -5,6 +5,7 @@ import AssetVariantEditorModal from "./AssetVariantEditorModal";
 import { AssetField, AssetPickerModal, isImageAsset, isPdfAsset } from "./AssetField";
 import DeliveryAdmin from "./DeliveryAdmin";
 import ShareLinksAdmin from "./ShareLinksAdmin";
+import FunnelAdmin from "./FunnelAdmin";
 import { usePageSeo } from "../lib/seo";
 import { useAutosave } from "../hooks/useAutosave";
 
@@ -1213,6 +1214,22 @@ function SimpleCollectionEditor({
   );
 }
 
+const DEFAULT_READ_FUNNEL_SETTINGS = {
+  tipUrl: "",
+  currentIssueNumber: 3,
+  totalIssues: 6,
+  introHeading: "",
+  introBody: "",
+  introImages: [],
+};
+
+function withSettingsDefaults(siteSettings) {
+  return {
+    ...siteSettings,
+    readFunnel: { ...DEFAULT_READ_FUNNEL_SETTINGS, ...(siteSettings.readFunnel || {}) },
+  };
+}
+
 function SettingsEditor({
   siteSettings,
   assets,
@@ -1220,11 +1237,11 @@ function SettingsEditor({
   title = "Settings",
   subtitle = "",
 }) {
-  const [draft, setDraft] = useState(siteSettings);
+  const [draft, setDraft] = useState(() => withSettingsDefaults(siteSettings));
   const [navText, setNavText] = useState(JSON.stringify(siteSettings.nav, null, 2));
 
   useEffect(() => {
-    setDraft(siteSettings);
+    setDraft(withSettingsDefaults(siteSettings));
     setNavText(JSON.stringify(siteSettings.nav, null, 2));
   }, [siteSettings]);
 
@@ -1265,6 +1282,41 @@ function SettingsEditor({
             />
             <span>Announcement enabled</span>
           </label>
+        </div>
+        <div className="editor-card">
+          <h3>Read funnel (/read)</h3>
+          <Field
+            label="Intro heading"
+            value={draft.readFunnel.introHeading}
+            onChange={(value) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, introHeading: value } }))}
+          />
+          <Field
+            label="Intro body"
+            multiline
+            value={draft.readFunnel.introBody}
+            onChange={(value) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, introBody: value } }))}
+          />
+          <AssetListField
+            label="Intro photo"
+            values={draft.readFunnel.introImages}
+            assets={assets}
+            onChange={(values) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, introImages: values } }))}
+          />
+          <Field
+            label="Tip URL (Buy Me a Coffee, etc.)"
+            value={draft.readFunnel.tipUrl}
+            onChange={(value) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, tipUrl: value } }))}
+          />
+          <Field
+            label="Current issue number"
+            value={draft.readFunnel.currentIssueNumber}
+            onChange={(value) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, currentIssueNumber: Number(value) || current.readFunnel.currentIssueNumber } }))}
+          />
+          <Field
+            label="Total issues planned"
+            value={draft.readFunnel.totalIssues}
+            onChange={(value) => setDraft((current) => ({ ...current, readFunnel: { ...current.readFunnel, totalIssues: Number(value) || current.readFunnel.totalIssues } }))}
+          />
         </div>
         <div className="editor-card editor-card--full">
           <h3>Navigation JSON</h3>
@@ -2640,6 +2692,7 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
       ],
     },
     { key: "products", label: "Products" },
+    { key: "funnel", label: "Funnel" },
     {
       key: "customers",
       label: "Customers",
@@ -2705,6 +2758,7 @@ export default function AdminPage({ refreshBootstrap, session, refreshSession })
         ) : null}
 
         {activeGroup === "dashboard" ? <DashboardAdmin /> : null}
+        {activeGroup === "funnel" ? <FunnelAdmin /> : null}
 
         {activeGroup === "orders" && activeSubTab === "orders" ? <OrdersAdmin assets={adminData.assets || []} /> : null}
         {activeGroup === "orders" && activeSubTab === "delivery" ? <DeliveryAdmin /> : null}

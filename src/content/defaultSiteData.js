@@ -32,6 +32,15 @@ export const defaultSiteData = {
       ctaUrl:
         "https://www.kickstarter.com/projects/jmintonjohnson/renowned-2-supernatural-detective-series",
     },
+    readFunnel: {
+      tipUrl: "https://www.buymeacoffee.com/PLACEHOLDER",
+      currentIssueNumber: 3,
+      totalIssues: 6,
+      introHeading: "Before you dive in…",
+      introBody:
+        "Hey — I'm Jordan. Renowned is a passion project I write and self-fund, built together with artist Azrael Aguiar and colorist Maja Opacic. What you're about to read is the full first issue, on us.",
+      introImages: [],
+    },
   },
   pages: [
     {

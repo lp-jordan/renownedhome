@@ -3589,6 +3589,43 @@ textarea {
   color: var(--text-muted);
 }
 
+.funnel-admin__page-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0 2rem;
+}
+
+.funnel-admin__page-row {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.funnel-admin__page-label {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.funnel-admin__bar-track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--bg-panel-soft);
+  overflow: hidden;
+}
+
+.funnel-admin__bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+}
+
+.funnel-admin__page-value {
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
 .dashboard-section {
   padding: 0 2rem 2rem;
 }

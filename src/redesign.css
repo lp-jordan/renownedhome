@@ -918,6 +918,134 @@
   font-size: var(--fs-sm);
 }
 
+/* Read funnel (/read): a single scrolling page for cold Instagram traffic —
+ * intro (customizable text/photos) -> team -> full-issue reader (inline,
+ * reader's own "Fullscreen" button is the only takeover) -> single end CTA.
+ * No mid-issue interstitials, no stage-swapping — just sections in flow. */
+[data-redesign="1"] .read-funnel__intro,
+[data-redesign="1"] .read-funnel__cta {
+  text-align: center;
+  max-width: var(--narrow);
+  margin: 0 auto;
+}
+
+[data-redesign="1"] .read-funnel__intro h1,
+[data-redesign="1"] .read-funnel__cta h2 {
+  margin: var(--space-2) 0 var(--space-3);
+  font-family: "Josefin Sans", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: var(--fs-h2);
+}
+
+[data-redesign="1"] .read-funnel__intro-copy,
+[data-redesign="1"] .read-funnel__cta-copy {
+  color: var(--text-dim);
+  font-size: 1.05rem;
+  max-width: 640px;
+  margin: 0 auto var(--space-5);
+}
+
+[data-redesign="1"] .read-funnel__intro-photos {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+}
+
+[data-redesign="1"] .read-funnel__intro-photos img {
+  width: 12rem;
+  max-width: 100%;
+  border-radius: var(--radius-lg);
+  object-fit: cover;
+  box-shadow: var(--elev-1);
+}
+
+[data-redesign="1"] .read-funnel__team .team-stack {
+  margin-top: var(--space-5);
+}
+
+[data-redesign="1"] .read-funnel__reader-section .section-heading {
+  text-align: center;
+}
+
+[data-redesign="1"] .read-funnel__reader {
+  max-width: 720px;
+  margin: var(--space-5) auto 0;
+}
+
+[data-redesign="1"] .read-funnel__reader-unavailable {
+  text-align: center;
+  color: var(--text-dim);
+  margin-top: var(--space-5);
+}
+
+[data-redesign="1"] .read-funnel__cta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+[data-redesign="1"] .read-funnel__mailing-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+[data-redesign="1"] .read-funnel__mailing-form label {
+  font-size: var(--fs-eyebrow);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+[data-redesign="1"] .read-funnel__mailing-row {
+  display: flex;
+  gap: var(--space-3);
+}
+
+[data-redesign="1"] .read-funnel__mailing-row input {
+  padding: 0.7em 1em;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  min-width: 16rem;
+}
+
+[data-redesign="1"] .read-funnel__mailing-row input:focus {
+  outline: none;
+  border-color: var(--ember);
+  box-shadow: 0 0 0 3px var(--ember-glow);
+}
+
+[data-redesign="1"] .read-funnel__mailing-success {
+  color: #fff;
+  font-weight: 600;
+}
+
+[data-redesign="1"] .read-funnel__mailing-error {
+  color: var(--danger);
+  font-size: var(--fs-sm);
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  [data-redesign="1"] .read-funnel__mailing-row {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  [data-redesign="1"] .read-funnel__mailing-row input {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
 [data-redesign="1"] .shop-panel__more-info {
   display: block;
   margin-top: var(--space-4);

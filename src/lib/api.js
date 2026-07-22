@@ -533,6 +533,9 @@ export const api = {
   getDashboard() {
     return request("/api/admin/dashboard");
   },
+  getFunnelAnalytics(funnel = "read-issue-1") {
+    return request(`/api/admin/funnel-analytics?funnel=${encodeURIComponent(funnel)}`);
+  },
   getCustomers() {
     return request("/api/admin/customers");
   },
