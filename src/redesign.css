@@ -807,6 +807,21 @@
   box-shadow: 0 6px 14px rgba(225, 80, 42, 0.28);
 }
 
+/* The buybox (260-320px, see .issue-story--redesign's grid-template-columns)
+   is narrower than the shop panel that the stacking fix above targets, and
+   the CTA button's base min-width (10.75rem, index.css) doesn't fit next to
+   the format toggle + price on one row — it was overflowing past the
+   buybox's border. Wrap the row and force the button onto its own line,
+   keeping the toggle + price together on the first line since those two
+   already fit. */
+[data-redesign="1"] .issue-buybox .shop-format--toggle {
+  flex-wrap: wrap;
+}
+[data-redesign="1"] .issue-buybox .shop-format__button {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
 [data-redesign="1"] .page-stack--issue-redesign {
   padding-bottom: 0;
 }
@@ -888,6 +903,11 @@
 
 [data-redesign="1"] .reader-gate .shop-format--toggle {
   justify-content: center;
+  flex-wrap: wrap;
+}
+[data-redesign="1"] .reader-gate .shop-format__button {
+  flex: 1 1 100%;
+  min-width: 0;
 }
 
 [data-redesign="1"] .reader-gate__form {
