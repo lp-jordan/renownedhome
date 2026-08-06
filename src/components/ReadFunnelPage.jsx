@@ -73,6 +73,7 @@ function VisibilityTrigger({ onVisible, className = "", children }) {
 }
 
 export default function ReadFunnelPage({ bootstrap }) {
+  const [photosSwapped, setPhotosSwapped] = useState(false);
   const issue = findIssue(bootstrap, "/issue-1");
   const teamMembers = sortByOrder(bootstrap.teamMembers || []);
   const collaborators = teamMembers.filter((member) => member.id !== "team-jordan");
@@ -134,6 +135,17 @@ export default function ReadFunnelPage({ bootstrap }) {
     trackerRef.current.flush(true);
   }
 
+  function togglePhotoOrder() {
+    setPhotosSwapped((swapped) => !swapped);
+  }
+
+  function handlePhotoKeyDown(event) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      togglePhotoOrder();
+    }
+  }
+
   return (
     <main className="page-stack page-stack--subpage read-funnel">
       <VisibilityTrigger onVisible={() => trackSectionView("intro")} className="section-shell read-funnel__howdy">
@@ -146,12 +158,35 @@ export default function ReadFunnelPage({ bootstrap }) {
           {readFunnel.introBody ? <p>{readFunnel.introBody}</p> : null}
         </div>
         {readFunnel.introImage1 || readFunnel.introImage2 ? (
-          <div className="read-funnel__personal-photos">
+          <div
+            className={
+              "read-funnel__personal-photos" +
+              (photosSwapped ? " read-funnel__personal-photos--swapped" : "")
+            }
+          >
             {readFunnel.introImage1 ? (
-              <img className="read-funnel__personal-photo read-funnel__personal-photo--1" src={readFunnel.introImage1} alt="" />
+              <img
+                className="read-funnel__personal-photo read-funnel__personal-photo--1"
+                src={readFunnel.introImage1}
+                alt=""
+                role="button"
+                tabIndex={0}
+                aria-label="Swap photo order to see both photos"
+                onClick={togglePhotoOrder}
+                onKeyDown={handlePhotoKeyDown}
+              />
             ) : null}
             {readFunnel.introImage2 ? (
-              <img className="read-funnel__personal-photo read-funnel__personal-photo--2" src={readFunnel.introImage2} alt="" />
+              <img
+                className="read-funnel__personal-photo read-funnel__personal-photo--2"
+                src={readFunnel.introImage2}
+                alt=""
+                role="button"
+                tabIndex={0}
+                aria-label="Swap photo order to see both photos"
+                onClick={togglePhotoOrder}
+                onKeyDown={handlePhotoKeyDown}
+              />
             ) : null}
           </div>
         ) : null}

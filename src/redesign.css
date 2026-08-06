@@ -998,6 +998,21 @@
   object-fit: cover;
   border-radius: var(--radius-lg);
   box-shadow: var(--elev-2);
+  cursor: pointer;
+  transition: top 0.5s cubic-bezier(0.22, 1, 0.36, 1), left 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    right 0.5s cubic-bezier(0.22, 1, 0.36, 1), bottom 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
+}
+
+[data-redesign="1"] .read-funnel__personal-photo:hover,
+[data-redesign="1"] .read-funnel__personal-photo:focus-visible {
+  transform: scale(1.02);
+  box-shadow: var(--elev-3, var(--elev-2));
+}
+
+[data-redesign="1"] .read-funnel__personal-photo:focus-visible {
+  outline: 2px solid var(--accent, #fff);
+  outline-offset: 2px;
 }
 
 [data-redesign="1"] .read-funnel__personal-photo--1 {
@@ -1011,6 +1026,22 @@
   right: 0;
   z-index: 2;
   border: 3px solid var(--bg-deep, #0a0d14);
+}
+
+[data-redesign="1"] .read-funnel__personal-photos--swapped .read-funnel__personal-photo--1 {
+  top: auto;
+  left: auto;
+  bottom: 0;
+  right: 0;
+  z-index: 2;
+}
+
+[data-redesign="1"] .read-funnel__personal-photos--swapped .read-funnel__personal-photo--2 {
+  bottom: auto;
+  right: auto;
+  top: 0;
+  left: 0;
+  z-index: 1;
 }
 
 [data-redesign="1"] .read-funnel__credit {
