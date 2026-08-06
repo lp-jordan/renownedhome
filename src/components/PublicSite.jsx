@@ -497,7 +497,7 @@ function ShopCard({ kind, issue, bundle, onSelect }) {
   const simplePrice = formatSimplePrice(rawPrice);
   const priceLabel = simplePrice || "Coming soon";
   const title = isBundle ? bundle?.title || "The Complete Run" : issue.title;
-  const cover = isBundle ? null : issue.coverImage;
+  const cover = isBundle ? bundle?.coverImage || null : issue.coverImage;
 
   return (
     <button
@@ -620,7 +620,11 @@ function ShopDetailPanel({ product, onClose }) {
         </button>
         <div className="shop-panel__media">
           {isBundle ? (
-            <div className="shop-panel__placeholder">Complete Run</div>
+            bundle?.coverImage ? (
+              <img src={bundle.coverImage} alt={`${bundle?.title || "The Complete Run"} cover`} />
+            ) : (
+              <div className="shop-panel__placeholder">Complete Run</div>
+            )
           ) : issue.coverImage ? (
             <img src={issue.coverImage} alt={`${issue.title} cover`} />
           ) : (
@@ -1096,7 +1100,11 @@ function IssueCrossSell({ currentIssue, allIssues, bundle }) {
         </Link>
         <Link className="shop-card shop-card--bundle" to="/shop">
           <div className="shop-card__media">
-            <div className="shop-card__placeholder">Complete Run</div>
+            {bundle?.coverImage ? (
+              <img src={bundle.coverImage} alt={`${bundle?.title || "The Complete Run"} cover`} />
+            ) : (
+              <div className="shop-card__placeholder">Complete Run</div>
+            )}
             <span className="shop-card__badge">Bundle</span>
           </div>
           <p className="shop-card__title">{bundle?.title || "The Complete Run"}</p>

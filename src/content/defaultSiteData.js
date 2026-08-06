@@ -449,6 +449,7 @@ export const defaultSiteData = {
     id: "bundle-complete-run",
     title: "The Complete Run",
     includedIssueIds: ["issue-one-shot", "issue-1", "issue-2"],
+    coverImage: "",
     digitalPriceId: "",
     digitalSale: defaultSale(25),
   },

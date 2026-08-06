@@ -2447,7 +2447,7 @@ function LeadsAdmin({ leads, issues, onDelete }) {
   );
 }
 
-function BundleEditor({ bundle, issues, onSave, onCreatePrice }) {
+function BundleEditor({ bundle, issues, assets, onSave, onCreatePrice }) {
   const [draft, setDraft] = useState(bundle);
   const [amountInput, setAmountInput] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
@@ -2504,6 +2504,14 @@ function BundleEditor({ bundle, issues, onSave, onCreatePrice }) {
       <div className="delivery-form-grid">
         <Field label="Title" value={draft.title || ""} onChange={(v) => setDraft((d) => ({ ...d, title: v }))} />
       </div>
+
+      <AssetField
+        label="Cover image (used on shop cards where no issue cover applies)"
+        value={draft.coverImage || ""}
+        assets={assets}
+        filter="image"
+        onChange={(v) => setDraft((d) => ({ ...d, coverImage: v }))}
+      />
 
       <h3 className="editor-card__label" style={{ marginTop: "16px" }}>
         Included issues
@@ -2608,7 +2616,7 @@ function IssuesWorkspace({ issues, assets, bundle, onSaveIssue, onSaveBundle, on
           {flagshipStatus ? <span className="status-line" style={{ marginLeft: "8px" }}>{flagshipStatus}</span> : null}
         </p>
       </header>
-      <BundleEditor bundle={bundle} issues={sorted} onSave={onSaveBundle} onCreatePrice={onCreateBundlePrice} />
+      <BundleEditor bundle={bundle} issues={sorted} assets={assets} onSave={onSaveBundle} onCreatePrice={onCreateBundlePrice} />
       <div className="shop-product-list">
         {sorted.map((issue) => (
           <div key={issue.id} className="shop-product-row">
