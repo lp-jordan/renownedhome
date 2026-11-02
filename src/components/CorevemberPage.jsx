@@ -240,18 +240,20 @@ export default function CorevemberPage() {
         <p>{formatLongDate()}</p>
       </header>
 
-      <div className="corevember__profiles" role="group" aria-label="Who's logging">
-        {users.map((user) => (
-          <button
-            key={user.slug}
-            type="button"
-            className={`corevember__profile ${user.slug === activeUser ? "is-active" : ""}`}
-            aria-pressed={user.slug === activeUser}
-            onClick={() => setActiveUser(user.slug)}
-          >
-            {user.name}
-          </button>
-        ))}
+      <div className="corevember__who">
+        <label className="corevember__who-label" htmlFor="corevember-user">Logging as</label>
+        <select
+          id="corevember-user"
+          className="corevember__who-select"
+          value={activeUser || ""}
+          onChange={(event) => setActiveUser(event.target.value)}
+        >
+          {users.map((user) => (
+            <option key={user.slug} value={user.slug}>
+              {user.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <section className="corevember__panel corevember__plank" aria-label="Plank timer">
@@ -354,7 +356,7 @@ export default function CorevemberPage() {
                 <span className={userPlankMet ? "is-met" : ""}>{formatClock(plankSec)}</span> plank
               </span>
               <span className="corevember__standing-stat">
-                <span className={userCrunchMet ? "is-met" : ""}>{entry.crunchSets * CRUNCHES_PER_SET}</span> crunches
+                <span className={userCrunchMet ? "is-met" : ""}>{entry.crunchSets}</span> sets of crunches
               </span>
             </div>
           );

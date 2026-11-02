@@ -2370,32 +2370,45 @@
   gap: var(--space-4);
   color: var(--text-dim);
 }
-[data-redesign="1"] .corevember__profiles {
+/* Who's logging — a deliberate dropdown rather than always-tappable chips, so
+   the active profile can't get flipped by accident mid-workout. The choice is
+   remembered per browser (localStorage), so each person's device stays on
+   them. */
+[data-redesign="1"] .corevember__who {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: var(--space-2);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-pill);
-  padding: var(--space-1);
 }
-[data-redesign="1"] .corevember__profile {
-  font-family: "Josefin Sans", sans-serif;
-  font-size: var(--fs-body);
-  letter-spacing: 0.04em;
+[data-redesign="1"] .corevember__who-label {
   color: var(--text-dim);
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-pill);
-  padding: var(--space-2) var(--space-5);
-  cursor: pointer;
-  transition: background 160ms ease, color 160ms ease;
+  font-size: var(--fs-eyebrow);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
-[data-redesign="1"] .corevember__profile:hover {
+[data-redesign="1"] .corevember__who-select {
+  font-family: "Josefin Sans", sans-serif;
+  font-size: var(--fs-lg);
+  letter-spacing: 0.04em;
   color: var(--text);
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-pill);
+  padding: var(--space-3) var(--space-7) var(--space-3) var(--space-6);
+  cursor: pointer;
+  text-align: center;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23c7ccd6' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-4) center;
 }
-[data-redesign="1"] .corevember__profile.is-active {
-  background: var(--ember);
-  color: var(--on-ember, #fff);
+[data-redesign="1"] .corevember__who-select:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+[data-redesign="1"] .corevember__who-select:focus-visible {
+  outline: 2px solid var(--ember-strong);
+  outline-offset: 2px;
 }
 
 /* Both-of-us standings — a small shared scoreboard so it feels like a duo
