@@ -548,4 +548,13 @@ export const api = {
       body: JSON.stringify({ status }),
     });
   },
+  getCorevember() {
+    return request("/api/corevember");
+  },
+  saveCorevember(entry) {
+    return request("/api/corevember", {
+      method: "POST",
+      body: JSON.stringify(entry),
+    });
+  },
 };

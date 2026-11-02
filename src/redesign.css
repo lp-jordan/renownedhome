@@ -2088,3 +2088,355 @@
 [data-redesign="1"] .page-stack--correspondence-redesign .correspondence-retake {
   color: var(--ember-strong);
 }
+
+/* ---------------------------------------------------------------------------
+ * Corevember — standalone single-screen core tracker (/corevember).
+ * Not part of the storefront; PublicSite hides the breadcrumb bar + footer so
+ * this fills the screen. Plank dial + daily total, crunch-set counter.
+ * ------------------------------------------------------------------------- */
+[data-redesign="1"] .corevember {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-4) var(--space-5);
+  max-width: 520px;
+  margin: 0 auto;
+  text-align: center;
+}
+[data-redesign="1"] .corevember__head h1 {
+  font-family: "Josefin Sans", sans-serif;
+  font-size: var(--fs-h2);
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+[data-redesign="1"] .corevember__head p {
+  margin: var(--space-1) 0 0;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+[data-redesign="1"] .corevember__panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  background: var(--bg-panel, #0f141f);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6) var(--space-5);
+  box-shadow: var(--elev-1);
+}
+
+/* --- Plank dial --- */
+[data-redesign="1"] .corevember__dial-wrap {
+  position: relative;
+  width: 260px;
+  height: 260px;
+  max-width: 72vw;
+  max-height: 72vw;
+}
+[data-redesign="1"] .corevember__dial {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+[data-redesign="1"] .corevember__dial-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 14;
+}
+[data-redesign="1"] .corevember__dial-sweep {
+  fill: none;
+  stroke: var(--ember);
+  stroke-width: 14;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 220ms linear, stroke 300ms ease;
+}
+[data-redesign="1"] .corevember__dial-sweep.is-running {
+  filter: drop-shadow(0 0 10px var(--ember-glow));
+}
+[data-redesign="1"] .corevember__dial-sweep.is-met {
+  stroke: var(--success, #4cc38a);
+}
+[data-redesign="1"] .corevember__dial-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+[data-redesign="1"] .corevember__time {
+  font-family: "Josefin Sans", sans-serif;
+  font-size: clamp(2.8rem, 12vw, 3.6rem);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+[data-redesign="1"] .corevember__time-label {
+  color: var(--text-dim);
+  font-size: var(--fs-eyebrow);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+[data-redesign="1"] .corevember__timer-btn {
+  font-family: "Josefin Sans", sans-serif;
+  font-size: var(--fs-lg);
+  letter-spacing: 0.04em;
+  color: var(--on-ember, #fff);
+  background: var(--ember);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: var(--space-4) var(--space-7);
+  cursor: pointer;
+  width: 100%;
+  max-width: 320px;
+  transition: background 160ms ease, transform 120ms ease, box-shadow 160ms ease;
+  box-shadow: var(--elev-cta);
+}
+[data-redesign="1"] .corevember__timer-btn:hover {
+  background: var(--ember-strong);
+}
+[data-redesign="1"] .corevember__timer-btn:active {
+  transform: translateY(1px);
+}
+[data-redesign="1"] .corevember__timer-btn.is-running {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  box-shadow: none;
+}
+
+/* --- Daily progress bars (shared) --- */
+[data-redesign="1"] .corevember__daily {
+  width: 100%;
+}
+[data-redesign="1"] .corevember__daily-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  margin-bottom: var(--space-2);
+}
+[data-redesign="1"] .corevember__daily-row strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+[data-redesign="1"] .corevember__daily-row strong.is-met {
+  color: var(--success, #4cc38a);
+}
+[data-redesign="1"] .corevember__bar {
+  width: 100%;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+[data-redesign="1"] .corevember__bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--ember);
+  transition: width 240ms ease, background 300ms ease;
+}
+[data-redesign="1"] .corevember__bar-fill.is-met {
+  background: var(--success, #4cc38a);
+}
+
+/* --- Crunch counter --- */
+[data-redesign="1"] .corevember__crunch-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+[data-redesign="1"] .corevember__crunch-count {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+[data-redesign="1"] .corevember__crunch-num {
+  font-family: "Josefin Sans", sans-serif;
+  font-size: clamp(3.4rem, 16vw, 4.6rem);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+[data-redesign="1"] .corevember__crunch-unit {
+  color: var(--text-dim);
+  font-size: var(--fs-lg);
+  letter-spacing: 0.04em;
+}
+[data-redesign="1"] .corevember__crunch-sub {
+  display: flex;
+  flex-direction: column;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+[data-redesign="1"] .corevember__crunch-sub small {
+  font-size: var(--fs-eyebrow);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+[data-redesign="1"] .corevember__crunch-controls {
+  display: flex;
+  gap: var(--space-5);
+  width: 100%;
+  justify-content: center;
+}
+[data-redesign="1"] .corevember__step {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-size: 3rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 140ms ease, transform 100ms ease, border-color 140ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+[data-redesign="1"] .corevember__step:active {
+  transform: scale(0.94);
+}
+[data-redesign="1"] .corevember__step--plus {
+  background: var(--ember);
+  border-color: transparent;
+  color: var(--on-ember, #fff);
+  box-shadow: var(--elev-cta);
+}
+[data-redesign="1"] .corevember__step--plus:hover {
+  background: var(--ember-strong);
+}
+[data-redesign="1"] .corevember__step--minus:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+[data-redesign="1"] .corevember__step:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* --- Footer status / reset --- */
+[data-redesign="1"] .corevember__foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: auto;
+}
+[data-redesign="1"] .corevember__status {
+  margin: 0;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  font-size: var(--fs-sm);
+  text-transform: uppercase;
+}
+[data-redesign="1"] .corevember--done .corevember__status {
+  color: var(--success, #4cc38a);
+}
+[data-redesign="1"] .corevember__reset {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: var(--fs-eyebrow);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0.6;
+  padding: var(--space-2);
+}
+[data-redesign="1"] .corevember__reset:hover {
+  opacity: 1;
+  color: var(--danger, #ff6f61);
+}
+
+/* Corevember — additions for the two-person, server-backed version:
+   profile switch, both-of-us standings, load/error state, sync note. */
+[data-redesign="1"] .corevember--state {
+  justify-content: center;
+  gap: var(--space-4);
+  color: var(--text-dim);
+}
+[data-redesign="1"] .corevember__profiles {
+  display: flex;
+  gap: var(--space-2);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-pill);
+  padding: var(--space-1);
+}
+[data-redesign="1"] .corevember__profile {
+  font-family: "Josefin Sans", sans-serif;
+  font-size: var(--fs-body);
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-5);
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+[data-redesign="1"] .corevember__profile:hover {
+  color: var(--text);
+}
+[data-redesign="1"] .corevember__profile.is-active {
+  background: var(--ember);
+  color: var(--on-ember, #fff);
+}
+
+/* Both-of-us standings — a small shared scoreboard so it feels like a duo
+   challenge. The active profile's row is highlighted and counts live. */
+[data-redesign="1"] .corevember__standings {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+[data-redesign="1"] .corevember__standing {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--space-4);
+  align-items: baseline;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.07));
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.02);
+}
+[data-redesign="1"] .corevember__standing.is-active {
+  border-color: var(--ember);
+  background: rgba(225, 80, 42, 0.08);
+}
+[data-redesign="1"] .corevember__standing-name {
+  font-family: "Josefin Sans", sans-serif;
+  letter-spacing: 0.04em;
+}
+[data-redesign="1"] .corevember__standing-stat {
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+[data-redesign="1"] .corevember__standing-stat .is-met {
+  color: var(--success, #4cc38a);
+  font-weight: 700;
+}
+[data-redesign="1"] .corevember__sync-note {
+  margin: 0;
+  color: var(--danger, #ff6f61);
+  font-size: var(--fs-eyebrow);
+  letter-spacing: 0.04em;
+  max-width: 34ch;
+}

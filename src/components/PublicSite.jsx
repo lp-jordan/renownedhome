@@ -15,6 +15,7 @@ import LibraryPage from "./LibraryPage";
 import { CartButton, CartDrawer, CartPage, CartProvider, useCart } from "./Cart";
 import SystemPage from "./SystemPage";
 import ReadFunnelPage from "./ReadFunnelPage";
+import CorevemberPage from "./CorevemberPage";
 import { resolveSeo, usePageSeo, useSeo } from "../lib/seo";
 
 const SWIPE_THRESHOLD = 44;
@@ -108,7 +109,10 @@ function getIssueReaderImages(issue) {
 
 export default function PublicSite({ bootstrap, refreshBootstrap }) {
   const location = useLocation();
+  // Corevember is a standalone single-screen tool — no storefront chrome.
+  const isCorevember = location.pathname.startsWith("/corevember");
   const hideBreadcrumbs =
+    isCorevember ||
     location.pathname.startsWith("/a/") ||
     location.pathname.startsWith("/share/") ||
     location.pathname.startsWith("/order/") ||
@@ -132,6 +136,7 @@ export default function PublicSite({ bootstrap, refreshBootstrap }) {
           <Route path="/connect" element={<TeamPage bootstrap={bootstrap} routeSlug="/connect" />} />
           <Route path="/meet" element={<TeamPage bootstrap={bootstrap} routeSlug="/meet" />} />
           <Route path="/read" element={<ReadFunnelPage bootstrap={bootstrap} />} />
+          <Route path="/corevember" element={<CorevemberPage />} />
           <Route path="/issue-1" element={<IssuePage bootstrap={bootstrap} slug="/issue-1" />} />
           <Route path="/issue-2" element={<IssuePage bootstrap={bootstrap} slug="/issue-2" />} />
           <Route path="/issue-3" element={<IssuePage bootstrap={bootstrap} slug="/issue-3" />} />
@@ -165,7 +170,9 @@ export default function PublicSite({ bootstrap, refreshBootstrap }) {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>
-      <SiteFooter footer={bootstrap.siteSettings.footer} connectPage={findPage(bootstrap, "/connect")} />
+      {isCorevember ? null : (
+        <SiteFooter footer={bootstrap.siteSettings.footer} connectPage={findPage(bootstrap, "/connect")} />
+      )}
       <CartDrawer issues={bootstrap.issues} bundle={bootstrap.bundle} />
       </div>
     </CartProvider>

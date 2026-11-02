@@ -32,6 +32,11 @@ import {
 } from "./src/lib/deliveryStore.js";
 import { FunnelFileStore, FunnelPgStore } from "./src/lib/funnelStore.js";
 import {
+  CorevemberFileStore,
+  CorevemberPgStore,
+  COREVEMBER_USERS,
+} from "./src/lib/corevemberStore.js";
+import {
   buildAdminSaleNotificationEmail,
   buildDeliveryEmail,
   buildLibraryLinkEmail,
@@ -122,6 +127,7 @@ const runtimeFile = path.join(runtimeDir, "content-store.json");
 const deliveryRuntimeFile = path.join(runtimeDir, "delivery-store.json");
 const commerceRuntimeFile = path.join(runtimeDir, "commerce-store.json");
 const analyticsRuntimeFile = path.join(runtimeDir, "analytics-store.json");
+const corevemberRuntimeFile = path.join(runtimeDir, "corevember-store.json");
 const uploadTempDir = path.join(runtimeDir, "uploads");
 const distDir = path.join(__dirname, "dist");
 const distIndexFile = path.join(distDir, "index.html");
@@ -1381,6 +1387,9 @@ const ordersStore = process.env.DATABASE_URL
 const funnelStore = process.env.DATABASE_URL
   ? new FunnelPgStore(process.env.DATABASE_URL)
   : new FunnelFileStore(analyticsRuntimeFile);
+const corevemberStore = process.env.DATABASE_URL
+  ? new CorevemberPgStore(process.env.DATABASE_URL)
+  : new CorevemberFileStore(corevemberRuntimeFile);
 
 app.use(setSecurityHeaders);
 app.use(setCacheHeaders);
@@ -2893,6 +2902,39 @@ app.post("/api/analytics/event", analyticsRateLimiter, async (req, res) => {
   // sendBeacon requests don't read the response, but keep this cheap and
   // always-200 so the client never has to retry a fire-and-forget event.
   res.json({ ok: true });
+});
+
+// Corevember — a small two-person daily core tracker at /corevember. Public
+// and unauthenticated by design (it's a personal tool, no sensitive data); the
+// store only ever accepts the fixed roster, so a stray POST can't create users
+// or write anywhere but those two people's own daily rows.
+app.get("/api/corevember", async (_req, res) => {
+  try {
+    const days = await corevemberStore.getDays();
+    res.json({ users: COREVEMBER_USERS, days });
+  } catch (err) {
+    console.error("Failed to fetch corevember logs:", err?.message);
+    res.status(500).json({ error: "Failed to load Corevember." });
+  }
+});
+
+app.post("/api/corevember", publicFormRateLimiter, async (req, res) => {
+  try {
+    const entry = await corevemberStore.upsert({
+      user: req.body?.user,
+      date: req.body?.date,
+      plankSeconds: req.body?.plankSeconds,
+      crunchSets: req.body?.crunchSets,
+    });
+    if (!entry) {
+      res.status(400).json({ error: "Unknown person or invalid date." });
+      return;
+    }
+    res.json({ entry });
+  } catch (err) {
+    console.error("Failed to save corevember log:", err?.message);
+    res.status(500).json({ error: "Failed to save." });
+  }
 });
 
 app.get("/api/admin/funnel-analytics", requireAdmin, async (req, res) => {
@@ -4808,6 +4850,7 @@ await repository.init();
 await deliveryStore.init();
 await ordersStore.init();
 await funnelStore.init();
+await corevemberStore.init();
 
 const port = Number(process.env.PORT || 3001);
 app.listen(port, () => {
