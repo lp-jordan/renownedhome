@@ -66,6 +66,29 @@ function entryFor(days, dateKey, slug) {
   return days?.[dateKey]?.[slug] || { plankSeconds: 0, crunchSets: 0 };
 }
 
+function monthKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+// Longer totals read better as "1h 23m" / "8m 30s" than a running mm:ss clock.
+function formatDuration(totalSeconds) {
+  const safe = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(safe / 3600);
+  const m = Math.floor((safe % 3600) / 60);
+  const s = safe % 60;
+  if (h > 0) {
+    return `${h}h ${m}m`;
+  }
+  return `${m}m ${String(s).padStart(2, "0")}s`;
+}
+
+function floorMet(entry) {
+  return (
+    (entry?.plankSeconds || 0) >= PLANK_GOAL_SECONDS &&
+    (entry?.crunchSets || 0) >= CRUNCH_GOAL_SETS
+  );
+}
+
 export default function CorevemberPage() {
   useSeo(
     "Corevember",
@@ -80,6 +103,7 @@ export default function CorevemberPage() {
   const [activeUser, setActiveUser] = useState(() => readLocal(ACTIVE_USER_KEY, null));
   const [loadState, setLoadState] = useState("loading"); // loading | ready | error
   const [syncError, setSyncError] = useState(false);
+  const [view, setView] = useState("log"); // log | month
 
   // Live plank stopwatch for the active profile (epoch ms the run started, or
   // null). Kept per-device so a refresh mid-plank resumes.
@@ -240,6 +264,29 @@ export default function CorevemberPage() {
         <p>{formatLongDate()}</p>
       </header>
 
+      <div className="corevember__viewtabs" role="group" aria-label="View">
+        <button
+          type="button"
+          className={`corevember__viewtab ${view === "log" ? "is-active" : ""}`}
+          aria-pressed={view === "log"}
+          onClick={() => setView("log")}
+        >
+          Today
+        </button>
+        <button
+          type="button"
+          className={`corevember__viewtab ${view === "month" ? "is-active" : ""}`}
+          aria-pressed={view === "month"}
+          onClick={() => setView("month")}
+        >
+          Month
+        </button>
+      </div>
+
+      {view === "month" ? (
+        <MonthView users={users} days={days} />
+      ) : (
+        <>
       <div className="corevember__who">
         <label className="corevember__who-label" htmlFor="corevember-user">Logging as</label>
         <select
@@ -374,6 +421,132 @@ export default function CorevemberPage() {
           Reset {users.find((u) => u.slug === activeUser)?.name || "today"}&apos;s day
         </button>
       </footer>
+        </>
+      )}
     </main>
+  );
+}
+
+// Month view — totals and a day-by-day log for the current calendar month,
+// computed entirely from the shared log the page already loaded. Shows, per
+// person: total plank time, total crunches, days the daily floor was cleared,
+// and the best streak of consecutive cleared days this month.
+function MonthView({ users, days }) {
+  const now = new Date();
+  const month = monthKey(now);
+  const monthLabel = new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+  }).format(now);
+
+  // Date keys for this month, day 1 through today, ascending.
+  const dateKeys = [];
+  for (let day = 1; day <= now.getDate(); day += 1) {
+    dateKeys.push(`${month}-${String(day).padStart(2, "0")}`);
+  }
+
+  const totals = users.map((user) => {
+    let plankSeconds = 0;
+    let crunchSets = 0;
+    let daysCleared = 0;
+    let bestStreak = 0;
+    let run = 0;
+    for (const dateKey of dateKeys) {
+      const entry = entryFor(days, dateKey, user.slug);
+      plankSeconds += entry.plankSeconds || 0;
+      crunchSets += entry.crunchSets || 0;
+      if (floorMet(entry)) {
+        daysCleared += 1;
+        run += 1;
+        bestStreak = Math.max(bestStreak, run);
+      } else {
+        run = 0;
+      }
+    }
+    return { user, plankSeconds, crunchSets, daysCleared, bestStreak };
+  });
+
+  // Most recent day first in the log.
+  const logDates = [...dateKeys].reverse();
+
+  function dayLabel(dateKey) {
+    const [y, m, d] = dateKey.split("-").map(Number);
+    return new Intl.DateTimeFormat("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    }).format(new Date(y, m - 1, d));
+  }
+
+  return (
+    <section className="corevember__month" aria-label={`${monthLabel} totals`}>
+      <p className="corevember__month-label">{monthLabel}</p>
+
+      <div className="corevember__month-totals">
+        {totals.map(({ user, plankSeconds, crunchSets, daysCleared, bestStreak }) => (
+          <div key={user.slug} className="corevember__month-card">
+            <p className="corevember__month-name">{user.name}</p>
+            <div className="corevember__month-stats">
+              <div>
+                <strong>{formatDuration(plankSeconds)}</strong>
+                <span>total plank</span>
+              </div>
+              <div>
+                <strong>{crunchSets * CRUNCHES_PER_SET}</strong>
+                <span>crunches</span>
+              </div>
+              <div>
+                <strong>{daysCleared}</strong>
+                <span>days cleared</span>
+              </div>
+              <div>
+                <strong>{bestStreak}</strong>
+                <span>best streak</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="corevember__log" role="table" aria-label="Daily log">
+        <div className="corevember__log-head" role="row">
+          <span role="columnheader">Day</span>
+          {users.map((user) => (
+            <span key={user.slug} role="columnheader">
+              {user.name}
+            </span>
+          ))}
+        </div>
+        {logDates.map((dateKey) => (
+          <div key={dateKey} className="corevember__log-row" role="row">
+            <span className="corevember__log-day" role="cell">
+              {dayLabel(dateKey)}
+            </span>
+            {users.map((user) => {
+              const entry = entryFor(days, dateKey, user.slug);
+              const logged = (entry.plankSeconds || 0) > 0 || (entry.crunchSets || 0) > 0;
+              const cleared = floorMet(entry);
+              return (
+                <span
+                  key={user.slug}
+                  className={`corevember__log-cell ${cleared ? "is-cleared" : ""}`}
+                  role="cell"
+                >
+                  {logged ? (
+                    <>
+                      {formatClock(entry.plankSeconds)}
+                      <small>{entry.crunchSets * CRUNCHES_PER_SET} cr</small>
+                      {cleared ? <span className="corevember__log-check">✓</span> : null}
+                    </>
+                  ) : (
+                    <span className="corevember__log-empty">—</span>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

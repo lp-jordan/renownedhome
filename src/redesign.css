@@ -2453,3 +2453,152 @@
   letter-spacing: 0.04em;
   max-width: 34ch;
 }
+
+/* Corevember — Today/Month view toggle + the month totals & daily log. */
+[data-redesign="1"] .corevember__viewtabs {
+  display: flex;
+  gap: var(--space-1);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-pill);
+  padding: var(--space-1);
+}
+[data-redesign="1"] .corevember__viewtab {
+  font-family: "Josefin Sans", sans-serif;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-5);
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+[data-redesign="1"] .corevember__viewtab:hover {
+  color: var(--text);
+}
+[data-redesign="1"] .corevember__viewtab.is-active {
+  background: var(--ember);
+  color: var(--on-ember, #fff);
+}
+
+[data-redesign="1"] .corevember__month {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+[data-redesign="1"] .corevember__month-label {
+  margin: 0;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: var(--fs-eyebrow);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+[data-redesign="1"] .corevember__month-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+[data-redesign="1"] .corevember__month-card {
+  background: var(--bg-panel, #0f141f);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.07));
+  border-radius: var(--radius-lg);
+  padding: var(--space-5) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+[data-redesign="1"] .corevember__month-name {
+  margin: 0;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: var(--fs-lg);
+  letter-spacing: 0.04em;
+}
+[data-redesign="1"] .corevember__month-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3) var(--space-4);
+}
+[data-redesign="1"] .corevember__month-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+[data-redesign="1"] .corevember__month-stats strong {
+  font-size: var(--fs-h3);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+[data-redesign="1"] .corevember__month-stats span {
+  color: var(--text-dim);
+  font-size: var(--fs-eyebrow);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Daily log — a compact CSS grid "table": Day column + one per person. */
+[data-redesign="1"] .corevember__log {
+  width: 100%;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.07));
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+[data-redesign="1"] .corevember__log-head,
+[data-redesign="1"] .corevember__log-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  align-items: center;
+}
+[data-redesign="1"] .corevember__log-head {
+  background: rgba(255, 255, 255, 0.04);
+  padding: var(--space-3) var(--space-4);
+}
+[data-redesign="1"] .corevember__log-head span {
+  color: var(--text-dim);
+  font-size: var(--fs-eyebrow);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+}
+[data-redesign="1"] .corevember__log-head span:first-child {
+  text-align: left;
+}
+[data-redesign="1"] .corevember__log-row {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--line, rgba(255, 255, 255, 0.07));
+  font-size: var(--fs-sm);
+}
+[data-redesign="1"] .corevember__log-day {
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+[data-redesign="1"] .corevember__log-cell {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--space-1);
+  font-variant-numeric: tabular-nums;
+}
+[data-redesign="1"] .corevember__log-cell small {
+  color: var(--text-dim);
+  font-size: var(--fs-eyebrow);
+}
+[data-redesign="1"] .corevember__log-cell.is-cleared {
+  color: var(--success, #4cc38a);
+}
+[data-redesign="1"] .corevember__log-cell.is-cleared small {
+  color: var(--success, #4cc38a);
+  opacity: 0.8;
+}
+[data-redesign="1"] .corevember__log-check {
+  color: var(--success, #4cc38a);
+}
+[data-redesign="1"] .corevember__log-empty {
+  color: var(--text-dim);
+  opacity: 0.5;
+}
